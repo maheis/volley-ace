@@ -1,5 +1,7 @@
 # VolleyAce
 
+Volleyball Assistenz
+
 ## Technologie
 
 - Flutter/Dart
@@ -12,16 +14,16 @@
   - Mitglieder
   - Trainer
 
-## Ideas
+## ToDos
 
-- Soundboard
-- Punktetafel
-- Punktewertung
-  - Wer
-  - Punkt / Fehler
-  - Wie / Was
-- Rotation
-- Trainingsübungen
-- Trainingsteilnahme
-- Trainingsbewertungen
-- Trainingsstände (Archivments)
+- [ ] Punktetafel
+- [ ] Soundboard
+- [ ] Punktewertung
+  - [ ] Wer
+  - [ ] Punkt / Fehler
+  - [ ] Wie / Was
+- [ ] Rotation
+- [ ] Trainingsübungen
+- [ ] Trainingsteilnahme
+- [ ] Trainingsbewertungen
+- [ ] Trainingsstände (Archivments)
