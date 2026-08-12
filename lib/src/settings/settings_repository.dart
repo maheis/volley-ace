@@ -1,37 +1,40 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sembast/sembast.dart';
 
 import 'app_settings.dart';
 
 class SettingsRepository {
-  static const String _fontFamilyKey = 'fontFamily';
-  static const String _textScaleFactorKey = 'uiTextScaleFactor';
+  SettingsRepository(Database database) : _database = database;
+
+  static const String _settingsRecordKey = 'app';
+  static final StoreRef<String, Map<String, dynamic>> _store =
+      StoreRef<String, Map<String, dynamic>>('settings');
+
+  final Database _database;
 
   Future<AppSettings> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedFont = prefs.getString(_fontFamilyKey);
-    final storedScale = prefs.getDouble(_textScaleFactorKey);
+    final data = await _store.record(_settingsRecordKey).get(_database);
+    final storedFont = data?['fontFamily'];
+    final storedScale = data?['uiTextScaleFactor'];
 
     final fontFamily = AppSettings.availableFonts.contains(storedFont)
-        ? storedFont!
+        ? storedFont as String
         : AppSettings.defaults.fontFamily;
 
-    final textScaleFactor = _clampScale(
-      storedScale ?? AppSettings.defaults.textScaleFactor,
-    );
+    final scale = storedScale is num
+        ? storedScale.toDouble()
+        : AppSettings.defaults.textScaleFactor;
 
     return AppSettings(
       fontFamily: fontFamily,
-      textScaleFactor: textScaleFactor,
+      textScaleFactor: _clampScale(scale),
     );
   }
 
   Future<void> save(AppSettings settings) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_fontFamilyKey, settings.fontFamily);
-    await prefs.setDouble(
-      _textScaleFactorKey,
-      _clampScale(settings.textScaleFactor),
-    );
+    await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
+      'fontFamily': settings.fontFamily,
+      'uiTextScaleFactor': _clampScale(settings.textScaleFactor),
+    });
   }
 
   double _clampScale(double value) => value.clamp(0.5, 1.6);

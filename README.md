@@ -8,6 +8,10 @@ Volleyball Assistenz
   - Android
   - Web?
   - Windows/Linux?
+- Lokaler Storage: Sembast
+  - Datei: `volley_ace.db` auf Desktop/Android
+  - IndexedDB im Web
+  - Settings-Store: `settings`, Datensatz `app`
 - Cloud Sync
 - Anmeldung
 - Teams
@@ -16,6 +20,7 @@ Volleyball Assistenz
 
 ## ToDos
 
+- [ ] Team
 - [ ] Punktetafel
 - [ ] Soundboard
 - [ ] Punktewertung
