@@ -16,6 +16,17 @@ class HomePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 95,
+        leadingWidth: 100,
+        leading: Padding(
+          padding:
+              const EdgeInsets.only(left: 16, top: 16, right: 4, bottom: 4),
+          child: Image.asset(
+            'assets/icons/color_transparent_icon.png',
+            width: 75,
+            height: 75,
+          ),
+        ),
         title: const Text('VolleyAce'),
         actions: [
           IconButton(
@@ -23,37 +34,11 @@ class HomePage extends StatelessWidget {
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Image.asset(
-              'assets/icons/color_transparent_icon.png',
-              width: 30,
-              height: 30,
-            ),
-          ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SimplePresent-inspired starter',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
           Card(
             child: ListTile(
               leading: Icon(Icons.scoreboard, color: scheme.primary),
