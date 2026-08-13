@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -234,46 +236,67 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   }
 
   Widget _buildBoard(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                child: _ScorePanel(
-                  score: _leftPoints,
-                  color: _leftColor,
-                  label: 'blau',
-                  onSwipeDown: () => _addPoint(left: true),
-                  onSwipeUp: () => _undoPoint(left: true),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = math
+            .min(
+              constraints.maxWidth / 1100,
+              constraints.maxHeight / 500,
+            )
+            .clamp(0.35, 1.0);
+        final gap = 10 * scale;
+
+        return Column(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ScorePanel(
+                      score: _leftPoints,
+                      color: _leftColor,
+                      label: 'blau',
+                      fontSize: 300 * scale,
+                      borderRadius: 12 * scale,
+                      onSwipeDown: () => _addPoint(left: true),
+                      onSwipeUp: () => _undoPoint(left: true),
+                    ),
+                  ),
+                  SizedBox(width: gap),
+                  _SetWins(
+                    leftSets: _leftSets,
+                    rightSets: _rightSets,
+                    leftColor: _leftColor,
+                    rightColor: _rightColor,
+                    tileWidth: 110 * scale,
+                    tileHeight: 220 * scale,
+                    fontSize: 150 * scale,
+                    gap: gap,
+                    borderRadius: 12 * scale,
+                    onLeftSwipeDown: () => _addSet(left: true),
+                    onRightSwipeDown: () => _addSet(left: false),
+                    onSwipeUp: _undoSet,
+                    onHorizontalSwipe: _swapSides,
+                  ),
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: _ScorePanel(
+                      score: _rightPoints,
+                      color: _rightColor,
+                      label: 'rot',
+                      fontSize: 300 * scale,
+                      borderRadius: 12 * scale,
+                      onSwipeDown: () => _addPoint(left: false),
+                      onSwipeUp: () => _undoPoint(left: false),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              _SetWins(
-                leftSets: _leftSets,
-                rightSets: _rightSets,
-                leftColor: _leftColor,
-                rightColor: _rightColor,
-                onLeftSwipeDown: () => _addSet(left: true),
-                onRightSwipeDown: () => _addSet(left: false),
-                onSwipeUp: _undoSet,
-                onHorizontalSwipe: _swapSides,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ScorePanel(
-                  score: _rightPoints,
-                  color: _rightColor,
-                  label: 'rot',
-                  onSwipeDown: () => _addPoint(left: false),
-                  onSwipeUp: () => _undoPoint(left: false),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10)
-      ],
+            ),
+            SizedBox(height: gap),
+          ],
+        );
+      },
     );
   }
 }
@@ -283,6 +306,8 @@ class _ScorePanel extends StatelessWidget {
     required this.score,
     required this.color,
     required this.label,
+    required this.fontSize,
+    required this.borderRadius,
     required this.onSwipeDown,
     required this.onSwipeUp,
   });
@@ -290,6 +315,8 @@ class _ScorePanel extends StatelessWidget {
   final int score;
   final Color color;
   final String label;
+  final double fontSize;
+  final double borderRadius;
   final VoidCallback onSwipeDown;
   final VoidCallback onSwipeUp;
 
@@ -311,7 +338,7 @@ class _ScorePanel extends StatelessWidget {
           key: ValueKey('$label-score-panel'),
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
           alignment: Alignment.center,
           child: AnimatedSwitcher(
@@ -324,9 +351,9 @@ class _ScorePanel extends StatelessWidget {
             child: Text(
               '$score',
               key: ValueKey('$score-$color'),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 300,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w700,
                 height: 1,
               ),
@@ -344,6 +371,11 @@ class _SetWins extends StatelessWidget {
     required this.rightSets,
     required this.leftColor,
     required this.rightColor,
+    required this.tileWidth,
+    required this.tileHeight,
+    required this.fontSize,
+    required this.gap,
+    required this.borderRadius,
     required this.onLeftSwipeDown,
     required this.onRightSwipeDown,
     required this.onSwipeUp,
@@ -354,6 +386,11 @@ class _SetWins extends StatelessWidget {
   final int rightSets;
   final Color leftColor;
   final Color rightColor;
+  final double tileWidth;
+  final double tileHeight;
+  final double fontSize;
+  final double gap;
+  final double borderRadius;
   final VoidCallback onLeftSwipeDown;
   final VoidCallback onRightSwipeDown;
   final VoidCallback onSwipeUp;
@@ -372,14 +409,22 @@ class _SetWins extends StatelessWidget {
             value: leftSets,
             color: leftColor,
             label: 'blau',
+            tileWidth: tileWidth,
+            tileHeight: tileHeight,
+            fontSize: fontSize,
+            borderRadius: borderRadius,
             onSwipeDown: onLeftSwipeDown,
             onSwipeUp: onSwipeUp,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: gap),
           _SetNumber(
             value: rightSets,
             color: rightColor,
             label: 'rot',
+            tileWidth: tileWidth,
+            tileHeight: tileHeight,
+            fontSize: fontSize,
+            borderRadius: borderRadius,
             onSwipeDown: onRightSwipeDown,
             onSwipeUp: onSwipeUp,
           ),
@@ -394,6 +439,10 @@ class _SetNumber extends StatelessWidget {
     required this.value,
     required this.color,
     required this.label,
+    required this.tileWidth,
+    required this.tileHeight,
+    required this.fontSize,
+    required this.borderRadius,
     required this.onSwipeDown,
     required this.onSwipeUp,
   });
@@ -401,6 +450,10 @@ class _SetNumber extends StatelessWidget {
   final int value;
   final Color color;
   final String label;
+  final double tileWidth;
+  final double tileHeight;
+  final double fontSize;
+  final double borderRadius;
   final VoidCallback onSwipeDown;
   final VoidCallback onSwipeUp;
 
@@ -420,12 +473,12 @@ class _SetNumber extends StatelessWidget {
       child: Semantics(
         label: '$label: $value gewonnene Sätze',
         child: Container(
-          width: 110,
-          height: 220,
+          width: tileWidth,
+          height: tileHeight,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 240),
@@ -434,9 +487,9 @@ class _SetNumber extends StatelessWidget {
             child: Text(
               '$value',
               key: ValueKey(value),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 150,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w700,
               ),
             ),
