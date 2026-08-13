@@ -45,11 +45,41 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   bool _isFullscreen = false;
   DateTime _now = DateTime.now();
   Timer? _clockTimer;
+  bool _stopwatchRunning = false;
+  Duration _stopwatchElapsed = Duration.zero;
+  DateTime? _stopwatchStartedAt;
 
   String get _clockText {
     final hh = _now.hour.toString().padLeft(2, '0');
     final mm = _now.minute.toString().padLeft(2, '0');
     return '$hh:$mm';
+  }
+
+  Duration get _stopwatchDuration {
+    if (_stopwatchRunning && _stopwatchStartedAt != null) {
+      return _stopwatchElapsed + _now.difference(_stopwatchStartedAt!);
+    }
+    return _stopwatchElapsed;
+  }
+
+  String get _stopwatchText {
+    final total = _stopwatchDuration;
+    final mm = total.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final ss = total.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
+
+  void _toggleStopwatch() {
+    setState(() {
+      if (_stopwatchRunning) {
+        _stopwatchElapsed += _now.difference(_stopwatchStartedAt!);
+        _stopwatchRunning = false;
+        _stopwatchStartedAt = null;
+      } else {
+        _stopwatchStartedAt = DateTime.now();
+        _stopwatchRunning = true;
+      }
+    });
   }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
@@ -80,12 +110,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    }
   }
 
   @override
@@ -94,12 +118,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     WakelockPlus.disable();
     if (defaultTargetPlatform == TargetPlatform.android) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
     }
     super.dispose();
   }
@@ -226,6 +244,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftColor = _blue;
       _rightColor = _red;
       _history.clear();
+      _stopwatchRunning = false;
+      _stopwatchElapsed = Duration.zero;
+      _stopwatchStartedAt = null;
     });
   }
 
@@ -337,6 +358,35 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                         onRightSwipeDown: () => _addSet(left: false),
                         onSwipeUp: _undoSet,
                         onHorizontalSwipe: _swapSides,
+                      ),
+                      SizedBox(height: gap),
+                      GestureDetector(
+                        onTap: _toggleStopwatch,
+                        child: Semantics(
+                          label:
+                              'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}.',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _stopwatchRunning
+                                    ? Icons.pause_circle_filled
+                                    : Icons.play_circle_fill,
+                                color: Colors.white,
+                                size: (56 * scale).clamp(24, 74),
+                              ),
+                              SizedBox(width: gap * 0.6),
+                              Text(
+                                _stopwatchText,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: (56 * scale).clamp(24, 74),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
