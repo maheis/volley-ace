@@ -4,21 +4,21 @@ Volleyball Assistenz
 
 ## Technologie
 
-- Flutter/Dart
-  - Android
-  - Web?
-  - Windows/Linux?
+- [ ] Flutter/Dart
+  - [ ] Android
+  - [ ] Web
+  - [ ] Windows/Linux
 - Lokaler Storage: Sembast
   - Datei: `volley_ace.db` auf Desktop/Android
   - IndexedDB im Web
   - Settings-Store: `settings`, Datensatz `app`
-- Cloud Sync
-- Anmeldung
-- Teams
-  - Mitglieder
-  - Trainer
-- Sprachsteuerung (insbesondere für die Punktetafel)
-- Bildschirm aktiv lassen
+- [ ] Cloud Sync
+- [ ] Anmeldung
+- [ ] Teams
+  - [ ] Mitglieder
+  - [ ] Trainer
+- [ ] Sprachsteuerung (insbesondere für die Punktetafel)
+- [x] Bildschirm aktiv lassen
 
 ## ToDos
 
@@ -33,6 +33,29 @@ Volleyball Assistenz
   - [x] Letzte Punkte pro Satz anzeigen
   - [ ] Auszeiten pro Team anzeigen
   - [ ] Spielerwechsel pro Team anzeigen
+- [ ] Punktewertung
+  - [ ] Spielinfos
+    - [ ] Spielort
+    - [ ] Gegnerteam
+    - [ ] Spieltag / Datum / Uhrzeit
+    - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel)
+    - [ ] Team / Spieler
+  - [ ] Punkt / Fehler
+  - [ ] Wer
+    - Punkte
+      - [ ] Ass
+      - [ ] Angriff
+      - [ ] Block
+    - Fehler
+      - [ ] Aufschlag
+      - [ ] Ball ins Aus
+      - [ ] Ball ins Netz
+      - [ ] Ball nicht rüber
+      - [ ] Zugeschaut (Ball im Feld)
+      - [ ] Tusch
+      - [ ] Übertritt
+      - [ ] Netz Berührung
+      - [ ] Sonstiges
 - [ ] Team
   - [ ] Spieler
     - [ ] Name
@@ -49,18 +72,9 @@ Volleyball Assistenz
     - [ ] Trainerstatistik
     - [ ] Trainerbewertung
     - [ ] Achievements
-- [ ] Punktewertung
-  - [ ] Spielinfos
-    - [ ] Spielort
-    - [ ] Gegnerteam
-    - [ ] Spieltag / Datum / Uhrzeit
-    - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel)
-    - [ ] Team / Spieler
-  - [ ] Punkt / Fehler
-  - [ ] Wer / Wie / Was
 - [ ] Achievements
-- [ ] Soundboard
 - [ ] Rotation
+- [ ] Soundboard
 - [ ] Trainingsübungen
 - [ ] Trainingsteilnahme
 - [ ] Trainingsbewertungen
