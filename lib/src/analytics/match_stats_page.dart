@@ -14,6 +14,14 @@ class MatchPlayer {
   final String name;
   final int number;
 
+  MatchPlayer copyWith({int? id, String? name, int? number}) {
+    return MatchPlayer(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      number: number ?? this.number,
+    );
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'name': name,
@@ -85,30 +93,65 @@ class MatchEvent {
   }
 }
 
-class MatchStatsState {
-  const MatchStatsState({
+class MatchGame {
+  const MatchGame({
+    required this.id,
+    required this.createdAt,
+    required this.location,
+    required this.opponentTeam,
+    required this.matchDateTime,
+    required this.matchType,
     required this.players,
     required this.events,
   });
 
-  static const MatchStatsState empty = MatchStatsState(
-    players: <MatchPlayer>[],
-    events: <MatchEvent>[],
-  );
-
+  final int id;
+  final DateTime createdAt;
+  final String location;
+  final String opponentTeam;
+  final DateTime matchDateTime;
+  final String matchType;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
 
+  MatchGame copyWith({
+    int? id,
+    DateTime? createdAt,
+    String? location,
+    String? opponentTeam,
+    DateTime? matchDateTime,
+    String? matchType,
+    List<MatchPlayer>? players,
+    List<MatchEvent>? events,
+  }) {
+    return MatchGame(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      location: location ?? this.location,
+      opponentTeam: opponentTeam ?? this.opponentTeam,
+      matchDateTime: matchDateTime ?? this.matchDateTime,
+      matchType: matchType ?? this.matchType,
+      players: players ?? this.players,
+      events: events ?? this.events,
+    );
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'createdAtMillis': createdAt.millisecondsSinceEpoch,
+        'location': location,
+        'opponentTeam': opponentTeam,
+        'matchDateTimeMillis': matchDateTime.millisecondsSinceEpoch,
+        'matchType': matchType,
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
       };
 
-  static MatchStatsState fromJson(Map<String, dynamic>? data) {
-    if (data == null) return empty;
-
+  static MatchGame fromJson(Map<String, dynamic> data) {
     final playersData = data['players'];
     final eventsData = data['events'];
+    final createdAtMillis = data['createdAtMillis'];
+    final matchDateTimeMillis = data['matchDateTimeMillis'];
 
     final players = playersData is List
         ? playersData
@@ -124,7 +167,49 @@ class MatchStatsState {
             .toList()
         : <MatchEvent>[];
 
-    return MatchStatsState(players: players, events: events);
+    return MatchGame(
+      id: data['id'] is num ? (data['id'] as num).toInt() : 0,
+      createdAt: createdAtMillis is num
+          ? DateTime.fromMillisecondsSinceEpoch(createdAtMillis.toInt())
+          : DateTime.now(),
+      location: data['location'] is String ? data['location'] as String : '',
+      opponentTeam:
+          data['opponentTeam'] is String ? data['opponentTeam'] as String : '',
+      matchDateTime: matchDateTimeMillis is num
+          ? DateTime.fromMillisecondsSinceEpoch(matchDateTimeMillis.toInt())
+          : DateTime.now(),
+      matchType: data['matchType'] is String
+          ? data['matchType'] as String
+          : 'Freundschaftsspiel',
+      players: players,
+      events: events,
+    );
+  }
+}
+
+class MatchStatsState {
+  const MatchStatsState({required this.matches});
+
+  static const MatchStatsState empty = MatchStatsState(matches: <MatchGame>[]);
+
+  final List<MatchGame> matches;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'matches': matches.map((match) => match.toJson()).toList(),
+      };
+
+  static MatchStatsState fromJson(Map<String, dynamic>? data) {
+    if (data == null) return empty;
+
+    final matchesData = data['matches'];
+    final matches = matchesData is List
+        ? matchesData
+            .whereType<Map>()
+            .map((item) => MatchGame.fromJson(Map<String, dynamic>.from(item)))
+            .toList()
+        : <MatchGame>[];
+
+    return MatchStatsState(matches: matches);
   }
 }
 
@@ -157,16 +242,12 @@ class MatchStatsPage extends StatefulWidget {
 }
 
 class _MatchStatsPageState extends State<MatchStatsPage> {
-  late final MatchStatsRepository _repository = MatchStatsRepository(
-    widget.database,
-  );
-
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _numberController = TextEditingController();
-  final List<MatchPlayer> _players = <MatchPlayer>[];
-  final List<MatchEvent> _events = <MatchEvent>[];
-  bool _isLoaded = false;
-  int _nextPlayerId = 1;
+  static const List<String> _matchTypes = <String>[
+    'Liga',
+    'Turnier',
+    'Freundschaftsspiel',
+    'Trainingsspiel',
+  ];
 
   static const List<String> _pointTypes = <String>['Ass', 'Angriff', 'Block'];
   static const List<String> _errorTypes = <String>[
@@ -181,6 +262,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Sonstiges',
   ];
 
+  late final MatchStatsRepository _repository = MatchStatsRepository(
+    widget.database,
+  );
+
+  final List<MatchGame> _matches = <MatchGame>[];
+  int? _selectedMatchId;
+  String? _activeSection;
+  bool _isLoaded = false;
+  int _nextMatchId = 1;
+
+  final TextEditingController _playerNameController = TextEditingController();
+  final TextEditingController _playerNumberController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -190,30 +284,236 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Future<void> _load() async {
     final state = await _repository.load();
     if (!mounted) return;
+
     setState(() {
-      _players.addAll(state.players);
-      _events.addAll(state.events);
+      _matches
+        ..clear()
+        ..addAll(state.matches)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _isLoaded = true;
-      _nextPlayerId = state.players.isEmpty
+      _nextMatchId = _matches.isEmpty
           ? 1
-          : state.players
-                  .map((player) => player.id)
-                  .reduce((a, b) => a > b ? a : b) +
+          : _matches.map((match) => match.id).reduce((a, b) => a > b ? a : b) +
               1;
     });
   }
 
   Future<void> _persist() async {
-    await _repository.save(
-      MatchStatsState(
-          players: List<MatchPlayer>.from(_players),
-          events: List<MatchEvent>.from(_events)),
-    );
+    final matches = List<MatchGame>.from(_matches)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    await _repository.save(MatchStatsState(matches: matches));
   }
 
-  void _addPlayer() {
-    final name = _nameController.text.trim();
-    final numberText = _numberController.text.trim();
+  MatchGame? get _selectedMatch {
+    for (final match in _matches) {
+      if (match.id == _selectedMatchId) return match;
+    }
+    return null;
+  }
+
+  void _showMatchDetail(int matchId, {String? section}) {
+    setState(() {
+      _selectedMatchId = matchId;
+      _activeSection = section;
+    });
+  }
+
+  void _closeMatchDetail() {
+    setState(() {
+      _selectedMatchId = null;
+      _activeSection = null;
+    });
+  }
+
+  Future<void> _openNewMatchForm() async {
+    final match = await _showMatchFormDialog();
+    if (match == null) return;
+
+    setState(() {
+      _matches.insert(0, match);
+      _selectedMatchId = match.id;
+      _activeSection = null;
+    });
+    await _persist();
+  }
+
+  Future<void> _editMatch(MatchGame match) async {
+    final updated = await _showMatchFormDialog(existing: match);
+    if (updated == null) return;
+
+    setState(() {
+      final index = _matches.indexWhere((item) => item.id == match.id);
+      if (index >= 0) {
+        _matches[index] = updated;
+      } else {
+        _matches.insert(0, updated);
+      }
+      _selectedMatchId = updated.id;
+      _activeSection = 'info';
+    });
+    await _persist();
+  }
+
+  Future<MatchGame?> _showMatchFormDialog({MatchGame? existing}) async {
+    final locationController = TextEditingController(
+      text: existing?.location ?? '',
+    );
+    final opponentController = TextEditingController(
+      text: existing?.opponentTeam ?? '',
+    );
+    String matchType = existing?.matchType ?? _matchTypes[2];
+    DateTime matchDateTime = existing?.matchDateTime ?? DateTime.now();
+
+    final result = await showDialog<MatchGame>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: Text(existing == null
+                  ? 'Neues Spiel erfassen'
+                  : 'Spielinfos bearbeiten'),
+              content: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: locationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Spielort',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: opponentController,
+                        decoration: const InputDecoration(
+                          labelText: 'Gegnerteam',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: matchType,
+                        decoration: const InputDecoration(
+                          labelText: 'Spieltyp',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _matchTypes
+                            .map(
+                              (type) => DropdownMenuItem<String>(
+                                value: type,
+                                child: Text(type),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setLocalState(() => matchType = value);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final selected = await showDatePicker(
+                                  context: context,
+                                  initialDate: matchDateTime,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (selected != null) {
+                                  setLocalState(() {
+                                    matchDateTime = DateTime(
+                                      selected.year,
+                                      selected.month,
+                                      selected.day,
+                                      matchDateTime.hour,
+                                      matchDateTime.minute,
+                                    );
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.calendar_today_outlined),
+                              label: Text(
+                                '${matchDateTime.day.toString().padLeft(2, '0')}.${matchDateTime.month.toString().padLeft(2, '0')}.${matchDateTime.year}',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final selected = await showTimePicker(
+                                  context: context,
+                                  initialTime:
+                                      TimeOfDay.fromDateTime(matchDateTime),
+                                );
+                                if (selected != null) {
+                                  setLocalState(() {
+                                    matchDateTime = DateTime(
+                                      matchDateTime.year,
+                                      matchDateTime.month,
+                                      matchDateTime.day,
+                                      selected.hour,
+                                      selected.minute,
+                                    );
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.access_time),
+                              label: Text(
+                                '${matchDateTime.hour.toString().padLeft(2, '0')}:${matchDateTime.minute.toString().padLeft(2, '0')}',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Abbrechen'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final createdMatch = MatchGame(
+                      id: existing?.id ?? _nextMatchId++,
+                      createdAt: existing?.createdAt ?? DateTime.now(),
+                      location: locationController.text.trim(),
+                      opponentTeam: opponentController.text.trim(),
+                      matchDateTime: matchDateTime,
+                      matchType: matchType,
+                      players: existing?.players ?? <MatchPlayer>[],
+                      events: existing?.events ?? <MatchEvent>[],
+                    );
+                    Navigator.of(dialogContext).pop(createdMatch);
+                  },
+                  child: Text(existing == null ? 'Spiel anlegen' : 'Speichern'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result;
+  }
+
+  void _addPlayerToMatch(MatchGame match) {
+    final name = _playerNameController.text.trim();
+    final numberText = _playerNumberController.text.trim();
+
     if (name.isEmpty || numberText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -225,30 +525,45 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final number = int.tryParse(numberText);
     if (number == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Die Trikotnummer muss eine Zahl sein.')),
+        const SnackBar(content: Text('Trikotnummer muss eine Zahl sein.')),
       );
       return;
     }
 
-    final player = MatchPlayer(id: _nextPlayerId++, name: name, number: number);
+    final players = List<MatchPlayer>.from(match.players)
+      ..add(MatchPlayer(
+          id: match.players.length + 1, name: name, number: number));
+
+    _replaceMatch(match.copyWith(players: players));
+    _playerNameController.clear();
+    _playerNumberController.clear();
+  }
+
+  void _removePlayerFromMatch(MatchGame match, MatchPlayer player) {
+    final players = List<MatchPlayer>.from(match.players)
+      ..removeWhere((entry) => entry.id == player.id);
+    final events = List<MatchEvent>.from(match.events)
+      ..removeWhere((event) => event.playerId == player.id);
+    _replaceMatch(match.copyWith(players: players, events: events));
+  }
+
+  void _replaceMatch(MatchGame updated) {
     setState(() {
-      _players.add(player);
-      _nameController.clear();
-      _numberController.clear();
+      final index = _matches.indexWhere((match) => match.id == updated.id);
+      if (index >= 0) {
+        _matches[index] = updated;
+      } else {
+        _matches.insert(0, updated);
+      }
+      _matches.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _selectedMatchId = updated.id;
     });
     unawaited(_persist());
   }
 
-  void _removePlayer(MatchPlayer player) {
-    setState(() {
-      _players.removeWhere((entry) => entry.id == player.id);
-      _events.removeWhere((entry) => entry.playerId == player.id);
-    });
-    unawaited(_persist());
-  }
-
-  Future<void> _recordEvent({required bool isPoint}) async {
-    if (_players.isEmpty) {
+  Future<void> _recordEventForMatch(MatchGame match,
+      {required bool isPoint}) async {
+    if (match.players.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Bitte erst mindestens einen Spieler anlegen.')),
@@ -261,7 +576,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       builder: (dialogContext) {
         return SimpleDialog(
           title: const Text('Spieler auswählen'),
-          children: _players
+          children: match.players
               .map(
                 (entry) => SimpleDialogOption(
                   onPressed: () => Navigator.of(dialogContext).pop(entry),
@@ -293,10 +608,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     );
     if (category == null || !mounted) return;
 
-    setState(() {
-      _events.add(
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
         MatchEvent(
-          id: _events.length + 1,
+          id: match.events.length + 1,
           playerId: player.id,
           playerName: player.name,
           playerNumber: player.number,
@@ -305,29 +620,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           occurredAt: DateTime.now(),
         ),
       );
-    });
-    unawaited(_persist());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '${player.name}: ${isPoint ? 'Punkt' : 'Fehler'} • $category'),
-        ),
-      );
-    }
+    _replaceMatch(match.copyWith(events: events));
   }
 
-  Map<String, int> _pointSummary() {
+  Map<String, int> _pointSummary(MatchGame match) {
     final summary = <String, int>{};
-    for (final event in _events.where((entry) => entry.kind == 'point')) {
+    for (final event in match.events.where((entry) => entry.kind == 'point')) {
       summary[event.category] = (summary[event.category] ?? 0) + 1;
     }
     return summary;
   }
 
-  Map<String, int> _errorSummary() {
+  Map<String, int> _errorSummary(MatchGame match) {
     final summary = <String, int>{};
-    for (final event in _events.where((entry) => entry.kind == 'error')) {
+    for (final event in match.events.where((entry) => entry.kind == 'error')) {
       summary[event.category] = (summary[event.category] ?? 0) + 1;
     }
     return summary;
@@ -335,183 +641,452 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final points = _pointSummary();
-    final errors = _errorSummary();
-    final totalPoints = _events.where((entry) => entry.kind == 'point').length;
-    final totalErrors = _events.where((entry) => entry.kind == 'error').length;
+    if (!_isLoaded) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final selectedMatch = _selectedMatch;
+    if (selectedMatch != null && _activeSection == null) {
+      return _buildMatchDetailView(selectedMatch);
+    }
+    if (selectedMatch != null && _activeSection == 'info') {
+      return _buildMatchInfoView(selectedMatch);
+    }
+    if (selectedMatch != null && _activeSection == 'scoring') {
+      return _buildScoringView(selectedMatch);
+    }
+    if (selectedMatch != null && _activeSection == 'stats') {
+      return _buildStatsView(selectedMatch);
+    }
+
+    return _buildMatchListView();
+  }
+
+  Widget _buildMatchListView() {
+    final matches = List<MatchGame>.from(_matches)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Punktewertung')),
-      body: !_isLoaded
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _SummaryTile(
-                                label: 'Punkte',
-                                value: '$totalPoints',
-                                color: Colors.green,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _SummaryTile(
-                                label: 'Fehler',
-                                value: '$totalErrors',
-                                color: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Card(
+              child: ListTile(
+                key: const ValueKey('new-game-button'),
+                leading: const CircleAvatar(
+                  child: Icon(Icons.add),
+                ),
+                title: const Text('Neues Spiel erfassen'),
+                subtitle: const Text('Spielinfos anlegen'),
+                onTap: _openNewMatchForm,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (matches.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Noch keine Spiele erfasst.'),
+                ),
+              )
+            else
+              for (final match in matches)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    title: Text(
+                      match.opponentTeam.isEmpty
+                          ? 'Neues Spiel'
+                          : 'vs. ${match.opponentTeam}',
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            key: const ValueKey('player-name-input'),
-                            controller: _nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Spielername',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 110,
-                          child: TextField(
-                            key: const ValueKey('player-number-input'),
-                            controller: _numberController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Nr.',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          key: const ValueKey('add-player-button'),
-                          onPressed: _addPlayer,
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Hinzufügen'),
-                        ),
-                      ],
+                    subtitle: Text(
+                      '${match.matchType} • ${_formatDate(match.matchDateTime)} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
                     ),
-                    const SizedBox(height: 16),
-                    if (_players.isNotEmpty) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.icon(
-                              key: const ValueKey('record-point-button'),
-                              onPressed: () => _recordEvent(isPoint: true),
-                              icon: const Icon(Icons.add_circle),
-                              label: const Text('Punkt erfassen'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton.tonalIcon(
-                              onPressed: () => _recordEvent(isPoint: false),
-                              icon: const Icon(Icons.error_outline),
-                              label: const Text('Fehler erfassen'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Spieler',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _players.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final player = _players[index];
-                          final playerPoints = _events
-                              .where(
-                                (event) =>
-                                    event.playerId == player.id &&
-                                    event.kind == 'point',
-                              )
-                              .length;
-                          final playerErrors = _events
-                              .where(
-                                (event) =>
-                                    event.playerId == player.id &&
-                                    event.kind == 'error',
-                              )
-                              .length;
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _showMatchDetail(match.id),
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                          return ListTile(
-                            title: Text(player.name),
-                            subtitle: Text('Trikot ${player.number}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Chip(label: Text('P $playerPoints')),
-                                const SizedBox(width: 8),
-                                Chip(label: Text('F $playerErrors')),
-                                IconButton(
-                                  onPressed: () => _removePlayer(player),
-                                  icon: const Icon(Icons.delete_outline),
-                                  tooltip: 'Spieler entfernen',
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+  Widget _buildMatchDetailView(MatchGame match) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+            match.opponentTeam.isEmpty ? 'Spiel' : 'vs. ${match.opponentTeam}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _closeMatchDetail,
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _DetailTile(
+              title: 'Spielinfos',
+              subtitle:
+                  '${match.matchType} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
+              icon: Icons.info_outline,
+              onTap: () => _showMatchDetail(match.id, section: 'info'),
+            ),
+            const SizedBox(height: 12),
+            _DetailTile(
+              title: 'Punktewertung',
+              subtitle:
+                  '${match.players.length} Spieler • ${match.events.length} Einträge',
+              icon: Icons.sports_volleyball,
+              onTap: () => _showMatchDetail(match.id, section: 'scoring'),
+            ),
+            const SizedBox(height: 12),
+            _DetailTile(
+              title: 'Statistik',
+              subtitle: 'Punkte und Fehler nach Art',
+              icon: Icons.bar_chart,
+              onTap: () => _showMatchDetail(match.id, section: 'stats'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMatchInfoView(MatchGame match) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Spielinfos'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _showMatchDetail(match.id),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Bearbeiten',
+            onPressed: () => _editMatch(match),
+            icon: const Icon(Icons.edit),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _InfoRow(
+                label: 'Spielort',
+                value: match.location.isEmpty
+                    ? 'Noch nicht erfasst'
+                    : match.location),
+            _InfoRow(
+                label: 'Gegnerteam',
+                value: match.opponentTeam.isEmpty
+                    ? 'Noch nicht erfasst'
+                    : match.opponentTeam),
+            _InfoRow(label: 'Spieltyp', value: match.matchType),
+            _InfoRow(
+                label: 'Spieltag', value: _formatDate(match.matchDateTime)),
+            _InfoRow(label: 'Uhrzeit', value: _formatTime(match.matchDateTime)),
+            _InfoRow(
+                label: 'Angelegt', value: _formatDateTime(match.createdAt)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScoringView(MatchGame match) {
+    final points = _pointSummary(match);
+    final errors = _errorSummary(match);
+    final totalPoints =
+        match.events.where((entry) => entry.kind == 'point').length;
+    final totalErrors =
+        match.events.where((entry) => entry.kind == 'error').length;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Punktewertung'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _showMatchDetail(match.id),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryTile(
+                          label: 'Punkte',
+                          value: '$totalPoints',
+                          color: Colors.green,
+                        ),
                       ),
-                    ] else
-                      const Padding(
-                        padding: EdgeInsets.only(top: 24),
-                        child: Text('Noch keine Spieler angelegt.'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _SummaryTile(
+                          label: 'Fehler',
+                          value: '$totalErrors',
+                          color: Colors.red,
+                        ),
                       ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Statistik',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('player-name-input'),
+                      controller: _playerNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Spielername',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _StatGroup(
-                      title: 'Punkte pro Art',
-                      entries: points,
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 110,
+                    child: TextField(
+                      key: const ValueKey('player-number-input'),
+                      controller: _playerNumberController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Nr.',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _StatGroup(
-                      title: 'Fehler pro Art',
-                      entries: errors,
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    key: const ValueKey('add-player-button'),
+                    onPressed: () => _addPlayerToMatch(match),
+                    icon: const Icon(Icons.person_add),
+                    label: const Text('Hinzufügen'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (match.players.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        key: const ValueKey('record-point-button'),
+                        onPressed: () =>
+                            _recordEventForMatch(match, isPoint: true),
+                        icon: const Icon(Icons.add_circle),
+                        label: const Text('Punkt erfassen'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: () =>
+                            _recordEventForMatch(match, isPoint: false),
+                        icon: const Icon(Icons.error_outline),
+                        label: const Text('Fehler erfassen'),
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Spieler',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: match.players.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final player = match.players[index];
+                    final playerPoints = match.events
+                        .where(
+                          (event) =>
+                              event.playerId == player.id &&
+                              event.kind == 'point',
+                        )
+                        .length;
+                    final playerErrors = match.events
+                        .where(
+                          (event) =>
+                              event.playerId == player.id &&
+                              event.kind == 'error',
+                        )
+                        .length;
+
+                    return ListTile(
+                      title: Text(player.name),
+                      subtitle: Text('Trikot ${player.number}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Chip(label: Text('P $playerPoints')),
+                          const SizedBox(width: 8),
+                          Chip(label: Text('F $playerErrors')),
+                          IconButton(
+                            onPressed: () =>
+                                _removePlayerFromMatch(match, player),
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Spieler entfernen',
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ] else
+                const Padding(
+                  padding: EdgeInsets.only(top: 24),
+                  child: Text('Noch keine Spieler angelegt.'),
+                ),
+              const SizedBox(height: 16),
+              const Text(
+                'Statistik',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
+              const SizedBox(height: 12),
+              _StatGroup(title: 'Punkte pro Art', entries: points),
+              const SizedBox(height: 12),
+              _StatGroup(title: 'Fehler pro Art', entries: errors),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  Widget _buildStatsView(MatchGame match) {
+    final points = _pointSummary(match);
+    final errors = _errorSummary(match);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Statistik'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _showMatchDetail(match.id),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _StatGroup(title: 'Punkte pro Art', entries: points),
+            const SizedBox(height: 12),
+            _StatGroup(title: 'Fehler pro Art', entries: errors),
+            const SizedBox(height: 12),
+            if (match.players.isNotEmpty) ...[
+              const Text(
+                'Spielerübersicht',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              for (final player in match.players)
+                Card(
+                  child: ListTile(
+                    title: Text(player.name),
+                    subtitle: Text('Trikot ${player.number}'),
+                    trailing: Text(
+                      '${match.events.where((event) => event.playerId == player.id && event.kind == 'point').length}P / ${match.events.where((event) => event.playerId == player.id && event.kind == 'error').length}F',
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime value) {
+    return '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${value.year}';
+  }
+
+  String _formatTime(DateTime value) {
+    return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDateTime(DateTime value) {
+    return '${_formatDate(value)} ${_formatTime(value)}';
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _numberController.dispose();
+    _playerNameController.dispose();
+    _playerNumberController.dispose();
     super.dispose();
+  }
+}
+
+class _DetailTile extends StatelessWidget {
+  const _DetailTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
   }
 }
 

@@ -104,8 +104,8 @@ void main() {
     );
   });
 
-  testWidgets('Match statistics page lets users add players and record a point',
-      (
+  testWidgets(
+      'Match statistics page allows creating a match and recording a point', (
     WidgetTester tester,
   ) async {
     final database = await databaseFactoryMemory.openDatabase('test4.db');
@@ -113,10 +113,30 @@ void main() {
         .pumpWidget(MaterialApp(home: MatchStatsPage(database: database)));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const ValueKey('new-game-button')));
+    await tester.pumpAndSettle();
+
+    final textFields = find.byType(TextField);
+    await tester.enterText(textFields.at(0), 'Halle A');
+    await tester.enterText(textFields.at(1), 'Team B');
+    await tester.tap(find.text('Spiel anlegen'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('vs. Team B'), findsOneWidget);
+
+    await tester.tap(find.text('vs. Team B'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Punktewertung'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(
-        find.byKey(const ValueKey('player-name-input')), 'Ada');
+      find.byKey(const ValueKey('player-name-input')),
+      'Ada',
+    );
     await tester.enterText(
-        find.byKey(const ValueKey('player-number-input')), '7');
+      find.byKey(const ValueKey('player-number-input')),
+      '7',
+    );
     await tester.tap(find.byKey(const ValueKey('add-player-button')));
     await tester.pumpAndSettle();
 
