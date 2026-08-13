@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ScoreboardPage extends StatefulWidget {
   const ScoreboardPage({super.key});
@@ -42,6 +43,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
     if (defaultTargetPlatform == TargetPlatform.android) {
       SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
         DeviceOrientation.landscapeLeft,
@@ -52,6 +54,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     if (defaultTargetPlatform == TargetPlatform.android) {
       SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
         DeviceOrientation.portraitUp,
