@@ -100,6 +100,7 @@ class MatchGame {
     required this.location,
     required this.opponentTeam,
     required this.matchDateTime,
+    required this.matchTag,
     required this.matchType,
     required this.players,
     required this.events,
@@ -110,6 +111,7 @@ class MatchGame {
   final String location;
   final String opponentTeam;
   final DateTime matchDateTime;
+  final String matchTag;
   final String matchType;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
@@ -120,6 +122,7 @@ class MatchGame {
     String? location,
     String? opponentTeam,
     DateTime? matchDateTime,
+    String? matchTag,
     String? matchType,
     List<MatchPlayer>? players,
     List<MatchEvent>? events,
@@ -130,6 +133,7 @@ class MatchGame {
       location: location ?? this.location,
       opponentTeam: opponentTeam ?? this.opponentTeam,
       matchDateTime: matchDateTime ?? this.matchDateTime,
+      matchTag: matchTag ?? this.matchTag,
       matchType: matchType ?? this.matchType,
       players: players ?? this.players,
       events: events ?? this.events,
@@ -142,6 +146,7 @@ class MatchGame {
         'location': location,
         'opponentTeam': opponentTeam,
         'matchDateTimeMillis': matchDateTime.millisecondsSinceEpoch,
+        'matchTag': matchTag,
         'matchType': matchType,
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
@@ -152,6 +157,9 @@ class MatchGame {
     final eventsData = data['events'];
     final createdAtMillis = data['createdAtMillis'];
     final matchDateTimeMillis = data['matchDateTimeMillis'];
+    final fallbackMatchDateTime = matchDateTimeMillis is num
+        ? DateTime.fromMillisecondsSinceEpoch(matchDateTimeMillis.toInt())
+        : DateTime.now();
 
     final players = playersData is List
         ? playersData
@@ -175,9 +183,8 @@ class MatchGame {
       location: data['location'] is String ? data['location'] as String : '',
       opponentTeam:
           data['opponentTeam'] is String ? data['opponentTeam'] as String : '',
-      matchDateTime: matchDateTimeMillis is num
-          ? DateTime.fromMillisecondsSinceEpoch(matchDateTimeMillis.toInt())
-          : DateTime.now(),
+      matchDateTime: fallbackMatchDateTime,
+      matchTag: data['matchTag'] is String ? data['matchTag'] as String : '',
       matchType: data['matchType'] is String
           ? data['matchType'] as String
           : 'Freundschaftsspiel',
@@ -361,8 +368,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final opponentController = TextEditingController(
       text: existing?.opponentTeam ?? '',
     );
-    String matchType = existing?.matchType ?? _matchTypes[2];
+    final matchTagController = TextEditingController(
+      text: existing?.matchTag ?? '',
+    );
     DateTime matchDateTime = existing?.matchDateTime ?? DateTime.now();
+    String matchType = existing?.matchType ?? _matchTypes[2];
 
     final result = await showDialog<MatchGame>(
       context: context,
@@ -417,63 +427,74 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final selected = await showDatePicker(
-                                  context: context,
-                                  initialDate: matchDateTime,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2100),
+                      InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Datum',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.calendar_today),
+                          title: Text(_formatDate(matchDateTime)),
+                          onTap: () async {
+                            final selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: matchDateTime,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              setLocalState(() {
+                                matchDateTime = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day,
+                                  matchDateTime.hour,
+                                  matchDateTime.minute,
                                 );
-                                if (selected != null) {
-                                  setLocalState(() {
-                                    matchDateTime = DateTime(
-                                      selected.year,
-                                      selected.month,
-                                      selected.day,
-                                      matchDateTime.hour,
-                                      matchDateTime.minute,
-                                    );
-                                  });
-                                }
-                              },
-                              icon: const Icon(Icons.calendar_today_outlined),
-                              label: Text(
-                                '${matchDateTime.day.toString().padLeft(2, '0')}.${matchDateTime.month.toString().padLeft(2, '0')}.${matchDateTime.year}',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final selected = await showTimePicker(
-                                  context: context,
-                                  initialTime:
-                                      TimeOfDay.fromDateTime(matchDateTime),
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Uhrzeit',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.schedule),
+                          title: Text(_formatTime(matchDateTime)),
+                          onTap: () async {
+                            final selectedTime = await showTimePicker(
+                              context: context,
+                              initialTime:
+                                  TimeOfDay.fromDateTime(matchDateTime),
+                            );
+                            if (selectedTime != null) {
+                              setLocalState(() {
+                                matchDateTime = DateTime(
+                                  matchDateTime.year,
+                                  matchDateTime.month,
+                                  matchDateTime.day,
+                                  selectedTime.hour,
+                                  selectedTime.minute,
                                 );
-                                if (selected != null) {
-                                  setLocalState(() {
-                                    matchDateTime = DateTime(
-                                      matchDateTime.year,
-                                      matchDateTime.month,
-                                      matchDateTime.day,
-                                      selected.hour,
-                                      selected.minute,
-                                    );
-                                  });
-                                }
-                              },
-                              icon: const Icon(Icons.access_time),
-                              label: Text(
-                                '${matchDateTime.hour.toString().padLeft(2, '0')}:${matchDateTime.minute.toString().padLeft(2, '0')}',
-                              ),
-                            ),
-                          ),
-                        ],
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: matchTagController,
+                        decoration: const InputDecoration(
+                          labelText: 'Spieltag / Stichwort',
+                          hintText: 'z. B. Samstag, Liga, Testspiel',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ],
                   ),
@@ -492,6 +513,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                       location: locationController.text.trim(),
                       opponentTeam: opponentController.text.trim(),
                       matchDateTime: matchDateTime,
+                      matchTag: matchTagController.text.trim(),
                       matchType: matchType,
                       players: existing?.players ?? <MatchPlayer>[],
                       events: existing?.events ?? <MatchEvent>[],
@@ -704,7 +726,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                           : 'vs. ${match.opponentTeam}',
                     ),
                     subtitle: Text(
-                      '${match.matchType} • ${_formatDate(match.matchDateTime)} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
+                      '${match.matchType} • ${_formatDateTime(match.matchDateTime)} • ${match.matchTag.isEmpty ? 'Ohne Stichwort' : match.matchTag} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _showMatchDetail(match.id),
@@ -789,9 +811,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                     ? 'Noch nicht erfasst'
                     : match.opponentTeam),
             _InfoRow(label: 'Spieltyp', value: match.matchType),
-            _InfoRow(
-                label: 'Spieltag', value: _formatDate(match.matchDateTime)),
+            _InfoRow(label: 'Datum', value: _formatDate(match.matchDateTime)),
             _InfoRow(label: 'Uhrzeit', value: _formatTime(match.matchDateTime)),
+            _InfoRow(
+                label: 'Spieltag / Stichwort',
+                value: match.matchTag.isEmpty
+                    ? 'Noch nicht erfasst'
+                    : match.matchTag),
             _InfoRow(
                 label: 'Angelegt', value: _formatDateTime(match.createdAt)),
           ],

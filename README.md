@@ -39,10 +39,10 @@ Volleyball Assistenz
       Wählt man ein Spiel aus, kann man entwender Punktewertung erfassen oder die Statistik einsehen.
   - [ ] Spielinfos
         Abfragen beim Spielstart, um die Statistik zu speichern.
-    - [ ] Spielort
-    - [ ] Gegnerteam
-    - [ ] Spieltag / Datum (Heute) / Uhrzeit (Jetzt)
-    - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel, Trainingsspiel)
+    - [x] Spielort
+    - [x] Gegnerteam
+    - [x] Spieltag / Datum (Heute) / Uhrzeit (Jetzt)
+    - [x] Spieltyp (Liga, Turnier, Freundschaftsspiel, Trainingsspiel)
     - [ ] Team / Spieler
           Im Ersten Schritt pro Wertungsbogen Spieler (Name und Trikotnummer) mit + und - Buttons hinzufügen oder entfernen.
           Im zweiten Schritt Spieler aus dem Team welches vorab angelegt wird ausgewählt werden und die Punktewertung pro Spieler speichern.
