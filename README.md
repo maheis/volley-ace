@@ -34,28 +34,46 @@ Volleyball Assistenz
   - [ ] Auszeiten pro Team anzeigen
   - [ ] Spielerwechsel pro Team anzeigen
 - [ ] Punktewertung
+      Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
+      Es soll eine Persistiere Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
+      Wählt man ein Spiel aus, kann man entwender Punktewertung erfassen oder die Statistik einsehen.
   - [ ] Spielinfos
+        Abfragen beim Spielstart, um die Statistik zu speichern.
     - [ ] Spielort
     - [ ] Gegnerteam
     - [ ] Spieltag / Datum / Uhrzeit
     - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel)
     - [ ] Team / Spieler
-  - [ ] Punkt / Fehler
-  - [ ] Wer
-    - Punkte
-      - [ ] Ass
-      - [ ] Angriff
-      - [ ] Block
-    - Fehler
-      - [ ] Aufschlag
-      - [ ] Ball ins Aus
-      - [ ] Ball ins Netz
-      - [ ] Ball nicht rüber
-      - [ ] Zugeschaut (Ball im Feld)
-      - [ ] Tusch
-      - [ ] Übertritt
-      - [ ] Netz Berührung
-      - [ ] Sonstiges
+          Im Ersten Schritt pro Wertungsbogen Spieler (Name und Trikotnummer) mit + und - Buttons hinzufügen oder entfernen.
+          Im zweiten Schritt Spieler aus dem Team welches vorab angelegt wird ausgewählt werden und die Punktewertung pro Spieler speichern.
+  - [ ] Punktewertung erfassen
+    - [ ] Punkt / Fehler
+          Zwei Buttons Grün und Rot die je für Punkt / Fehler stehen und dann zur Abfrage des Spielers scrollen.
+    - [ ] Wer
+          Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
+      - Punkte
+        Auswahl wie ein Punkt erreicht wurde.
+        - [ ] Ass
+        - [ ] Angriff
+        - [ ] Block
+      - Fehler
+        Auswahl Welcher Fehler gemacht wurde.
+        - [ ] Aufschlag
+        - [ ] Ball ins Aus
+        - [ ] Ball ins Netz
+        - [ ] Ball nicht rüber
+        - [ ] Zugeschaut (Ball im Feld)
+        - [ ] Tusch
+        - [ ] Übertritt
+        - [ ] Netz Berührung
+        - [ ] Sonstiges
+    - [ ] Statistik
+      - [ ] Spielstand
+      - [ ] Satzstand
+      - [ ] Punkte pro Spieler, aufgeschlüsselt nach Punktarten
+      - [ ] Fehler pro Spieler, aufgeschlüsselt nach Fehlerarten
+      - [ ] Punkte pro Team, aufgeschlüsselt nach Punktarten
+      - [ ] Fehler pro Team, aufgeschlüsselt nach Fehlerarten
 - [ ] Team
   - [ ] Spieler
     - [ ] Name
