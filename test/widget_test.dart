@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:volley_ace/src/scoreboard/scoreboard_page.dart';
-import 'package:volley_ace/src/settings/app_settings.dart';
-import 'package:volley_ace/src/settings/settings_page.dart';
+import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
+import 'package:volleyace/src/settings/app_settings.dart';
+import 'package:volleyace/src/settings/settings_page.dart';
 
 void main() {
   testWidgets('Settings page shows typography controls', (
