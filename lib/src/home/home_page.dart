@@ -47,21 +47,7 @@ class HomePage extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenScoreboard,
             ),
-          ),
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.campaign, color: scheme.primary),
-              title: const Text('Soundboard'),
-              subtitle: const Text('Use assets/sounds for your clips.'),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.rotate_right, color: scheme.primary),
-              title: const Text('Rotation'),
-              subtitle: const Text('Add team and player rotation flows.'),
-            ),
-          ),
+          )
         ],
       ),
     );
