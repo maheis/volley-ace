@@ -9,7 +9,7 @@ Kurz und präzise Anleitung, um eine Android-Version in den Google Play Store zu
 namespace = "de.deinname.volleyace"
 applicationId = "de.deinname.volleyace"
 ```
-
+CN=Manfred Heister,OU=ALLSTAR,O=maheis,L=Dietfurt,ST=BY,C=DE
 ## 1) Versioning
 - Erhöhe die `version` in `pubspec.yaml`, z.B. `1.2.0+5` (`+5` = `versionCode`).
 
@@ -23,33 +23,6 @@ keytool -genkeypair -v \
   -keyalg RSA -keysize 2048 -validity 10000
 
 CN=Manfred Heister,OU=ALLSTAR,O=maheis,L=Dietfurt,ST=BY,C=DE
-
-The Android Gradle project uses `android/key.properties` for release signing.
-Copy the versioned template and set the real values locally:
-
-```bash
-cp android/key.properties.example android/key.properties
-${EDITOR:-vi} android/key.properties
-```
-
-For this project, the existing local keystore can be referenced like this:
-
-```properties
-storePassword=YOUR_KEYSTORE_PASSWORD
-keyPassword=YOUR_KEY_PASSWORD
-keyAlias=volleyace_key
-storeFile=/home/mani/.keystores/volleyace.jks
-```
-
-`android/key.properties` and keystore files are ignored by Git. The release
-build fails intentionally when this file is missing, so no Debug-signed APK or
-Bundle can be uploaded accidentally.
-
-Build the Play Store bundle with:
-
-```bash
-flutter build appbundle --release
-```
 ```
 
 ## 3) Play Console — Vorbereitung
@@ -87,7 +60,7 @@ base64 ~/.keystores/volleyace.jks | tr -d '\n' > ~/.keystores/volleyace_base64.t
     echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
     echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
     echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-    echo "storeFile=$GITHUB_WORKSPACE/keystore.jks" >> android/key.properties
+    echo "storeFile=$PWD/keystore.jks" >> android/key.properties
     flutter build appbundle --release
   env:
     KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
