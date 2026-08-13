@@ -38,13 +38,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   final List<_ScoreSnapshot> _history = <_ScoreSnapshot>[];
 
   _ScoreSnapshot get _snapshot => _ScoreSnapshot(
-    leftPoints: _leftPoints,
-    rightPoints: _rightPoints,
-    leftSets: _leftSets,
-    rightSets: _rightSets,
-    leftColor: _leftColor,
-    rightColor: _rightColor,
-  );
+        leftPoints: _leftPoints,
+        rightPoints: _rightPoints,
+        leftSets: _leftSets,
+        rightSets: _rightSets,
+        leftColor: _leftColor,
+        rightColor: _rightColor,
+      );
 
   void _addPoint({required bool left}) {
     _history.add(_snapshot);
@@ -243,14 +243,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          'Wischen: runter = Punkt/Satz   |   hoch = zurück   |   links/rechts = Seiten tauschen',
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: Colors.white60),
-        ),
+        const SizedBox(height: 10)
       ],
     );
   }
@@ -285,7 +278,6 @@ class _ScorePanel extends StatelessWidget {
       },
       child: Semantics(
         label: '$label: $score Punkte',
-        hint: 'Nach unten wischen für Punkt, nach oben für zurück',
         child: Container(
           key: ValueKey('$label-score-panel'),
           decoration: BoxDecoration(
@@ -398,7 +390,6 @@ class _SetNumber extends StatelessWidget {
       },
       child: Semantics(
         label: '$label: $value gewonnene Sätze',
-        hint: 'Nach unten wischen für Satz, nach oben für zurück',
         child: Container(
           width: 110,
           height: 220,
