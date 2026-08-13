@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sembast/sembast_memory.dart';
 
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
@@ -21,7 +22,11 @@ void main() {
   testWidgets('Scoreboard awards and undoes a point with vertical swipes', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: ScoreboardPage()));
+    final database = await databaseFactoryMemory.openDatabase('test1.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     expect(blueScore, findsOneWidget);
@@ -44,7 +49,11 @@ void main() {
   testWidgets('Scoreboard swaps sides with a horizontal swipe', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: ScoreboardPage()));
+    final database = await databaseFactoryMemory.openDatabase('test2.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
 
     final setScoreArea = find.byKey(const ValueKey('set-score-area'));
     await tester.fling(setScoreArea, const Offset(300, 0), 1000);
@@ -56,7 +65,11 @@ void main() {
   testWidgets('Undoing a set restores the previous point score', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: ScoreboardPage()));
+    final database = await databaseFactoryMemory.openDatabase('test3.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     await tester.fling(blueScore, const Offset(0, 300), 1000);

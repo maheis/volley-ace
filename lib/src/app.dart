@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:sembast/sembast.dart';
 
 import 'home/home_page.dart';
 import 'scoreboard/scoreboard_page.dart';
@@ -8,9 +9,14 @@ import 'settings/settings_controller.dart';
 import 'settings/settings_page.dart';
 
 class VolleyAceApp extends StatelessWidget {
-  const VolleyAceApp({super.key, required this.settingsController});
+  const VolleyAceApp({
+    super.key,
+    required this.settingsController,
+    required this.database,
+  });
 
   final SettingsController settingsController;
+  final Database database;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +59,9 @@ class VolleyAceApp extends StatelessWidget {
 
   Future<void> _openScoreboard(BuildContext context) async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const ScoreboardPage()),
+      MaterialPageRoute<void>(
+        builder: (_) => ScoreboardPage(database: database),
+      ),
     );
   }
 

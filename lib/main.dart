@@ -12,5 +12,7 @@ Future<void> main() async {
   final settingsController = SettingsController(SettingsRepository(database));
   await settingsController.load();
 
-  runApp(VolleyAceApp(settingsController: settingsController));
+  runApp(
+    VolleyAceApp(settingsController: settingsController, database: database),
+  );
 }

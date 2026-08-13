@@ -4,10 +4,16 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:sembast/sembast.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'scoreboard_repository.dart';
+import 'scoreboard_state.dart';
+
 class ScoreboardPage extends StatefulWidget {
-  const ScoreboardPage({super.key});
+  const ScoreboardPage({super.key, required this.database});
+
+  final Database database;
 
   @override
   State<ScoreboardPage> createState() => _ScoreboardPageState();
@@ -48,6 +54,10 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   bool _stopwatchRunning = false;
   Duration _stopwatchElapsed = Duration.zero;
   DateTime? _stopwatchStartedAt;
+  late final ScoreboardRepository _repository = ScoreboardRepository(
+    widget.database,
+  );
+  bool _isLoaded = false;
 
   String get _clockText {
     final hh = _now.hour.toString().padLeft(2, '0');
@@ -80,6 +90,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         _stopwatchRunning = true;
       }
     });
+    _persist();
   }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
@@ -110,6 +121,42 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+    unawaited(_loadPersistedState());
+  }
+
+  Future<void> _loadPersistedState() async {
+    final state = await _repository.load();
+    if (!mounted) return;
+    setState(() {
+      _leftPoints = state.leftPoints;
+      _rightPoints = state.rightPoints;
+      _leftSets = state.leftSets;
+      _rightSets = state.rightSets;
+      _leftColor = state.leftColor;
+      _rightColor = state.rightColor;
+      _stopwatchElapsed = state.stopwatchElapsed;
+      _stopwatchRunning = state.stopwatchRunning;
+      _stopwatchStartedAt = state.stopwatchStartedAt;
+      _isLoaded = true;
+    });
+  }
+
+  void _persist() {
+    unawaited(
+      _repository.save(
+        ScoreboardState(
+          leftPoints: _leftPoints,
+          rightPoints: _rightPoints,
+          leftSets: _leftSets,
+          rightSets: _rightSets,
+          leftColor: _leftColor,
+          rightColor: _rightColor,
+          stopwatchElapsed: _stopwatchElapsed,
+          stopwatchRunning: _stopwatchRunning,
+          stopwatchStartedAt: _stopwatchStartedAt,
+        ),
+      ),
+    );
   }
 
   @override
@@ -141,6 +188,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       }
       _finishSetIfNeeded();
     });
+    _persist();
   }
 
   void _undoPoint({required bool left}) {
@@ -153,6 +201,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       if (left && _leftPoints > 0) _leftPoints--;
       if (!left && _rightPoints > 0) _rightPoints--;
     });
+    _persist();
   }
 
   void _addSet({required bool left}) async {
@@ -187,6 +236,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftPoints = 0;
       _rightPoints = 0;
     });
+    _persist();
   }
 
   void _undoSet() {
@@ -203,6 +253,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftColor = previous.leftColor;
       _rightColor = previous.rightColor;
     });
+    _persist();
   }
 
   void _finishSetIfNeeded() {
@@ -233,6 +284,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightColor = color;
       _history.clear();
     });
+    _persist();
   }
 
   Future<void> _reset() async {
@@ -270,6 +322,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
     });
+    _persist();
   }
 
   @override
@@ -293,23 +346,25 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         body: SafeArea(
           top: !_isFullscreen,
           bottom: !_isFullscreen,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 650;
-              return Center(
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(_isFullscreen ? 4 : 12),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1100),
-                    child: isWide
-                        ? _buildWideBoard(context)
-                        : _buildCompactBoard(context),
-                  ),
+          child: !_isLoaded
+              ? const Center(child: CircularProgressIndicator())
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 650;
+                    return Center(
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.all(_isFullscreen ? 4 : 12),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1100),
+                          child: isWide
+                              ? _buildWideBoard(context)
+                              : _buildCompactBoard(context),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ),
     );
