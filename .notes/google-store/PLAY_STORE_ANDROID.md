@@ -87,7 +87,7 @@ base64 ~/.keystores/volleyace.jks | tr -d '\n' > ~/.keystores/volleyace_base64.t
     echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
     echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
     echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-    echo "storeFile=$PWD/keystore.jks" >> android/key.properties
+    echo "storeFile=$GITHUB_WORKSPACE/keystore.jks" >> android/key.properties
     flutter build appbundle --release
   env:
     KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
