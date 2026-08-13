@@ -242,6 +242,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
               final isWide = constraints.maxWidth >= 650;
               return Center(
                 child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
                   padding: EdgeInsets.all(_isFullscreen ? 4 : 12),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1100),
