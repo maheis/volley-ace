@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast_memory.dart';
 
+import 'package:volleyace/src/analytics/match_stats_page.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
@@ -101,5 +102,34 @@ void main() {
       find.descendant(of: blueSet, matching: find.text('0')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Match statistics page lets users add players and record a point',
+      (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('test4.db');
+    await tester
+        .pumpWidget(MaterialApp(home: MatchStatsPage(database: database)));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const ValueKey('player-name-input')), 'Ada');
+    await tester.enterText(
+        find.byKey(const ValueKey('player-number-input')), '7');
+    await tester.tap(find.byKey(const ValueKey('add-player-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ada'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ada • Nr. 7'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ass'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Ada'), findsWidgets);
+    expect(find.text('Ass'), findsWidgets);
   });
 }

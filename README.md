@@ -20,7 +20,7 @@ Volleyball Assistenz
 - [ ] Sprachsteuerung (insbesondere für die Punktetafel)
 - [x] Bildschirm aktiv lassen
 
-## ToDos
+## Featrues
 
 - [x] Punktetafel
   - Zwei farbige Satzpunkt-Anzeigen (blau/rot)
@@ -35,14 +35,14 @@ Volleyball Assistenz
   - [ ] Spielerwechsel pro Team anzeigen
 - [ ] Punktewertung
       Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
-      Es soll eine Persistiere Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
+      Es soll eine persistente Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
       Wählt man ein Spiel aus, kann man entwender Punktewertung erfassen oder die Statistik einsehen.
   - [ ] Spielinfos
         Abfragen beim Spielstart, um die Statistik zu speichern.
     - [ ] Spielort
     - [ ] Gegnerteam
-    - [ ] Spieltag / Datum / Uhrzeit
-    - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel)
+    - [ ] Spieltag / Datum (Heute) / Uhrzeit (Jetzt)
+    - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel, Trainingsspiel)
     - [ ] Team / Spieler
           Im Ersten Schritt pro Wertungsbogen Spieler (Name und Trikotnummer) mit + und - Buttons hinzufügen oder entfernen.
           Im zweiten Schritt Spieler aus dem Team welches vorab angelegt wird ausgewählt werden und die Punktewertung pro Spieler speichern.
@@ -97,3 +97,8 @@ Volleyball Assistenz
 - [ ] Trainingsteilnahme
 - [ ] Trainingsbewertungen
 - [ ] Trainingsstände (Archivments)
+
+## ToDo
+
+- [ ] Toast ist weiß!
+- [ ] 

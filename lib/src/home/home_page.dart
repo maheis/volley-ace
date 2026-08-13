@@ -5,10 +5,12 @@ class HomePage extends StatelessWidget {
     super.key,
     required this.onOpenSettings,
     required this.onOpenScoreboard,
+    required this.onOpenMatchStats,
   });
 
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenScoreboard;
+  final VoidCallback onOpenMatchStats;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,17 @@ class HomePage extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenScoreboard,
             ),
-          )
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.analytics_outlined, color: scheme.tertiary),
+              title: const Text('Punktewertung'),
+              subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenMatchStats,
+            ),
+          ),
         ],
       ),
     );
