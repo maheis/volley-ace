@@ -23,6 +23,14 @@ class HomePage extends StatelessWidget {
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings),
           ),
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Image.asset(
+              'assets/icons/color_transparent_icon.png',
+              width: 30,
+              height: 30,
+            ),
+          ),
         ],
       ),
       body: ListView(
@@ -37,15 +45,10 @@ class HomePage extends StatelessWidget {
                   Text(
                     'SimplePresent-inspired starter',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'This base template uses the same core visual language as '
-                    'SimplePresent: dark Material 3, teal seed color, and '
-                    'runtime font/text-size settings.',
-                  ),
                 ],
               ),
             ),

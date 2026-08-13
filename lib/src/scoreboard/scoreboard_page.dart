@@ -379,14 +379,19 @@ class _ScorePanel extends StatelessWidget {
             transitionBuilder: (child, animation) {
               return ScaleTransition(scale: animation, child: child);
             },
-            child: Text(
-              '$score',
-              key: ValueKey('$score-$color'),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: fontSize,
-                fontWeight: FontWeight.w700,
-                height: 1,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$score',
+                key: ValueKey('$score-$color'),
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                ),
               ),
             ),
           ),
@@ -515,13 +520,18 @@ class _SetNumber extends StatelessWidget {
             duration: const Duration(milliseconds: 240),
             transitionBuilder: (child, animation) =>
                 ScaleTransition(scale: animation, child: child),
-            child: Text(
-              '$value',
-              key: ValueKey(value),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: fontSize,
-                fontWeight: FontWeight.w700,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$value',
+                key: ValueKey(value),
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),

@@ -52,9 +52,9 @@ Volleyball Assistenz
     - [ ] Gegnerteam
     - [ ] Spieltag / Datum / Uhrzeit
     - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel)
-  - [ ] Spieler
+    - [ ] Spieler
   - [ ] Punkt / Fehler
-  - [ ] Wie / Was
+  - [ ] Wer / Wie / Was
 - [ ] Rotation
 - [ ] Trainingsübungen
 - [ ] Trainingsteilnahme
