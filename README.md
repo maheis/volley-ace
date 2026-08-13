@@ -47,7 +47,12 @@ Volleyball Assistenz
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
 - [ ] Soundboard
 - [ ] Punktewertung
-  - [ ] Wer
+  - [ ] Spielinfos
+    - [ ] Spielort
+    - [ ] Gegnerteam
+    - [ ] Spieltag / Datum / Uhrzeit
+    - [ ] Spieltyp (Liga, Turnier, Freundschaftsspiel)
+  - [ ] Spieler
   - [ ] Punkt / Fehler
   - [ ] Wie / Was
 - [ ] Rotation

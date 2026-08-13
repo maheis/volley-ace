@@ -305,7 +305,7 @@ class _ScorePanel extends StatelessWidget {
               key: ValueKey('$score-$color'),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 234,
+                fontSize: 300,
                 fontWeight: FontWeight.w700,
                 height: 1,
               ),
@@ -400,8 +400,8 @@ class _SetNumber extends StatelessWidget {
         label: '$label: $value gewonnene Sätze',
         hint: 'Nach unten wischen für Satz, nach oben für zurück',
         child: Container(
-          width: 86,
-          height: 172,
+          width: 110,
+          height: 220,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: color,
@@ -416,7 +416,7 @@ class _SetNumber extends StatelessWidget {
               key: ValueKey(value),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 117,
+                fontSize: 150,
                 fontWeight: FontWeight.w700,
               ),
             ),
