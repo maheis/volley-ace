@@ -33,7 +33,7 @@ jobs:
       - name: Package Linux bundle
         run: |
           mkdir -p release_dist
-          stage_dir="release_dist/simplepresent-linux"
+          stage_dir="release_dist/volleyace-linux"
           mkdir -p "${stage_dir}"
           echo "Listing build directories for diagnostics"
           ls -la build || true
@@ -67,7 +67,7 @@ jobs:
               echo "Note: deploy/uninstall-client.sh not found, skipping"
             fi
 
-            tar -czf release_dist/simplepresent-linux.tar.gz -C "${stage_dir}" .
+            tar -czf release_dist/volleyace-linux.tar.gz -C "${stage_dir}" .
           else
             echo "ERROR: build output not found: expected build/linux/**/release/bundle"
             find build/linux -maxdepth 3 -type d -printf '%p\n' || true
@@ -76,14 +76,14 @@ jobs:
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simplepresent-linux
-          path: release_dist/simplepresent-linux.tar.gz
+          name: volleyace-linux
+          path: release_dist/volleyace-linux.tar.gz
       - name: Upload Linux artifact to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: release_dist/simplepresent-linux.tar.gz
-          asset_name: simplepresent-linux.tar.gz
+          asset_path: release_dist/volleyace-linux.tar.gz
+          asset_name: volleyace-linux.tar.gz
           asset_content_type: application/gzip

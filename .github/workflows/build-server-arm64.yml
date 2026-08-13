@@ -35,31 +35,31 @@ jobs:
               run: |
                   go env -w GO111MODULE=on
                   go version
-                  go build -v -o simplepresent-server
+                  go build -v -o volleyace-server
 
             - name: Package server binary
               run: |
                   mkdir -p release_dist
-                  mkdir -p release_dist/simplepresent-server
+                  mkdir -p release_dist/volleyace-server
                   echo "Listing server build directories for diagnostics"
                   ls -la server || true
-                  cp LICENSE release_dist/simplepresent-server/LICENSE || true
-                  cp THIRD_PARTY_LICENSES.md release_dist/simplepresent-server/THIRD_PARTY_LICENSES.md || true
-                  cp server/README.md release_dist/simplepresent-server/README.md || true
-                  cp server/simplepresent-server release_dist/simplepresent-server/simplepresent-server || true
-                  cp server/deploy/install.sh release_dist/simplepresent-server/install.sh || true
-                  cp server/deploy/uninstall.sh release_dist/simplepresent-server/uninstall.sh || true
-                  cp server/etc/config.json.example release_dist/simplepresent-server/config.json.example || true
-                  cp server/systemd/simplepresent-server.service release_dist/simplepresent-server/simplepresent-server.service || true
-                  chmod +x release_dist/simplepresent-server/install.sh || true
-                  chmod +x release_dist/simplepresent-server/uninstall.sh || true
-                  cd release_dist && zip -r simplepresent-server-arm64.zip simplepresent-server
+                  cp LICENSE release_dist/volleyace-server/LICENSE || true
+                  cp THIRD_PARTY_LICENSES.md release_dist/volleyace-server/THIRD_PARTY_LICENSES.md || true
+                  cp server/README.md release_dist/volleyace-server/README.md || true
+                  cp server/volleyace-server release_dist/volleyace-server/volleyace-server || true
+                  cp server/deploy/install.sh release_dist/volleyace-server/install.sh || true
+                  cp server/deploy/uninstall.sh release_dist/volleyace-server/uninstall.sh || true
+                  cp server/etc/config.json.example release_dist/volleyace-server/config.json.example || true
+                  cp server/systemd/volleyace-server.service release_dist/volleyace-server/volleyace-server.service || true
+                  chmod +x release_dist/volleyace-server/install.sh || true
+                  chmod +x release_dist/volleyace-server/uninstall.sh || true
+                  cd release_dist && zip -r volleyace-server-arm64.zip volleyace-server
 
             - name: Upload server artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: simplepresent-server-arm64
-                  path: release_dist/simplepresent-server-arm64.zip
+                  name: volleyace-server-arm64
+                  path: release_dist/volleyace-server-arm64.zip
 
             - name: Upload server artifact to Release
               uses: actions/upload-release-asset@v1
@@ -67,6 +67,6 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ github.event.release.upload_url }}
-                  asset_path: release_dist/simplepresent-server-arm64.zip
-                  asset_name: simplepresent-server-arm64.zip
+                  asset_path: release_dist/volleyace-server-arm64.zip
+                  asset_name: volleyace-server-arm64.zip
                   asset_content_type: application/zip
