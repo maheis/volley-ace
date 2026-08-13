@@ -31,6 +31,8 @@ Volleyball Assistenz
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
   - [x] Uhr / Stop-Uhr
   - [ ] Letzte Punkte pro Satz anzeigen
+  - [ ] Auszeiten pro Team anzeigen
+  - [ ] Spielerwechsel pro Team anzeigen
 - [ ] Team
   - [ ] Spieler
     - [ ] Name

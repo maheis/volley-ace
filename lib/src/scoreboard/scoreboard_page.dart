@@ -27,6 +27,7 @@ class _ScoreSnapshot {
     required this.rightSets,
     required this.leftColor,
     required this.rightColor,
+    required this.completedSets,
   });
 
   final int leftPoints;
@@ -35,6 +36,7 @@ class _ScoreSnapshot {
   final int rightSets;
   final Color leftColor;
   final Color rightColor;
+  final List<SetResult> completedSets;
 }
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
@@ -54,6 +56,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   bool _stopwatchRunning = false;
   Duration _stopwatchElapsed = Duration.zero;
   DateTime? _stopwatchStartedAt;
+  List<SetResult> _completedSets = <SetResult>[];
   late final ScoreboardRepository _repository = ScoreboardRepository(
     widget.database,
   );
@@ -137,6 +140,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchElapsed = state.stopwatchElapsed;
       _stopwatchRunning = state.stopwatchRunning;
       _stopwatchStartedAt = state.stopwatchStartedAt;
+      _completedSets = state.completedSets;
       _isLoaded = true;
     });
   }
@@ -154,6 +158,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           stopwatchElapsed: _stopwatchElapsed,
           stopwatchRunning: _stopwatchRunning,
           stopwatchStartedAt: _stopwatchStartedAt,
+          completedSets: _completedSets,
         ),
       ),
     );
@@ -176,6 +181,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         rightSets: _rightSets,
         leftColor: _leftColor,
         rightColor: _rightColor,
+        completedSets: List<SetResult>.from(_completedSets),
       );
 
   void _addPoint({required bool left}) {
@@ -228,6 +234,16 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
     _history.add(_snapshot);
     setState(() {
+      _completedSets = List<SetResult>.from(_completedSets)
+        ..add(
+          SetResult(
+            leftPoints: _leftPoints,
+            rightPoints: _rightPoints,
+            winnerColor: left ? _leftColor : _rightColor,
+            wonAt: DateTime.now(),
+            stopwatchAt: _stopwatchDuration,
+          ),
+        );
       if (left) {
         _leftSets++;
       } else {
@@ -252,6 +268,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightSets = previous.rightSets;
       _leftColor = previous.leftColor;
       _rightColor = previous.rightColor;
+      _completedSets = previous.completedSets;
     });
     _persist();
   }
@@ -261,10 +278,30 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     final rightWon = _rightPoints >= 25 && _rightPoints - _leftPoints >= 2;
 
     if (leftWon) {
+      _completedSets = List<SetResult>.from(_completedSets)
+        ..add(
+          SetResult(
+            leftPoints: _leftPoints,
+            rightPoints: _rightPoints,
+            winnerColor: _leftColor,
+            wonAt: DateTime.now(),
+            stopwatchAt: _stopwatchDuration,
+          ),
+        );
       _leftSets++;
       _leftPoints = 0;
       _rightPoints = 0;
     } else if (rightWon) {
+      _completedSets = List<SetResult>.from(_completedSets)
+        ..add(
+          SetResult(
+            leftPoints: _leftPoints,
+            rightPoints: _rightPoints,
+            winnerColor: _rightColor,
+            wonAt: DateTime.now(),
+            stopwatchAt: _stopwatchDuration,
+          ),
+        );
       _rightSets++;
       _leftPoints = 0;
       _rightPoints = 0;
@@ -321,6 +358,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
+      _completedSets = <SetResult>[];
     });
     _persist();
   }
@@ -357,9 +395,18 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                         padding: EdgeInsets.all(_isFullscreen ? 4 : 12),
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 1100),
-                          child: isWide
-                              ? _buildWideBoard(context)
-                              : _buildCompactBoard(context),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              isWide
+                                  ? _buildWideBoard(context)
+                                  : _buildCompactBoard(context),
+                              if (_completedSets.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                _SetHistoryTable(sets: _completedSets),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -693,6 +740,133 @@ class _SetNumber extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SetHistoryTable extends StatelessWidget {
+  const _SetHistoryTable({required this.sets});
+
+  final List<SetResult> sets;
+
+  String _formatTimestamp(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day.$month. $hour:$minute';
+  }
+
+  String _formatDuration(Duration value) {
+    final mm = value.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final ss = value.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const headerStyle = TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.bold,
+    );
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SingleChildScrollView(
+        child: Table(
+          columnWidths: const {
+            0: IntrinsicColumnWidth(),
+            1: IntrinsicColumnWidth(),
+            2: IntrinsicColumnWidth(),
+            3: IntrinsicColumnWidth(),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            const TableRow(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Satz', style: headerStyle),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Datum/Uhrzeit', style: headerStyle),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Ergebnis', style: headerStyle),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Stoppuhr', style: headerStyle),
+                ),
+              ],
+            ),
+            for (var i = 0; i < sets.length; i++)
+              TableRow(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      _formatTimestamp(sets[i].wonAt),
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      '${sets[i].leftPoints}:${sets[i].rightPoints}',
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      _formatDuration(sets[i].stopwatchAt),
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
       ),
     );
