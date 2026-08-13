@@ -820,9 +820,73 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                     : match.matchTag),
             _InfoRow(
                 label: 'Angelegt', value: _formatDateTime(match.createdAt)),
+            const SizedBox(height: 24),
+            const Text(
+              'Team / Spieler',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildPlayerEditor(match),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPlayerEditor(MatchGame match) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const ValueKey('player-name-input'),
+                controller: _playerNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Spielername',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 110,
+              child: TextField(
+                key: const ValueKey('player-number-input'),
+                controller: _playerNumberController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Nr.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton.filled(
+              key: const ValueKey('add-player-button'),
+              onPressed: () => _addPlayerToMatch(match),
+              icon: const Icon(Icons.add),
+              tooltip: 'Spieler hinzufügen',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (match.players.isEmpty)
+          const Text('Noch keine Spieler angelegt.')
+        else
+          for (final player in match.players)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(player.name),
+              subtitle: Text('Trikot ${player.number}'),
+              trailing: IconButton(
+                onPressed: () => _removePlayerFromMatch(match, player),
+                icon: const Icon(Icons.remove_circle_outline),
+                tooltip: 'Spieler entfernen',
+              ),
+            ),
+      ],
     );
   }
 
@@ -873,41 +937,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: const ValueKey('player-name-input'),
-                      controller: _playerNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Spielername',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 110,
-                    child: TextField(
-                      key: const ValueKey('player-number-input'),
-                      controller: _playerNumberController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Nr.',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    key: const ValueKey('add-player-button'),
-                    onPressed: () => _addPlayerToMatch(match),
-                    icon: const Icon(Icons.person_add),
-                    label: const Text('Hinzufügen'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
               if (match.players.isNotEmpty) ...[
                 Row(
                   children: [
@@ -932,58 +961,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Spieler',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: match.players.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final player = match.players[index];
-                    final playerPoints = match.events
-                        .where(
-                          (event) =>
-                              event.playerId == player.id &&
-                              event.kind == 'point',
-                        )
-                        .length;
-                    final playerErrors = match.events
-                        .where(
-                          (event) =>
-                              event.playerId == player.id &&
-                              event.kind == 'error',
-                        )
-                        .length;
-
-                    return ListTile(
-                      title: Text(player.name),
-                      subtitle: Text('Trikot ${player.number}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Chip(label: Text('P $playerPoints')),
-                          const SizedBox(width: 8),
-                          Chip(label: Text('F $playerErrors')),
-                          IconButton(
-                            onPressed: () =>
-                                _removePlayerFromMatch(match, player),
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: 'Spieler entfernen',
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ] else
-                const Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: Text('Noch keine Spieler angelegt.'),
-                ),
+              ],
               const SizedBox(height: 16),
               const Text(
                 'Statistik',

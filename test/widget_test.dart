@@ -126,7 +126,7 @@ void main() {
 
     await tester.tap(find.text('vs. Team B'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Punktewertung'));
+    await tester.tap(find.text('Spielinfos'));
     await tester.pumpAndSettle();
 
     await tester.enterText(
@@ -142,6 +142,11 @@ void main() {
 
     expect(find.text('Ada'), findsOneWidget);
 
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Punktewertung'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ada • Nr. 7'));
@@ -149,7 +154,7 @@ void main() {
     await tester.tap(find.text('Ass'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Ada'), findsWidgets);
+    expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
     expect(find.text('Ass'), findsWidgets);
   });
 }
