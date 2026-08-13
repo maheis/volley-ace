@@ -21,45 +21,50 @@ android {
         applicationId = "be.heister.volleyace"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Android 13+ baseline (API 33) as requested.
+        minSdk = 33
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    val signingPropertiesFile = rootProject.file("key.properties")
-    val signingProperties = Properties()
-    if (signingPropertiesFile.exists()) {
-        signingPropertiesFile.inputStream().use(signingProperties::load)
-    }
+    // Load signing info from key.properties if present (created by CI from secrets)
+    val possibleKeys = listOf(rootProject.file("key.properties"), rootProject.file("android/key.properties"))
+    val keystorePropertiesFile = possibleKeys.firstOrNull { it.exists() }
+    if (keystorePropertiesFile != null) {
+        val keystoreProperties = Properties()
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+        signingConfigs {
+            create("release") {
+                val storeFileProp = keystoreProperties.getProperty("storeFile")
+                if (storeFileProp != null) {
+                    storeFile = file(storeFileProp)
+                }
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
 
-    fun signingProperty(name: String): String {
-        return signingProperties.getProperty(name)
-            ?: error(
-                "Missing '$name' in android/key.properties. " +
-                    "Configure release signing before building for Google Play."
-            )
-    }
 
-    signingConfigs {
-        create("release") {
-            keyAlias = signingProperty("keyAlias")
-            keyPassword = signingProperty("keyPassword")
-            storeFile = file(signingProperty("storeFile"))
-            storePassword = signingProperty("storePassword")
+
+
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Use release signing config if available
+            if (signingConfigs.findByName("release") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        // Keep Kotlin bytecode target aligned with Java 17 toolchain used in CI.
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
