@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -42,6 +43,14 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   Color _rightColor = _red;
   final List<_ScoreSnapshot> _history = <_ScoreSnapshot>[];
   bool _isFullscreen = false;
+  DateTime _now = DateTime.now();
+  Timer? _clockTimer;
+
+  String get _clockText {
+    final hh = _now.hour.toString().padLeft(2, '0');
+    final mm = _now.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     if (defaultTargetPlatform != TargetPlatform.android ||
@@ -68,6 +77,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   void initState() {
     super.initState();
     WakelockPlus.enable();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
     if (defaultTargetPlatform == TargetPlatform.android) {
       SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
         DeviceOrientation.landscapeLeft,
@@ -78,6 +90,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     WakelockPlus.disable();
     if (defaultTargetPlatform == TargetPlatform.android) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -295,20 +308,37 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                     ),
                   ),
                   SizedBox(width: gap),
-                  _SetWins(
-                    leftSets: _leftSets,
-                    rightSets: _rightSets,
-                    leftColor: _leftColor,
-                    rightColor: _rightColor,
-                    tileWidth: 110 * scale,
-                    tileHeight: 220 * scale,
-                    fontSize: 150 * scale,
-                    gap: gap,
-                    borderRadius: 12 * scale,
-                    onLeftSwipeDown: () => _addSet(left: true),
-                    onRightSwipeDown: () => _addSet(left: false),
-                    onSwipeUp: _undoSet,
-                    onHorizontalSwipe: _swapSides,
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Semantics(
+                        label: 'Uhrzeit $_clockText',
+                        child: Text(
+                          _clockText,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: (56 * scale).clamp(24, 84),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: gap),
+                      _SetWins(
+                        leftSets: _leftSets,
+                        rightSets: _rightSets,
+                        leftColor: _leftColor,
+                        rightColor: _rightColor,
+                        tileWidth: 110 * scale,
+                        tileHeight: 220 * scale,
+                        fontSize: 150 * scale,
+                        gap: gap,
+                        borderRadius: 12 * scale,
+                        onLeftSwipeDown: () => _addSet(left: true),
+                        onRightSwipeDown: () => _addSet(left: false),
+                        onSwipeUp: _undoSet,
+                        onHorizontalSwipe: _swapSides,
+                      ),
+                    ],
                   ),
                   SizedBox(width: gap),
                   Expanded(

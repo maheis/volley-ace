@@ -45,7 +45,7 @@ Volleyball Assistenz
   - Nach oben wischen: letzten Punkt zurücknehmen
   - Nach links/rechts wischen: Seiten, Farben und Spielstände tauschen
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
-  - [ ] Uhr
+  - [ ] Uhr / Stop-Uhr
   - [ ] Letzte Punkte pro Satz anzeigen
 - [ ] Soundboard
 - [ ] Punktewertung
