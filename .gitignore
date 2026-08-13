@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# These PNGs collide with hand-authored XML drawables of the same name;
+# icon regeneration tools must not recreate them here.
+/android/app/src/main/res/drawable/launch_background.png
+/android/app/src/main/res/drawable/ic_launcher_background.png
+/android/app/src/main/res/drawable-v21/launch_background.png
