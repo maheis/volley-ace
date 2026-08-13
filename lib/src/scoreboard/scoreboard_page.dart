@@ -41,6 +41,28 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   Color _leftColor = _blue;
   Color _rightColor = _red;
   final List<_ScoreSnapshot> _history = <_ScoreSnapshot>[];
+  bool _isFullscreen = false;
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    if (defaultTargetPlatform != TargetPlatform.android ||
+        details.pointerCount < 2) {
+      return;
+    }
+
+    if (!_isFullscreen && details.scale > 1.12) {
+      _setFullscreen(true);
+    } else if (_isFullscreen && details.scale < 0.88) {
+      _setFullscreen(false);
+    }
+  }
+
+  void _setFullscreen(bool enabled) {
+    if (_isFullscreen == enabled || !mounted) return;
+    setState(() => _isFullscreen = enabled);
+    SystemChrome.setEnabledSystemUIMode(
+      enabled ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+    );
+  }
 
   @override
   void initState() {
@@ -58,6 +80,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   void dispose() {
     WakelockPlus.disable();
     if (defaultTargetPlatform == TargetPlatform.android) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
         DeviceOrientation.portraitUp,
         DeviceOrientation.portraitDown,
@@ -195,33 +218,41 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Punktetafel'),
-        actions: [
-          IconButton(
-            tooltip: 'Reset',
-            onPressed: _reset,
-            icon: const Icon(Icons.restart_alt),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 650;
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1100),
-                  child: isWide
-                      ? _buildWideBoard(context)
-                      : _buildCompactBoard(context),
-                ),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onScaleUpdate: _handleScaleUpdate,
+      child: Scaffold(
+        appBar: _isFullscreen
+            ? null
+            : AppBar(
+                title: const Text('Punktetafel'),
+                actions: [
+                  IconButton(
+                    tooltip: 'Reset',
+                    onPressed: _reset,
+                    icon: const Icon(Icons.restart_alt),
+                  ),
+                ],
               ),
-            );
-          },
+        body: SafeArea(
+          top: !_isFullscreen,
+          bottom: !_isFullscreen,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 650;
+              return Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(_isFullscreen ? 4 : 12),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: isWide
+                        ? _buildWideBoard(context)
+                        : _buildCompactBoard(context),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
