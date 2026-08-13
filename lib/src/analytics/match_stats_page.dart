@@ -891,13 +891,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildScoringView(MatchGame match) {
-    final points = _pointSummary(match);
-    final errors = _errorSummary(match);
-    final totalPoints =
-        match.events.where((entry) => entry.kind == 'point').length;
-    final totalErrors =
-        match.events.where((entry) => entry.kind == 'error').length;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Punktewertung'),
@@ -912,65 +905,57 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryTile(
-                          label: 'Punkte',
-                          value: '$totalPoints',
-                          color: Colors.green,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _SummaryTile(
-                          label: 'Fehler',
-                          value: '$totalErrors',
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (match.players.isNotEmpty) ...[
-                Row(
-                  children: [
-                    Expanded(
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 160,
                       child: FilledButton.icon(
                         key: const ValueKey('record-point-button'),
                         onPressed: () =>
                             _recordEventForMatch(match, isPoint: true),
-                        icon: const Icon(Icons.add_circle),
-                        label: const Text('Punkt erfassen'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add_circle, size: 40),
+                        label: const Text('Punkt'),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.tonalIcon(
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 160,
+                      child: FilledButton.icon(
+                        key: const ValueKey('record-error-button'),
                         onPressed: () =>
                             _recordEventForMatch(match, isPoint: false),
-                        icon: const Icon(Icons.error_outline),
-                        label: const Text('Fehler erfassen'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: const Icon(Icons.error_outline, size: 40),
+                        label: const Text('Fehler'),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-              const SizedBox(height: 16),
-              const Text(
-                'Statistik',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _StatGroup(title: 'Punkte pro Art', entries: points),
-              const SizedBox(height: 12),
-              _StatGroup(title: 'Fehler pro Art', entries: errors),
             ],
           ),
         ),
@@ -1088,40 +1073,6 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
           Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryTile extends StatelessWidget {
-  const _SummaryTile({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
         ],
       ),
     );

@@ -155,6 +155,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Statistik'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Ass'), findsWidgets);
   });
 }

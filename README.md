@@ -37,7 +37,7 @@ Volleyball Assistenz
       Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
       Es soll eine persistente Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
       Wählt man ein Spiel aus, kann man entwender Punktewertung erfassen oder die Statistik einsehen.
-  - [ ] Spielinfos
+  - [x] Spielinfos
         Abfragen beim Spielstart, um die Statistik zu speichern.
     - [x] Spielort
     - [x] Gegnerteam
