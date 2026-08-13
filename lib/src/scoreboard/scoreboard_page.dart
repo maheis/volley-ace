@@ -28,6 +28,9 @@ class _ScoreSnapshot {
     required this.leftColor,
     required this.rightColor,
     required this.completedSets,
+    required this.stopwatchElapsed,
+    required this.stopwatchRunning,
+    required this.stopwatchStartedAt,
   });
 
   final int leftPoints;
@@ -37,6 +40,9 @@ class _ScoreSnapshot {
   final Color leftColor;
   final Color rightColor;
   final List<SetResult> completedSets;
+  final Duration stopwatchElapsed;
+  final bool stopwatchRunning;
+  final DateTime? stopwatchStartedAt;
 }
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
@@ -92,6 +98,35 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         _stopwatchStartedAt = DateTime.now();
         _stopwatchRunning = true;
       }
+    });
+    _persist();
+  }
+
+  Future<void> _resetStopwatch() async {
+    final shouldReset = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Stoppuhr zurücksetzen?'),
+        content: const Text('Die Stoppuhr wird auf 00:00 zurückgesetzt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Zurücksetzen'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReset != true || !mounted) return;
+
+    setState(() {
+      _stopwatchRunning = false;
+      _stopwatchElapsed = Duration.zero;
+      _stopwatchStartedAt = null;
     });
     _persist();
   }
@@ -182,6 +217,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         leftColor: _leftColor,
         rightColor: _rightColor,
         completedSets: List<SetResult>.from(_completedSets),
+        stopwatchElapsed: _stopwatchElapsed,
+        stopwatchRunning: _stopwatchRunning,
+        stopwatchStartedAt: _stopwatchStartedAt,
       );
 
   void _addPoint({required bool left}) {
@@ -251,6 +289,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       }
       _leftPoints = 0;
       _rightPoints = 0;
+      _stopwatchRunning = false;
+      _stopwatchElapsed = Duration.zero;
+      _stopwatchStartedAt = null;
     });
     _persist();
   }
@@ -269,6 +310,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftColor = previous.leftColor;
       _rightColor = previous.rightColor;
       _completedSets = previous.completedSets;
+      _stopwatchElapsed = previous.stopwatchElapsed;
+      _stopwatchRunning = previous.stopwatchRunning;
+      _stopwatchStartedAt = previous.stopwatchStartedAt;
     });
     _persist();
   }
@@ -291,6 +335,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftSets++;
       _leftPoints = 0;
       _rightPoints = 0;
+      _stopwatchRunning = false;
+      _stopwatchElapsed = Duration.zero;
+      _stopwatchStartedAt = null;
     } else if (rightWon) {
       _completedSets = List<SetResult>.from(_completedSets)
         ..add(
@@ -305,6 +352,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightSets++;
       _leftPoints = 0;
       _rightPoints = 0;
+      _stopwatchRunning = false;
+      _stopwatchElapsed = Duration.zero;
+      _stopwatchStartedAt = null;
     }
   }
 
@@ -486,9 +536,10 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                       SizedBox(height: gap),
                       GestureDetector(
                         onTap: _toggleStopwatch,
+                        onLongPress: _resetStopwatch,
                         child: Semantics(
                           label:
-                              'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}.',
+                              'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
