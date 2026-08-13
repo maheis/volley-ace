@@ -2,6 +2,14 @@
 
 Kurz und präzise Anleitung, um eine Android-Version in den Google Play Store zu bringen.
 
+## 0) Change Parameter
+- in `android/app/build.gradle.kts`
+
+```bash
+namespace = "de.deinname.volleyace"
+applicationId = "de.deinname.volleyace"
+```
+CN=Manfred Heister,OU=ALLSTAR,O=maheis,L=Dietfurt,ST=BY,C=DE
 ## 1) Versioning
 - Erhöhe die `version` in `pubspec.yaml`, z.B. `1.2.0+5` (`+5` = `versionCode`).
 
@@ -10,13 +18,15 @@ Kurz und präzise Anleitung, um eine Android-Version in den Google Play Store zu
 
 ```bash
 keytool -genkeypair -v \
-  -keystore ~/.keystores/simplepresent.jks \
-  -alias simplepresent_key \
+  -keystore ~/.keystores/volleyace.jks \
+  -alias volleyace_key \
   -keyalg RSA -keysize 2048 -validity 10000
+
+CN=Manfred Heister,OU=ALLSTAR,O=maheis,L=Dietfurt,ST=BY,C=DE
 ```
 
 ## 3) Play Console — Vorbereitung
-- Richte ein Google Play Developer Account ein (einmalige Gebühr).
+- [x] Richte ein Google Play Developer Account ein (einmalige Gebühr).
 - Erstelle eine App in der Play Console.
 - Fülle Store Listing aus: Titel, Kurz-/Langbeschreibung, Screenshots, High‑res Icon (512×512), Feature Graphic (1024×500), Kontakt‑Email, Datenschutzerklärung.
 - Content Rating, Ziel‑API (aktuell halten), Kategorien und Berechtigungen konfigurieren.
@@ -34,7 +44,7 @@ keytool -genkeypair -v \
 
 How to create KEYSTORE_BASE64 locally:
 ```
-base64 ~/.keystores/simplepresent.jks | tr -d '\n' > ~/.keystores/simplepresent_base64.txt
+base64 ~/.keystores/volleyace.jks | tr -d '\n' > ~/.keystores/volleyace_base64.txt
 ```
 
 - Beispiel-Snippet (Auszug):
