@@ -51,6 +51,7 @@ jobs:
 
       - name: verify release keystore is present
         run: |
+          set -euo pipefail
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "ERROR: KEYSTORE_BASE64 secret is empty. The build would be debug-signed. Aborting to avoid uploading a debug-signed build." >&2
             exit 1
@@ -59,8 +60,15 @@ jobs:
             echo "ERROR: One or more release signing secrets are empty." >&2
             exit 1
           fi
+          echo "Aliases found in the CI keystore:"
           keytool -list -keystore "$GITHUB_WORKSPACE/keystore.jks" \
-            -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+            -storepass "$KEYSTORE_PASSWORD" | sed -n 's/^\([^,]*\),.*/  \1/p'
+          if ! keytool -list -keystore "$GITHUB_WORKSPACE/keystore.jks" \
+            -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "ERROR: KEY_ALIAS '$KEY_ALIAS' is not present in the CI keystore." >&2
+            echo "Update KEY_ALIAS to one of the aliases listed above, or replace KEYSTORE_BASE64 with the matching keystore." >&2
+            exit 1
+          fi
       - name: Build Android release APK
         run: flutter build apk --release
       - name: Package APK
