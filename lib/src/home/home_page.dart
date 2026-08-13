@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.onOpenSettings});
+  const HomePage({
+    super.key,
+    required this.onOpenSettings,
+    required this.onOpenScoreboard,
+  });
 
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenScoreboard;
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +55,9 @@ class HomePage extends StatelessWidget {
             child: ListTile(
               leading: Icon(Icons.scoreboard, color: scheme.primary),
               title: const Text('Punktetafel'),
-              subtitle: const Text(
-                'Start here with your first feature module.',
-              ),
+              subtitle: const Text('Volleyball-Spielstand erfassen.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenScoreboard,
             ),
           ),
           Card(

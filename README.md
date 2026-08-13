@@ -17,11 +17,34 @@ Volleyball Assistenz
 - Teams
   - Mitglieder
   - Trainer
+- Sprachsteuerung (insbesondere für die Punktetafel)
+- Bildschirm aktiv lassen
 
 ## ToDos
 
 - [ ] Team
-- [ ] Punktetafel
+  - [ ] Spieler
+    - [ ] Trikotnummer
+    - [ ] Geburtsdatum / Alter
+    - [ ] Position
+    - [ ] Spielerprofil
+    - [ ] Spielerstatistik
+    - [ ] Spielerbewertung
+    - [ ] Spielertraining
+    - [ ] Achievements
+  - [ ] Trainer
+    - [ ] Trainerprofil
+    - [ ] Trainerstatistik
+    - [ ] Trainerbewertung
+    - [ ] Achievements
+- [ ] Achievements
+- [x] Punktetafel
+  - Zwei farbige Satzpunkt-Anzeigen (blau/rot)
+  - Gewonnene Sätze in der Mitte
+  - Nach unten wischen: Punkt vergeben
+  - Nach oben wischen: letzten Punkt zurücknehmen
+  - Nach links/rechts wischen: Seiten, Farben und Spielstände tauschen
+  - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
 - [ ] Soundboard
 - [ ] Punktewertung
   - [ ] Wer
