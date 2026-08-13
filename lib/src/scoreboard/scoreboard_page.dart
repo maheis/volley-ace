@@ -235,7 +235,29 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     });
   }
 
-  void _reset() {
+  Future<void> _reset() async {
+    final shouldReset = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Punktetafel zurücksetzen?'),
+        content: const Text(
+          'Punkte, Sätze und die Stoppuhr werden auf den Anfangszustand zurückgesetzt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Zurücksetzen'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReset != true || !mounted) return;
+
     setState(() {
       _leftPoints = 0;
       _rightPoints = 0;
