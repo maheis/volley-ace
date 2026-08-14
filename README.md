@@ -101,4 +101,4 @@ Volleyball Assistenz
 ## ToDo
 
 - [x] Toast ist weiß!
-- [ ] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
+- [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)

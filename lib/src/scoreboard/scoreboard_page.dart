@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -56,7 +54,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   Color _leftColor = _blue;
   Color _rightColor = _red;
   final List<_ScoreSnapshot> _history = <_ScoreSnapshot>[];
-  bool _isFullscreen = false;
   DateTime _now = DateTime.now();
   Timer? _clockTimer;
   bool _stopwatchRunning = false;
@@ -131,27 +128,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     _persist();
   }
 
-  void _handleScaleUpdate(ScaleUpdateDetails details) {
-    if (defaultTargetPlatform != TargetPlatform.android ||
-        details.pointerCount < 2) {
-      return;
-    }
-
-    if (!_isFullscreen && details.scale > 1.12) {
-      _setFullscreen(true);
-    } else if (_isFullscreen && details.scale < 0.88) {
-      _setFullscreen(false);
-    }
-  }
-
-  void _setFullscreen(bool enabled) {
-    if (_isFullscreen == enabled || !mounted) return;
-    setState(() => _isFullscreen = enabled);
-    SystemChrome.setEnabledSystemUIMode(
-      enabled ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -203,9 +179,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   void dispose() {
     _clockTimer?.cancel();
     WakelockPlus.disable();
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    }
     super.dispose();
   }
 
@@ -415,64 +388,71 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onScaleUpdate: _handleScaleUpdate,
-      child: Scaffold(
-        appBar: _isFullscreen
-            ? null
-            : AppBar(
-                title: const Text('Punktetafel'),
-                actions: [
-                  IconButton(
-                    tooltip: 'Reset',
-                    onPressed: _reset,
-                    icon: const Icon(Icons.restart_alt),
-                  ),
-                ],
-              ),
-        body: SafeArea(
-          top: !_isFullscreen,
-          bottom: !_isFullscreen,
-          child: !_isLoaded
-              ? const Center(child: CircularProgressIndicator())
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 650;
-                    return Center(
-                      child: SingleChildScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: EdgeInsets.all(_isFullscreen ? 4 : 12),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1100),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              isWide
-                                  ? _buildWideBoard(context)
-                                  : _buildCompactBoard(context),
-                              if (_completedSets.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                _SetHistoryTable(sets: _completedSets),
-                              ],
-                            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Punktetafel'),
+        actions: [
+          IconButton(
+            tooltip: 'Reset',
+            onPressed: _reset,
+            icon: const Icon(Icons.restart_alt),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: !_isLoaded
+            ? const Center(child: CircularProgressIndicator())
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 650;
+                  const padding = 12.0;
+                  final availableWidth = math
+                      .max(
+                        0.0,
+                        math.min(1100, constraints.maxWidth - padding * 2),
+                      )
+                      .toDouble();
+                  final boardRatio = isWide ? 2.2 : 0.92;
+                  var boardWidth = availableWidth;
+                  var boardHeight = boardWidth / boardRatio;
+
+                  if (isWide && constraints.hasBoundedHeight) {
+                    final availableHeight = math
+                        .max(
+                          0.0,
+                          constraints.maxHeight - padding * 2,
+                        )
+                        .toDouble();
+                    if (boardHeight > availableHeight) {
+                      boardHeight = availableHeight;
+                      boardWidth = boardHeight * boardRatio;
+                    }
+                  }
+
+                  return Center(
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(padding),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: boardWidth,
+                            height: boardHeight,
+                            child: _buildBoard(context),
                           ),
-                        ),
+                          if (_completedSets.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _SetHistoryTable(sets: _completedSets),
+                          ],
+                        ],
                       ),
-                    );
-                  },
-                ),
-        ),
+                    ),
+                  );
+                },
+              ),
       ),
     );
-  }
-
-  Widget _buildWideBoard(BuildContext context) {
-    return AspectRatio(aspectRatio: 2.2, child: _buildBoard(context));
-  }
-
-  Widget _buildCompactBoard(BuildContext context) {
-    return AspectRatio(aspectRatio: 0.92, child: _buildBoard(context));
   }
 
   Widget _buildBoard(BuildContext context) {
