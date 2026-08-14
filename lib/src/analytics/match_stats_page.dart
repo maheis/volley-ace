@@ -934,7 +934,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   onResetStopwatch: () => _resetStopwatch(match),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 140,
@@ -983,7 +983,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ),
               ),
               if (sets.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   height: 140,
