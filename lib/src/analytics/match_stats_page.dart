@@ -276,6 +276,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   final List<MatchGame> _matches = <MatchGame>[];
   int? _selectedMatchId;
   String? _activeSection;
+  String? _pendingEventKind;
+  int? _pendingPlayerId;
   bool _isLoaded = false;
   int _nextMatchId = 1;
 
@@ -331,6 +333,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     setState(() {
       _selectedMatchId = matchId;
       _activeSection = section;
+      _pendingEventKind = null;
+      _pendingPlayerId = null;
     });
   }
 
@@ -338,6 +342,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     setState(() {
       _selectedMatchId = null;
       _activeSection = null;
+      _pendingEventKind = null;
+      _pendingPlayerId = null;
     });
   }
 
@@ -434,52 +440,28 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     unawaited(_persist());
   }
 
-  Future<void> _recordEventForMatch(MatchGame match,
-      {required bool isPoint}) async {
-    if (match.players.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Bitte erst mindestens einen Spieler anlegen.')),
-      );
-      return;
-    }
+  void _startEventSelection(MatchGame match, {required bool isPoint}) {
+    setState(() {
+      _pendingEventKind = isPoint ? 'point' : 'error';
+      _pendingPlayerId = null;
+      _activeSection = 'player-selection';
+    });
+  }
 
-    final player = await showDialog<MatchPlayer>(
-      context: context,
-      builder: (dialogContext) {
-        return SimpleDialog(
-          title: const Text('Spieler auswählen'),
-          children: match.players
-              .map(
-                (entry) => SimpleDialogOption(
-                  onPressed: () => Navigator.of(dialogContext).pop(entry),
-                  child: Text('${entry.name} • Nr. ${entry.number}'),
-                ),
-              )
-              .toList(),
-        );
-      },
-    );
-    if (player == null || !mounted) return;
+  void _selectPlayerForEvent(MatchGame match, MatchPlayer player) {
+    setState(() {
+      _pendingPlayerId = player.id;
+      _activeSection = 'category-selection';
+    });
+  }
 
-    final category = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        final options = isPoint ? _pointTypes : _errorTypes;
-        return SimpleDialog(
-          title: Text(isPoint ? 'Punktart wählen' : 'Fehler wählen'),
-          children: options
-              .map(
-                (option) => SimpleDialogOption(
-                  onPressed: () => Navigator.of(dialogContext).pop(option),
-                  child: Text(option),
-                ),
-              )
-              .toList(),
+  void _selectCategoryForEvent(MatchGame match, String category) {
+    final playerId = _pendingPlayerId;
+    final player = match.players.cast<MatchPlayer?>().firstWhere(
+          (entry) => entry?.id == playerId,
+          orElse: () => null,
         );
-      },
-    );
-    if (category == null || !mounted) return;
+    if (player == null) return;
 
     final events = List<MatchEvent>.from(match.events)
       ..add(
@@ -488,12 +470,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           playerId: player.id,
           playerName: player.name,
           playerNumber: player.number,
-          kind: isPoint ? 'point' : 'error',
+          kind: _pendingEventKind ?? 'point',
           category: category,
           occurredAt: DateTime.now(),
         ),
       );
     _replaceMatch(match.copyWith(events: events));
+    setState(() {
+      _pendingEventKind = null;
+      _pendingPlayerId = null;
+      _activeSection = 'scoring';
+    });
   }
 
   Map<String, int> _pointSummary(MatchGame match) {
@@ -529,6 +516,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     }
     if (selectedMatch != null && _activeSection == 'scoring') {
       return _buildScoringView(selectedMatch);
+    }
+    if (selectedMatch != null && _activeSection == 'player-selection') {
+      return _buildPlayerSelectionView(selectedMatch);
+    }
+    if (selectedMatch != null && _activeSection == 'category-selection') {
+      return _buildCategorySelectionView(selectedMatch);
     }
     if (selectedMatch != null && _activeSection == 'stats') {
       return _buildStatsView(selectedMatch);
@@ -856,7 +849,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                       child: FilledButton.icon(
                         key: const ValueKey('record-point-button'),
                         onPressed: () =>
-                            _recordEventForMatch(match, isPoint: true),
+                            _startEventSelection(match, isPoint: true),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
@@ -880,7 +873,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                       child: FilledButton.icon(
                         key: const ValueKey('record-error-button'),
                         onPressed: () =>
-                            _recordEventForMatch(match, isPoint: false),
+                            _startEventSelection(match, isPoint: false),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -901,6 +894,101 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerSelectionView(MatchGame match) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Spieler auswählen'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _showMatchDetail(match.id, section: 'scoring'),
+        ),
+      ),
+      body: SafeArea(
+        child: match.players.isEmpty
+            ? const Center(child: Text('Noch keine Spieler angelegt.'))
+            : ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: match.players.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final player = match.players[index];
+                  return Card(
+                    child: InkWell(
+                      key: ValueKey('select-player-${player.id}'),
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _selectPlayerForEvent(match, player),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.person, size: 32),
+                            const SizedBox(height: 8),
+                            Text(
+                              player.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('Trikot ${player.number}'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelectionView(MatchGame match) {
+    final isPoint = _pendingEventKind == 'point';
+    final categories = isPoint ? _pointTypes : _errorTypes;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isPoint ? 'Punktart auswählen' : 'Fehler auswählen'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => setState(() => _activeSection = 'player-selection'),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            return Card(
+              child: InkWell(
+                key: ValueKey('select-category-$category'),
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _selectCategoryForEvent(match, category),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      category,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

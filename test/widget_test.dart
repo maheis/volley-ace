@@ -156,9 +156,9 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ada • Nr. 7'));
+    await tester.tap(find.byKey(const ValueKey('select-player-1')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ass'));
+    await tester.tap(find.byKey(const ValueKey('select-category-Ass')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);

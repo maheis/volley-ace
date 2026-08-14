@@ -46,27 +46,28 @@ Volleyball Assistenz
     - [x] Team / Spieler
           Im Ersten Schritt pro Wertungsbogen Spieler (Name und Trikotnummer) mit + und - Buttons hinzufügen oder entfernen.
           Im zweiten Schritt Spieler aus dem Team welches vorab angelegt wird ausgewählt werden und die Punktewertung pro Spieler speichern.
-  - [ ] Punktewertung erfassen
-    - [ ] Punkt / Fehler
+  - [x] Punktewertung erfassen
+    - [x] Punkt / Fehler
           Zwei Buttons Grün und Rot die je für Punkt / Fehler stehen und dann zur Abfrage des Spielers scrollen.
-    - [ ] Wer
+    - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
-      - Punkte
-        Auswahl wie ein Punkt erreicht wurde.
-        - [ ] Ass
-        - [ ] Angriff
-        - [ ] Block
-      - Fehler
-        Auswahl Welcher Fehler gemacht wurde.
-        - [ ] Aufschlag
-        - [ ] Ball ins Aus
-        - [ ] Ball ins Netz
-        - [ ] Ball nicht rüber
-        - [ ] Zugeschaut (Ball im Feld)
-        - [ ] Tusch
-        - [ ] Übertritt
-        - [ ] Netz Berührung
-        - [ ] Sonstiges
+    - [x] Wertung
+          - Punkte
+            Auswahl wie ein Punkt erreicht wurde.
+            - Ass
+            - Angriff
+            - Block
+          - Fehler
+            Auswahl Welcher Fehler gemacht wurde.
+            - Aufschlag
+            - Ball ins Aus
+            - Ball ins Netz
+            - Ball nicht rüber
+            - Zugeschaut (Ball im Feld)
+            - Tusch
+            - Übertritt
+            - Netz Berührung
+            - Sonstiges
     - [ ] Statistik
       - [ ] Spielstand
       - [ ] Satzstand
