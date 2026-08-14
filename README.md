@@ -108,4 +108,5 @@ Volleyball Assistenz
 
 - [x] Toast ist weiß!
 - [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
-- [ ] icon
+- [ ] icon (z.B. taskbar)
+- [ ] settings deutsch

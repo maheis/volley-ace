@@ -477,6 +477,38 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     unawaited(_persist());
   }
 
+  Future<void> _deleteMatch(MatchGame match) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Spiel löschen?'),
+        content: Text(
+          'Das Spiel${match.opponentTeam.isEmpty ? '' : ' gegen ${match.opponentTeam}'} wird unwiderruflich gelöscht.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !mounted) return;
+
+    setState(() {
+      _matches.removeWhere((entry) => entry.id == match.id);
+      _selectedMatchId = null;
+      _activeSection = null;
+    });
+    unawaited(_persist());
+  }
+
   void _startEventSelection(MatchGame match, {required bool isPoint}) {
     setState(() {
       _pendingEventKind = isPoint ? 'point' : 'error';
@@ -698,6 +730,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               subtitle: 'Punkte und Fehler nach Art',
               icon: Icons.bar_chart,
               onTap: () => _showMatchDetail(match.id, section: 'stats'),
+            ),
+            const SizedBox(height: 12),
+            _DetailTile(
+              title: 'Spiel löschen',
+              subtitle: 'Spiel und Statistik unwiderruflich entfernen',
+              icon: Icons.delete_outline,
+              color: Colors.red,
+              onTap: () => _deleteMatch(match),
             ),
           ],
         ),
@@ -1252,19 +1292,21 @@ class _DetailTile extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.onTap,
+    this.color,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final VoidCallback onTap;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
+        leading: Icon(icon, color: color),
+        title: Text(title, style: TextStyle(color: color)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
