@@ -102,9 +102,9 @@ class VolleyAceApp extends StatelessWidget {
     if (result == null) return;
     await settingsController.update(result);
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('settings saved')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Einstellungen gespeichert')),
+      );
     }
   }
 }

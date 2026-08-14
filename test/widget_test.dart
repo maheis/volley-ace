@@ -15,9 +15,9 @@ void main() {
       const MaterialApp(home: SettingsPage(initial: AppSettings.defaults)),
     );
 
-    expect(find.text('settings'), findsOneWidget);
-    expect(find.text('font'), findsOneWidget);
-    expect(find.text('save'), findsOneWidget);
+    expect(find.text('Einstellungen'), findsOneWidget);
+    expect(find.text('Schriftart'), findsOneWidget);
+    expect(find.text('Speichern'), findsOneWidget);
   });
 
   testWidgets('Scoreboard awards and undoes a point with vertical swipes', (

@@ -32,7 +32,7 @@ class HomePage extends StatelessWidget {
         title: const Text('VolleyAce'),
         actions: [
           IconButton(
-            tooltip: 'Settings',
+            tooltip: 'Einstellungen',
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings),
           ),

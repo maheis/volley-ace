@@ -44,7 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('settings'),
+            title: const Text('Einstellungen'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -56,7 +56,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
                 },
                 child: Text(
-                  'save',
+                  'Speichern',
                   style: TextStyle(
                     color: _hasChanges ? Colors.red : null,
                     fontWeight: _hasChanges
@@ -71,13 +71,13 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.all(12),
             children: [
               const Text(
-                'font',
+                'Schriftart',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Text('font:'),
+                  const Text('Schriftart:'),
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButton<String>(
@@ -101,7 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                'font size: ${(_textScaleFactor * 100).round()}%',
+                'Schriftgröße: ${(_textScaleFactor * 100).round()} %',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               Slider(
@@ -114,7 +114,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() => _textScaleFactor = value);
                 },
               ),
-              const Text('range: 50% to 160%'),
+              const Text('Bereich: 50 % bis 160 %'),
               const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 12),
@@ -126,7 +126,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
                       Text(
-                        'preview',
+                        'Vorschau',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
