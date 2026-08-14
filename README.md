@@ -110,3 +110,5 @@ Volleyball Assistenz
 - [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
 - [ ] icon (z.B. taskbar)
 - [ ] settings deutsch
+- [ ] sportschrift
+- [ ] app name aktuell mit _
