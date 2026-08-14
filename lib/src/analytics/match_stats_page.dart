@@ -499,6 +499,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return summary;
   }
 
+  Map<String, int> _playerSummary(
+    MatchGame match,
+    int playerId, {
+    required String kind,
+  }) {
+    final summary = <String, int>{};
+    for (final event in match.events.where(
+      (entry) => entry.playerId == playerId && entry.kind == kind,
+    )) {
+      summary[event.category] = (summary[event.category] ?? 0) + 1;
+    }
+    return summary;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isLoaded) {
@@ -1019,16 +1033,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              for (final player in match.players)
-                Card(
-                  child: ListTile(
-                    title: Text(player.name),
-                    subtitle: Text('Trikot ${player.number}'),
-                    trailing: Text(
-                      '${match.events.where((event) => event.playerId == player.id && event.kind == 'point').length}P / ${match.events.where((event) => event.playerId == player.id && event.kind == 'error').length}F',
-                    ),
-                  ),
+              for (final player in match.players) ...[
+                _PlayerStats(
+                  name: player.name,
+                  number: player.number,
+                  points: _playerSummary(match, player.id, kind: 'point'),
+                  errors: _playerSummary(match, player.id, kind: 'error'),
                 ),
+                const SizedBox(height: 16),
+              ],
             ],
           ],
         ),
@@ -1109,6 +1122,43 @@ class _InfoRow extends StatelessWidget {
           Expanded(child: Text(value)),
         ],
       ),
+    );
+  }
+}
+
+class _PlayerStats extends StatelessWidget {
+  const _PlayerStats({
+    required this.name,
+    required this.number,
+    required this.points,
+    required this.errors,
+  });
+
+  final String name;
+  final int number;
+  final Map<String, int> points;
+  final Map<String, int> errors;
+
+  int _total(Map<String, int> entries) {
+    return entries.values.fold(0, (total, value) => total + value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$name • Trikot $number',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text('${_total(points)} Punkte • ${_total(errors)} Fehler'),
+        const SizedBox(height: 8),
+        _StatGroup(title: 'Punkte pro Art', entries: points),
+        const SizedBox(height: 8),
+        _StatGroup(title: 'Fehler pro Art', entries: errors),
+      ],
     );
   }
 }

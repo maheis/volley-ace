@@ -71,10 +71,12 @@ Volleyball Assistenz
     - [ ] Statistik
       - [ ] Spielstand
       - [ ] Satzstand
-      - [ ] Punkte pro Spieler, aufgeschlüsselt nach Punktarten
-      - [ ] Fehler pro Spieler, aufgeschlüsselt nach Fehlerarten
-      - [ ] Punkte pro Team, aufgeschlüsselt nach Punktarten
-      - [ ] Fehler pro Team, aufgeschlüsselt nach Fehlerarten
+      - [x] Punkte pro Art
+      - [x] Fehler pro Art
+      - [x] Spieler
+        - [x] Punkte / Fehler pro Spieler
+        - [x] Punkte pro Art
+        - [x] Fehler pro Art
 - [ ] Team
   - [ ] Spieler
     - [ ] Name
@@ -103,3 +105,4 @@ Volleyball Assistenz
 
 - [x] Toast ist weiß!
 - [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
+- [ ] icon
