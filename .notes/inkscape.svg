@@ -31,14 +31,14 @@
      inkscape:document-units="px"
      showgrid="true"
      inkscape:zoom="1.4142136"
-     inkscape:cx="-296.63129"
-     inkscape:cy="-172.53405"
+     inkscape:cx="-141.42135"
+     inkscape:cy="-9.1923879"
      inkscape:window-width="3440"
      inkscape:window-height="1359"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g95"><inkscape:grid
+     inkscape:current-layer="g124"><inkscape:grid
        id="grid1"
        units="mm"
        originx="0"
@@ -317,7 +317,7 @@
      id="g124"
      inkscape:label="color_teal_icon_android"
      style="display:inline"><rect
-       style="display:inline;opacity:1;fill:#82d5c8;fill-opacity:1;stroke:none;stroke-width:41.8316;stroke-linecap:round;stroke-linejoin:round"
+       style="display:inline;opacity:1;fill:#ffe680;fill-opacity:1;stroke:none;stroke-width:41.8316;stroke-linecap:round;stroke-linejoin:round"
        id="rect1"
        width="30.427084"
        height="30.427084"
