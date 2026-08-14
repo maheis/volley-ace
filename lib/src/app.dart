@@ -84,6 +84,11 @@ class VolleyAceApp extends StatelessWidget {
         seedColor: Colors.teal,
         brightness: Brightness.dark,
       ),
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: Color(0xFF202124),
+        contentTextStyle: TextStyle(color: Colors.white),
+        actionTextColor: Colors.tealAccent,
+      ),
     );
   }
 
