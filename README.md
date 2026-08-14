@@ -4,8 +4,8 @@ Volleyball Assistenz
 
 ## Technologie
 
-- [ ] Flutter/Dart
-  - [ ] Android
+- [x] Flutter/Dart
+  - [x] Android
   - [ ] Web
   - [ ] Windows/Linux
 - Lokaler Storage: Sembast
@@ -20,7 +20,7 @@ Volleyball Assistenz
 - [ ] Sprachsteuerung (insbesondere für die Punktetafel)
 - [x] Bildschirm aktiv lassen
 
-## Featrues
+## Features
 
 - [x] Punktetafel
   - Zwei farbige Satzpunkt-Anzeigen (blau/rot)
@@ -33,7 +33,7 @@ Volleyball Assistenz
   - [x] Letzte Punkte pro Satz anzeigen
   - [ ] Auszeiten pro Team anzeigen
   - [ ] Spielerwechsel pro Team anzeigen
-- [ ] Punktewertung
+- [x] Punktewertung
       Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
       Es soll eine persistente Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
       Wählt man ein Spiel aus, kann man entwender Punktewertung erfassen oder die Statistik einsehen.
@@ -68,7 +68,7 @@ Volleyball Assistenz
             - Übertritt
             - Netz Berührung
             - Sonstiges
-    - [ ] Statistik
+    - [x] Statistik
       - [x] Spielstand
       - [x] Satzstand
       - [x] Punkte pro Art

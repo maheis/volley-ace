@@ -923,18 +923,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ClockStopwatchBanner(
-                clockText: _clockText,
-                stopwatchText: _stopwatchTextFor(match),
-                stopwatchRunning: match.stopwatchRunning,
-                onToggleStopwatch: () => _toggleStopwatch(match),
-                onResetStopwatch: () => _resetStopwatch(match),
+              SizedBox(
+                width: double.infinity,
+                height: 140,
+                child: _ClockStopwatchBanner(
+                  clockText: _clockText,
+                  stopwatchText: _stopwatchTextFor(match),
+                  stopwatchRunning: match.stopwatchRunning,
+                  onToggleStopwatch: () => _toggleStopwatch(match),
+                  onResetStopwatch: () => _resetStopwatch(match),
+                ),
               ),
               const SizedBox(height: 16),
-              if (sets.isNotEmpty) ...[
-                _ScoreBanner(sets: sets),
-                const SizedBox(height: 16),
-              ],
               SizedBox(
                 width: double.infinity,
                 height: 140,
@@ -944,7 +944,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
+                      fontFamily:
+                          Theme.of(context).textTheme.labelLarge?.fontFamily,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -966,7 +968,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
+                      fontFamily:
+                          Theme.of(context).textTheme.labelLarge?.fontFamily,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -978,6 +982,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   label: const Text('Fehler'),
                 ),
               ),
+              if (sets.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 140,
+                  child: _ScoreBanner(sets: sets),
+                ),
+              ],
             ],
           ),
         ),
@@ -1003,29 +1015,33 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final player = match.players[index];
-                  return Card(
-                    child: InkWell(
-                      key: ValueKey('select-player-${player.id}'),
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => _selectPlayerForEvent(match, player),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.person, size: 32),
-                            const SizedBox(height: 8),
-                            Text(
-                              player.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 140,
+                    child: Card(
+                      child: InkWell(
+                        key: ValueKey('select-player-${player.id}'),
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _selectPlayerForEvent(match, player),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.person, size: 32),
+                              const SizedBox(height: 8),
+                              Text(
+                                player.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            Text('Trikot ${player.number}'),
-                          ],
+                              Text('Trikot ${player.number}'),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1054,20 +1070,24 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final category = categories[index];
-            return Card(
-              child: InkWell(
-                key: ValueKey('select-category-$category'),
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => _selectCategoryForEvent(match, category),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      category,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+            return SizedBox(
+              width: double.infinity,
+              height: 140,
+              child: Card(
+                child: InkWell(
+                  key: ValueKey('select-category-$category'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _selectCategoryForEvent(match, category),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        category,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
