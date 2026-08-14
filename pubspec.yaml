@@ -49,5 +49,5 @@ flutter_icons:
   android: true
   ios: false
   image_path: assets/icons/color_transparent_icon.png
-  adaptive_icon_background: assets/icons/color_transparent_icon.png
+  adaptive_icon_background: "#82D5C8"
   adaptive_icon_foreground: assets/icons/color_transparent_icon.png
