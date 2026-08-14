@@ -49,6 +49,9 @@ Volleyball Assistenz
   - [x] Punktewertung erfassen
     - [x] Punkt / Fehler
           Zwei Buttons Grün und Rot die je für Punkt / Fehler stehen und dann zur Abfrage des Spielers scrollen.
+          Spielstand / Uhrzeit / Stopuhr
+          - [ ] Auszeiten pro Team anzeigen
+          - [ ] Spielerwechsel pro Team anzeigen
     - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
     - [x] Wertung
