@@ -1,64 +1,74 @@
-# Privacy Policy — SimplePresent (English)
+# Datenschutzerklärung für Volley Ace
 
-Last updated: 2026-06-25
+Stand: 14.08.2026
 
-## Introduction
+## 1. Verantwortlicher
 
-SimplePresent is a local to‑do / presentation helper app. Protecting your personal data is important to this project. This privacy policy explains what data the app processes, for what purposes, and what rights you have.
-
-## Data sovereignty and self-hosting
-
-Protecting your privacy and keeping control over your data are core goals of SimplePresent. You retain full control: cloud synchronization is entirely optional and only transmits data to servers you explicitly choose and pair with. If you prefer maximum control, you may run your own sync server — the repository contains the tools and instructions needed to self-host. Choosing your own server or avoiding cloud sync entirely ensures your data stays under your control.
-
-## Data Controller
-
-Person responsible for data processing (project):
+Verantwortlich für die Verarbeitung personenbezogener Daten im Zusammenhang mit Volley Ace ist:
 
 - Name/Handle: maheis
-- Contact: [maheis](mailto:ma@heister.email)
+- Kontakt: [maheis](mailto:ma@heister.email)
 
-## What data is processed
+## 2. Über die App
 
-- Local app data: tasks, status (Backlog/Done), timestamps, titles, notes, settings (e.g. auto‑delete settings). These data are stored only locally on the device.
-- No automatic transmission to servers; no analytics or crash‑reporting services are enabled by default.
-- If you perform exports/backups (e.g. file export or copy), data may be transmitted to the target platform you choose.
+Volley Ace ist eine Volleyball-App für die Punktetafel und die Erfassung von Punktewertungen und Spielstatistiken. Die App ist für die lokale Nutzung ausgelegt.
 
-## Purpose of processing
+## 3. Welche Daten verarbeitet werden
 
-The stored data is used only to provide the app's functionality (storing your tasks, display, management and optional cleanup features).
+Die App kann folgende Daten speichern, wenn du sie eingibst:
 
-## Legal basis
+- Spielinformationen wie Spielort, Gegnerteam, Spieltag, Uhrzeit und Spieltyp
+- Spielerinformationen wie Name und Trikotnummer
+- Punkte, Fehler, Wertungsarten sowie Spiel- und Satzstände
+- Einstellungen der App, zum Beispiel die ausgewählte Schriftart
+- Daten der Punktetafel einschließlich Spielstand, Uhrzeit und Stoppuhr
 
-Processing is based on your consent and on the necessity to provide the app's functionality (contract performance). Local storage is necessary to provide the service and perform pre‑contractual measures.
+Die Eingaben können Namen und damit personenbezogene Daten enthalten. Du entscheidest selbst, welche Daten du in der App speicherst.
 
-## Retention and deletion
+## 4. Speicherung auf deinem Gerät
 
-- Data remain on your device until you delete them or uninstall the app.
-- There is an optional setting to automatically delete completed tasks after X days (configurable in settings). This function deletes local Done entries according to your setting.
+Die genannten Daten werden ausschließlich lokal auf deinem Gerät gespeichert. Auf Android und Desktop verwendet Volley Ace dafür eine lokale Datenbank. Im Web werden die Daten im lokalen Browserspeicher abgelegt.
 
-## Data sharing
+Die App übermittelt diese Daten derzeit nicht automatisch an einen Server. Es gibt keine Cloud-Synchronisierung.
 
-There is no sharing with third parties unless you export or share data yourself. Cloud synchronization is entirely voluntary and always under your control: you choose which server to pair with, and if you prefer maximum control you can run your own self‑hosted sync server — all necessary tools and instructions are included in this repository.
+## 5. Zweck und Rechtsgrundlage
 
-## Third‑party services
+Die Daten werden ausschließlich verarbeitet, um die Funktionen von Volley Ace bereitzustellen, insbesondere die Punktetafel, die Punktewertung und die Spielstatistik.
 
-No third-party analytics or crash-reporting services are integrated by default. If you use a build that includes such services, check that version's settings and consents.
+Die Verarbeitung erfolgt zur Erfüllung der von dir gewünschten App-Funktionen. Soweit du Daten freiwillig eingibst, ist diese Eingabe deine Entscheidung.
 
-## Security
+## 6. Weitergabe an Dritte
 
-The app stores data locally. Reasonable technical and organizational measures are recommended (device lock, regular backups). If you store particularly sensitive data, use additional encryption or device‑level protection.
-All cloud synchronization is protected by end-to-end encryption: your data is encrypted on your device before it is transmitted, and the sync server stores only opaque encrypted blobs. This means the server operator cannot read your plaintext data or access your encryption keys — you remain in control of who can decrypt your information.
+Volley Ace gibt gespeicherte Daten nicht automatisch an Dritte weiter. In der App sind derzeit keine Analyse-, Werbe-, Tracking- oder Crash-Reporting-Dienste integriert.
 
-## Your rights
+Wenn du Daten selbst exportierst, kopierst oder über eine andere App teilst, gelten zusätzlich die Datenschutzbestimmungen des jeweiligen Zielortes oder Dienstes.
 
-- Access to your stored data
-- Rectification of incorrect data
-- Deletion (unless retention is required by law)
-- Restriction of processing
-- Data portability
+## 7. Berechtigungen und technische Dienste
 
-To exercise your rights or ask questions about data processing, please contact the data controller listed above.
+Die App benötigt für ihre Kernfunktionen keine Benutzerkonten und keine Cloud-Dienste. Die Funktion, den Bildschirm während der Nutzung der Punktetafel aktiv zu halten, verwendet eine technische Gerätefunktion und übermittelt dabei keine personenbezogenen Daten.
 
-## Changes to this privacy policy
+## 8. Speicherdauer und Löschung
 
-This policy may be updated from time to time. The current version is available in this repository as `PRIVACY.md`.
+Die Daten bleiben auf deinem Gerät gespeichert, bis du sie in der App löschst, die App-Daten entfernst oder die App deinstallierst. Einzelne gespeicherte Spiele können über die Löschfunktion der App entfernt werden.
+
+Bei der Nutzung der Web-Version können gespeicherte Daten über die Daten- bzw. Website-Einstellungen des Browsers gelöscht werden.
+
+## 9. Datensicherheit
+
+Die Daten werden lokal gespeichert und nicht automatisch übertragen. Schütze dein Gerät durch eine Bildschirmsperre und halte regelmäßig Sicherungen bereit, wenn die gespeicherten Spiel- und Statistikdaten wichtig sind. Eine zusätzliche Verschlüsselung innerhalb der App wird derzeit nicht angeboten.
+
+## 10. Deine Rechte
+
+Du hast im Rahmen der gesetzlichen Vorschriften insbesondere das Recht auf:
+
+- Auskunft über die Verarbeitung deiner personenbezogenen Daten
+- Berichtigung unrichtiger Daten
+- Löschung deiner Daten
+- Einschränkung der Verarbeitung
+- Datenübertragbarkeit
+
+Für Fragen zur Verarbeitung deiner Daten oder zur Ausübung deiner Rechte kannst du dich an den oben genannten Verantwortlichen wenden.
+
+## 11. Änderungen dieser Datenschutzerklärung
+
+Diese Datenschutzerklärung kann angepasst werden, wenn sich die App oder die Datenverarbeitung ändert. Die aktuelle Fassung ist in diesem Repository unter `PRIVACY.md` verfügbar.
