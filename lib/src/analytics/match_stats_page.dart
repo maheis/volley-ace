@@ -104,6 +104,9 @@ class MatchGame {
     required this.matchType,
     required this.players,
     required this.events,
+    this.stopwatchElapsed = Duration.zero,
+    this.stopwatchRunning = false,
+    this.stopwatchStartedAt,
   });
 
   final int id;
@@ -115,6 +118,9 @@ class MatchGame {
   final String matchType;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
+  final Duration stopwatchElapsed;
+  final bool stopwatchRunning;
+  final DateTime? stopwatchStartedAt;
 
   MatchGame copyWith({
     int? id,
@@ -126,6 +132,10 @@ class MatchGame {
     String? matchType,
     List<MatchPlayer>? players,
     List<MatchEvent>? events,
+    Duration? stopwatchElapsed,
+    bool? stopwatchRunning,
+    DateTime? stopwatchStartedAt,
+    bool clearStopwatchStartedAt = false,
   }) {
     return MatchGame(
       id: id ?? this.id,
@@ -137,6 +147,11 @@ class MatchGame {
       matchType: matchType ?? this.matchType,
       players: players ?? this.players,
       events: events ?? this.events,
+      stopwatchElapsed: stopwatchElapsed ?? this.stopwatchElapsed,
+      stopwatchRunning: stopwatchRunning ?? this.stopwatchRunning,
+      stopwatchStartedAt: clearStopwatchStartedAt
+          ? null
+          : (stopwatchStartedAt ?? this.stopwatchStartedAt),
     );
   }
 
@@ -150,6 +165,9 @@ class MatchGame {
         'matchType': matchType,
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
+        'stopwatchElapsedMillis': stopwatchElapsed.inMilliseconds,
+        'stopwatchRunning': stopwatchRunning,
+        'stopwatchStartedAtMillis': stopwatchStartedAt?.millisecondsSinceEpoch,
       };
 
   static MatchGame fromJson(Map<String, dynamic> data) {
@@ -175,6 +193,9 @@ class MatchGame {
             .toList()
         : <MatchEvent>[];
 
+    final stopwatchElapsedMillis = data['stopwatchElapsedMillis'];
+    final stopwatchStartedAtMillis = data['stopwatchStartedAtMillis'];
+
     return MatchGame(
       id: data['id'] is num ? (data['id'] as num).toInt() : 0,
       createdAt: createdAtMillis is num
@@ -190,6 +211,16 @@ class MatchGame {
           : 'Freundschaftsspiel',
       players: players,
       events: events,
+      stopwatchElapsed: stopwatchElapsedMillis is num
+          ? Duration(milliseconds: stopwatchElapsedMillis.toInt())
+          : Duration.zero,
+      stopwatchRunning: data['stopwatchRunning'] is bool
+          ? data['stopwatchRunning'] as bool
+          : false,
+      stopwatchStartedAt: stopwatchStartedAtMillis is num
+          ? DateTime.fromMillisecondsSinceEpoch(
+              stopwatchStartedAtMillis.toInt())
+          : null,
     );
   }
 }
@@ -287,9 +318,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   final TextEditingController _opponentController = TextEditingController();
   final TextEditingController _matchTagController = TextEditingController();
 
+  DateTime _now = DateTime.now();
+  Timer? _clockTimer;
+
   @override
   void initState() {
     super.initState();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
     unawaited(_load());
   }
 
@@ -886,6 +923,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _ClockStopwatchBanner(
+                clockText: _clockText,
+                stopwatchText: _stopwatchTextFor(match),
+                stopwatchRunning: match.stopwatchRunning,
+                onToggleStopwatch: () => _toggleStopwatch(match),
+                onResetStopwatch: () => _resetStopwatch(match),
+              ),
+              const SizedBox(height: 16),
               if (sets.isNotEmpty) ...[
                 _ScoreBanner(sets: sets),
                 const SizedBox(height: 16),
@@ -1099,8 +1144,79 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return '${_formatDate(value)} ${_formatTime(value)}';
   }
 
+  String get _clockText {
+    final hh = _now.hour.toString().padLeft(2, '0');
+    final mm = _now.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  Duration _stopwatchDurationFor(MatchGame match) {
+    if (match.stopwatchRunning && match.stopwatchStartedAt != null) {
+      return match.stopwatchElapsed +
+          _now.difference(match.stopwatchStartedAt!);
+    }
+    return match.stopwatchElapsed;
+  }
+
+  String _stopwatchTextFor(MatchGame match) {
+    final total = _stopwatchDurationFor(match);
+    final mm = total.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final ss = total.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
+
+  void _toggleStopwatch(MatchGame match) {
+    if (match.stopwatchRunning) {
+      _replaceMatch(
+        match.copyWith(
+          stopwatchElapsed: _stopwatchDurationFor(match),
+          stopwatchRunning: false,
+          clearStopwatchStartedAt: true,
+        ),
+      );
+    } else {
+      _replaceMatch(
+        match.copyWith(
+          stopwatchRunning: true,
+          stopwatchStartedAt: DateTime.now(),
+        ),
+      );
+    }
+  }
+
+  Future<void> _resetStopwatch(MatchGame match) async {
+    final shouldReset = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Stoppuhr zurücksetzen?'),
+        content: const Text('Die Stoppuhr wird auf 00:00 zurückgesetzt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Zurücksetzen'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReset != true || !mounted) return;
+
+    _replaceMatch(
+      match.copyWith(
+        stopwatchElapsed: Duration.zero,
+        stopwatchRunning: false,
+        clearStopwatchStartedAt: true,
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _playerNameController.dispose();
     _playerNumberController.dispose();
     _locationController.dispose();
@@ -1267,6 +1383,78 @@ class _SetScore {
   final int us;
   final int opponent;
   final bool isFinished;
+}
+
+class _ClockStopwatchBanner extends StatelessWidget {
+  const _ClockStopwatchBanner({
+    required this.clockText,
+    required this.stopwatchText,
+    required this.stopwatchRunning,
+    required this.onToggleStopwatch,
+    required this.onResetStopwatch,
+  });
+
+  final String clockText;
+  final String stopwatchText;
+  final bool stopwatchRunning;
+  final VoidCallback onToggleStopwatch;
+  final VoidCallback onResetStopwatch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Column(
+              children: [
+                const Text('Uhrzeit'),
+                const SizedBox(height: 4),
+                Text(
+                  clockText,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: onToggleStopwatch,
+              onLongPress: onResetStopwatch,
+              child: Column(
+                children: [
+                  const Text('Stoppuhr'),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        stopwatchRunning
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_fill,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        stopwatchText,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ScoreBanner extends StatelessWidget {
