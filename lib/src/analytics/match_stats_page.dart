@@ -855,56 +855,48 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 160,
-                      child: FilledButton.icon(
-                        key: const ValueKey('record-point-button'),
-                        onPressed: () =>
-                            _startEventSelection(match, isPoint: true),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          textStyle: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        icon: const Icon(Icons.add_circle, size: 40),
-                        label: const Text('Punkt'),
-                      ),
+              SizedBox(
+                width: double.infinity,
+                height: 140,
+                child: FilledButton.icon(
+                  key: const ValueKey('record-point-button'),
+                  onPressed: () => _startEventSelection(match, isPoint: true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    textStyle: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 160,
-                      child: FilledButton.icon(
-                        key: const ValueKey('record-error-button'),
-                        onPressed: () =>
-                            _startEventSelection(match, isPoint: false),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          textStyle: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        icon: const Icon(Icons.error_outline, size: 40),
-                        label: const Text('Fehler'),
-                      ),
+                  icon: const Icon(Icons.add_circle, size: 40),
+                  label: const Text('Punkt'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 140,
+                child: FilledButton.icon(
+                  key: const ValueKey('record-error-button'),
+                  onPressed: () => _startEventSelection(match, isPoint: false),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    textStyle: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                ],
+                  icon: const Icon(Icons.error_outline, size: 40),
+                  label: const Text('Fehler'),
+                ),
               ),
             ],
           ),
