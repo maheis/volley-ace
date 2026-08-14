@@ -1025,15 +1025,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              for (final player in match.players) ...[
-                _PlayerStats(
-                  name: player.name,
-                  number: player.number,
-                  points: _playerSummary(match, player.id, kind: 'point'),
-                  errors: _playerSummary(match, player.id, kind: 'error'),
-                ),
-                const SizedBox(height: 16),
-              ],
+              _PlayerStatsTable(
+                title: 'Punkte pro Spieler',
+                categories: _pointTypes,
+                players: match.players,
+                summaryFor: (player) =>
+                    _playerSummary(match, player.id, kind: 'point'),
+              ),
+              const SizedBox(height: 12),
+              _PlayerStatsTable(
+                title: 'Fehler pro Spieler',
+                categories: _errorTypes,
+                players: match.players,
+                summaryFor: (player) =>
+                    _playerSummary(match, player.id, kind: 'error'),
+              ),
             ],
           ],
         ),
@@ -1118,38 +1124,94 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _PlayerStats extends StatelessWidget {
-  const _PlayerStats({
-    required this.name,
-    required this.number,
-    required this.points,
-    required this.errors,
+class _PlayerStatsTable extends StatefulWidget {
+  const _PlayerStatsTable({
+    required this.title,
+    required this.categories,
+    required this.players,
+    required this.summaryFor,
   });
 
-  final String name;
-  final int number;
-  final Map<String, int> points;
-  final Map<String, int> errors;
+  final String title;
+  final List<String> categories;
+  final List<MatchPlayer> players;
+  final Map<String, int> Function(MatchPlayer player) summaryFor;
 
-  int _total(Map<String, int> entries) {
-    return entries.values.fold(0, (total, value) => total + value);
+  @override
+  State<_PlayerStatsTable> createState() => _PlayerStatsTableState();
+}
+
+class _PlayerStatsTableState extends State<_PlayerStatsTable> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$name • Trikot $number',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DataTable(
+                  columnSpacing: 20,
+                  border: TableBorder.symmetric(
+                    inside: BorderSide(color: Theme.of(context).dividerColor),
+                  ),
+                  columns: [
+                    const DataColumn(label: Text('Spieler')),
+                    for (final category in widget.categories)
+                      DataColumn(label: Text(category), numeric: true),
+                    const DataColumn(
+                      label: Text(
+                        'Gesamt',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      numeric: true,
+                    ),
+                  ],
+                  rows: [
+                    for (final player in widget.players)
+                      _buildRow(player, widget.summaryFor(player)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text('${_total(points)} Punkte • ${_total(errors)} Fehler'),
-        const SizedBox(height: 8),
-        _StatGroup(title: 'Punkte pro Art', entries: points),
-        const SizedBox(height: 8),
-        _StatGroup(title: 'Fehler pro Art', entries: errors),
+      ),
+    );
+  }
+
+  DataRow _buildRow(MatchPlayer player, Map<String, int> summary) {
+    final total = summary.values.fold(0, (total, value) => total + value);
+    return DataRow(
+      cells: [
+        DataCell(Text(player.name)),
+        for (final category in widget.categories)
+          DataCell(Text('${summary[category] ?? 0}')),
+        DataCell(
+          Text(
+            '$total',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
       ],
     );
   }
