@@ -388,17 +388,23 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isAndroidLandscape =
+        Theme.of(context).platform == TargetPlatform.android &&
+            MediaQuery.orientationOf(context) == Orientation.landscape;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Punktetafel'),
-        actions: [
-          IconButton(
-            tooltip: 'Reset',
-            onPressed: _reset,
-            icon: const Icon(Icons.restart_alt),
-          ),
-        ],
-      ),
+      appBar: isAndroidLandscape
+          ? null
+          : AppBar(
+              title: const Text('Punktetafel'),
+              actions: [
+                IconButton(
+                  tooltip: 'Reset',
+                  onPressed: _reset,
+                  icon: const Icon(Icons.restart_alt),
+                ),
+              ],
+            ),
       body: SafeArea(
         child: !_isLoaded
             ? const Center(child: CircularProgressIndicator())
