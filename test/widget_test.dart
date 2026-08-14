@@ -116,17 +116,24 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('new-game-button')));
     await tester.pumpAndSettle();
 
-    final textFields = find.byType(TextField);
-    await tester.enterText(textFields.at(0), 'Halle A');
-    await tester.enterText(textFields.at(1), 'Team B');
-    await tester.tap(find.text('Spiel anlegen'));
+    await tester.enterText(
+      find.byKey(const ValueKey('match-location-input')),
+      'Halle A',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('match-opponent-input')),
+      'Team B',
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('vs. Team B'), findsOneWidget);
-
-    await tester.tap(find.text('vs. Team B'));
+    await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Spielinfos'));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, -600),
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(

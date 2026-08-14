@@ -281,6 +281,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   final TextEditingController _playerNameController = TextEditingController();
   final TextEditingController _playerNumberController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _opponentController = TextEditingController();
+  final TextEditingController _matchTagController = TextEditingController();
 
   @override
   void initState() {
@@ -319,6 +322,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _showMatchDetail(int matchId, {String? section}) {
+    if (section == 'info') {
+      final match = _matches.firstWhere((entry) => entry.id == matchId);
+      _locationController.text = match.location;
+      _opponentController.text = match.opponentTeam;
+      _matchTagController.text = match.matchTag;
+    }
     setState(() {
       _selectedMatchId = matchId;
       _activeSection = section;
@@ -332,204 +341,46 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     });
   }
 
-  Future<void> _openNewMatchForm() async {
-    final match = await _showMatchFormDialog();
-    if (match == null) return;
-
+  void _openNewMatchForm() {
+    final match = MatchGame(
+      id: _nextMatchId++,
+      createdAt: DateTime.now(),
+      location: '',
+      opponentTeam: '',
+      matchDateTime: DateTime.now(),
+      matchTag: '',
+      matchType: _matchTypes[2],
+      players: const <MatchPlayer>[],
+      events: const <MatchEvent>[],
+    );
+    _locationController.clear();
+    _opponentController.clear();
+    _matchTagController.clear();
     setState(() {
       _matches.insert(0, match);
       _selectedMatchId = match.id;
-      _activeSection = null;
-    });
-    await _persist();
-  }
-
-  Future<void> _editMatch(MatchGame match) async {
-    final updated = await _showMatchFormDialog(existing: match);
-    if (updated == null) return;
-
-    setState(() {
-      final index = _matches.indexWhere((item) => item.id == match.id);
-      if (index >= 0) {
-        _matches[index] = updated;
-      } else {
-        _matches.insert(0, updated);
-      }
-      _selectedMatchId = updated.id;
       _activeSection = 'info';
     });
-    await _persist();
+    unawaited(_persist());
   }
 
-  Future<MatchGame?> _showMatchFormDialog({MatchGame? existing}) async {
-    final locationController = TextEditingController(
-      text: existing?.location ?? '',
+  void _updateMatchInfo(
+    MatchGame match, {
+    String? location,
+    String? opponentTeam,
+    DateTime? matchDateTime,
+    String? matchTag,
+    String? matchType,
+  }) {
+    _replaceMatch(
+      match.copyWith(
+        location: location,
+        opponentTeam: opponentTeam,
+        matchDateTime: matchDateTime,
+        matchTag: matchTag,
+        matchType: matchType,
+      ),
     );
-    final opponentController = TextEditingController(
-      text: existing?.opponentTeam ?? '',
-    );
-    final matchTagController = TextEditingController(
-      text: existing?.matchTag ?? '',
-    );
-    DateTime matchDateTime = existing?.matchDateTime ?? DateTime.now();
-    String matchType = existing?.matchType ?? _matchTypes[2];
-
-    final result = await showDialog<MatchGame>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setLocalState) {
-            return AlertDialog(
-              title: Text(existing == null
-                  ? 'Neues Spiel erfassen'
-                  : 'Spielinfos bearbeiten'),
-              content: SizedBox(
-                width: 420,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        controller: locationController,
-                        decoration: const InputDecoration(
-                          labelText: 'Spielort',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: opponentController,
-                        decoration: const InputDecoration(
-                          labelText: 'Gegnerteam',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: matchType,
-                        decoration: const InputDecoration(
-                          labelText: 'Spieltyp',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _matchTypes
-                            .map(
-                              (type) => DropdownMenuItem<String>(
-                                value: type,
-                                child: Text(type),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setLocalState(() => matchType = value);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Datum',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.calendar_today),
-                          title: Text(_formatDate(matchDateTime)),
-                          onTap: () async {
-                            final selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: matchDateTime,
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              setLocalState(() {
-                                matchDateTime = DateTime(
-                                  selectedDate.year,
-                                  selectedDate.month,
-                                  selectedDate.day,
-                                  matchDateTime.hour,
-                                  matchDateTime.minute,
-                                );
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Uhrzeit',
-                          border: OutlineInputBorder(),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.schedule),
-                          title: Text(_formatTime(matchDateTime)),
-                          onTap: () async {
-                            final selectedTime = await showTimePicker(
-                              context: context,
-                              initialTime:
-                                  TimeOfDay.fromDateTime(matchDateTime),
-                            );
-                            if (selectedTime != null) {
-                              setLocalState(() {
-                                matchDateTime = DateTime(
-                                  matchDateTime.year,
-                                  matchDateTime.month,
-                                  matchDateTime.day,
-                                  selectedTime.hour,
-                                  selectedTime.minute,
-                                );
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: matchTagController,
-                        decoration: const InputDecoration(
-                          labelText: 'Spieltag / Stichwort',
-                          hintText: 'z. B. Samstag, Liga, Testspiel',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Abbrechen'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final createdMatch = MatchGame(
-                      id: existing?.id ?? _nextMatchId++,
-                      createdAt: existing?.createdAt ?? DateTime.now(),
-                      location: locationController.text.trim(),
-                      opponentTeam: opponentController.text.trim(),
-                      matchDateTime: matchDateTime,
-                      matchTag: matchTagController.text.trim(),
-                      matchType: matchType,
-                      players: existing?.players ?? <MatchPlayer>[],
-                      events: existing?.events ?? <MatchEvent>[],
-                    );
-                    Navigator.of(dialogContext).pop(createdMatch);
-                  },
-                  child: Text(existing == null ? 'Spiel anlegen' : 'Speichern'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    return result;
   }
 
   void _addPlayerToMatch(MatchGame match) {
@@ -788,36 +639,128 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => _showMatchDetail(match.id),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Bearbeiten',
-            onPressed: () => _editMatch(match),
-            icon: const Icon(Icons.edit),
-          ),
-        ],
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _InfoRow(
-                label: 'Spielort',
-                value: match.location.isEmpty
-                    ? 'Noch nicht erfasst'
-                    : match.location),
-            _InfoRow(
-                label: 'Gegnerteam',
-                value: match.opponentTeam.isEmpty
-                    ? 'Noch nicht erfasst'
-                    : match.opponentTeam),
-            _InfoRow(label: 'Spieltyp', value: match.matchType),
-            _InfoRow(label: 'Datum', value: _formatDate(match.matchDateTime)),
-            _InfoRow(label: 'Uhrzeit', value: _formatTime(match.matchDateTime)),
-            _InfoRow(
-                label: 'Spieltag / Stichwort',
-                value: match.matchTag.isEmpty
-                    ? 'Noch nicht erfasst'
-                    : match.matchTag),
+            TextField(
+              key: const ValueKey('match-location-input'),
+              controller: _locationController,
+              onChanged: (value) =>
+                  _updateMatchInfo(match, location: value.trim()),
+              decoration: const InputDecoration(
+                labelText: 'Spielort',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('match-opponent-input'),
+              controller: _opponentController,
+              onChanged: (value) =>
+                  _updateMatchInfo(match, opponentTeam: value.trim()),
+              decoration: const InputDecoration(
+                labelText: 'Gegnerteam',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: match.matchType,
+              decoration: const InputDecoration(
+                labelText: 'Spieltyp',
+                border: OutlineInputBorder(),
+              ),
+              items: _matchTypes
+                  .map(
+                    (type) => DropdownMenuItem<String>(
+                      value: type,
+                      child: Text(type),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  _updateMatchInfo(match, matchType: value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Datum',
+                border: OutlineInputBorder(),
+              ),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today),
+                title: Text(_formatDate(match.matchDateTime)),
+                onTap: () async {
+                  final selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: match.matchDateTime,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (selectedDate != null && mounted) {
+                    _updateMatchInfo(
+                      match,
+                      matchDateTime: DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        match.matchDateTime.hour,
+                        match.matchDateTime.minute,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Uhrzeit',
+                border: OutlineInputBorder(),
+              ),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.schedule),
+                title: Text(_formatTime(match.matchDateTime)),
+                onTap: () async {
+                  final selectedTime = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(match.matchDateTime),
+                  );
+                  if (selectedTime != null && mounted) {
+                    _updateMatchInfo(
+                      match,
+                      matchDateTime: DateTime(
+                        match.matchDateTime.year,
+                        match.matchDateTime.month,
+                        match.matchDateTime.day,
+                        selectedTime.hour,
+                        selectedTime.minute,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('match-tag-input'),
+              controller: _matchTagController,
+              onChanged: (value) =>
+                  _updateMatchInfo(match, matchTag: value.trim()),
+              decoration: const InputDecoration(
+                labelText: 'Spieltag / Stichwort',
+                hintText: 'z. B. Samstag, Liga, Testspiel',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
             _InfoRow(
                 label: 'Angelegt', value: _formatDateTime(match.createdAt)),
             const SizedBox(height: 24),
@@ -1021,6 +964,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void dispose() {
     _playerNameController.dispose();
     _playerNumberController.dispose();
+    _locationController.dispose();
+    _opponentController.dispose();
+    _matchTagController.dispose();
     super.dispose();
   }
 }
