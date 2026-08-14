@@ -871,6 +871,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildScoringView(MatchGame match) {
+    final sets = _computeSets(match);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Punktewertung'),
@@ -885,6 +886,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (sets.isNotEmpty) ...[
+                _ScoreBanner(sets: sets),
+                const SizedBox(height: 16),
+              ],
               SizedBox(
                 width: double.infinity,
                 height: 140,
@@ -1262,6 +1267,59 @@ class _SetScore {
   final int us;
   final int opponent;
   final bool isFinished;
+}
+
+class _ScoreBanner extends StatelessWidget {
+  const _ScoreBanner({required this.sets});
+
+  final List<_SetScore> sets;
+
+  @override
+  Widget build(BuildContext context) {
+    final finishedSets = sets.where((set) => set.isFinished);
+    final setsWonByUs =
+        finishedSets.where((set) => set.us > set.opponent).length;
+    final setsWonByOpponent =
+        finishedSets.where((set) => set.opponent > set.us).length;
+    final currentSet = sets.last;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Column(
+              children: [
+                const Text('Sätze'),
+                const SizedBox(height: 4),
+                Text(
+                  '$setsWonByUs : $setsWonByOpponent',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              children: [
+                Text(currentSet.isFinished ? 'Letzter Satz' : 'Punktestand'),
+                const SizedBox(height: 4),
+                Text(
+                  '${currentSet.us} : ${currentSet.opponent}',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SetsOverview extends StatelessWidget {
