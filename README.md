@@ -80,6 +80,7 @@ Volleyball Assistenz
         - [x] Punkte / Fehler pro Spieler
         - [x] Punkte pro Art
         - [x] Fehler pro Art
+      - [ ] Export (Format das z.B. in Excel importiert werden kann)
 - [ ] Team
   - [ ] Spieler
     - [ ] Name

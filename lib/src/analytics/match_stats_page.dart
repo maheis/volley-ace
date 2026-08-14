@@ -949,6 +949,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Widget _buildScoringView(MatchGame match) {
     final sets = _computeSets(match);
+    final scoreSets = sets.isEmpty
+        ? const <_SetScore>[
+            _SetScore(us: 0, opponent: 0, isFinished: false),
+          ]
+        : sets;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Punktewertung'),
@@ -963,16 +968,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: double.infinity,
-                height: 140,
-                child: _ClockStopwatchBanner(
-                  clockText: _clockText,
-                  stopwatchText: _stopwatchTextFor(match),
-                  stopwatchRunning: match.stopwatchRunning,
-                  onToggleStopwatch: () => _toggleStopwatch(match),
-                  onResetStopwatch: () => _resetStopwatch(match),
-                ),
+              Row(
+                children: [
+                  Expanded(child: _ClockTile(clockText: _clockText)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StopwatchTile(
+                      stopwatchText: _stopwatchTextFor(match),
+                      stopwatchRunning: match.stopwatchRunning,
+                      onToggle: () => _toggleStopwatch(match),
+                      onReset: () => _resetStopwatch(match),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -1022,14 +1030,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   label: const Text('Fehler'),
                 ),
               ),
-              if (sets.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 140,
-                  child: _ScoreBanner(sets: sets),
-                ),
-              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _SetsTile(sets: scoreSets)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _PointsTile(sets: scoreSets)),
+                ],
+              ),
             ],
           ),
         ),
@@ -1447,82 +1455,48 @@ class _SetScore {
   final bool isFinished;
 }
 
-class _ClockStopwatchBanner extends StatelessWidget {
-  const _ClockStopwatchBanner({
-    required this.clockText,
-    required this.stopwatchText,
-    required this.stopwatchRunning,
-    required this.onToggleStopwatch,
-    required this.onResetStopwatch,
-  });
+class _ClockTile extends StatelessWidget {
+  const _ClockTile({required this.clockText});
 
   final String clockText;
-  final String stopwatchText;
-  final bool stopwatchRunning;
-  final VoidCallback onToggleStopwatch;
-  final VoidCallback onResetStopwatch;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Uhrzeit'),
-                const SizedBox(height: 4),
-                Text(
-                  clockText,
-                  style: const TextStyle(
-                    fontSize: 44,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            GestureDetector(
-              onTap: onToggleStopwatch,
-              onLongPress: onResetStopwatch,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Stoppuhr'),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        stopwatchRunning
-                            ? Icons.pause_circle_filled
-                            : Icons.play_circle_fill,
-                        size: 44,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        stopwatchText,
-                        style: const TextStyle(
-                          fontSize: 44,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return _ValueTile(title: 'Uhrzeit', value: clockText);
+  }
+}
+
+class _StopwatchTile extends StatelessWidget {
+  const _StopwatchTile({
+    required this.stopwatchText,
+    required this.stopwatchRunning,
+    required this.onToggle,
+    required this.onReset,
+  });
+
+  final String stopwatchText;
+  final bool stopwatchRunning;
+  final VoidCallback onToggle;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onToggle,
+      onLongPress: onReset,
+      child: _ValueTile(
+        title: 'Stoppuhr',
+        value: stopwatchText,
+        icon: stopwatchRunning
+            ? Icons.pause_circle_filled
+            : Icons.play_circle_fill,
       ),
     );
   }
 }
 
-class _ScoreBanner extends StatelessWidget {
-  const _ScoreBanner({required this.sets});
+class _SetsTile extends StatelessWidget {
+  const _SetsTile({required this.sets});
 
   final List<_SetScore> sets;
 
@@ -1533,43 +1507,76 @@ class _ScoreBanner extends StatelessWidget {
         finishedSets.where((set) => set.us > set.opponent).length;
     final setsWonByOpponent =
         finishedSets.where((set) => set.opponent > set.us).length;
-    final currentSet = sets.last;
+    return _ValueTile(
+      title: 'Sätze',
+      value: '$setsWonByUs : $setsWonByOpponent',
+    );
+  }
+}
 
+class _PointsTile extends StatelessWidget {
+  const _PointsTile({required this.sets});
+
+  final List<_SetScore> sets;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentSet = sets.last;
+    return _ValueTile(
+      title: currentSet.isFinished ? 'Letzter Satz' : 'Punktestand',
+      value: '${currentSet.us} : ${currentSet.opponent}',
+    );
+  }
+}
+
+class _ValueTile extends StatelessWidget {
+  const _ValueTile({
+    required this.title,
+    required this.value,
+    this.icon,
+  });
+
+  final String title;
+  final String value;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Sätze'),
-                const SizedBox(height: 4),
-                Text(
-                  '$setsWonByUs : $setsWonByOpponent',
-                  style: const TextStyle(
-                    fontSize: 44,
-                    fontWeight: FontWeight.bold,
-                  ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 140,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(title, textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 44),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      value,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 44,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(currentSet.isFinished ? 'Letzter Satz' : 'Punktestand'),
-                const SizedBox(height: 4),
-                Text(
-                  '${currentSet.us} : ${currentSet.opponent}',
-                  style: const TextStyle(
-                    fontSize: 44,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
