@@ -69,8 +69,8 @@ Volleyball Assistenz
             - Netz Berührung
             - Sonstiges
     - [ ] Statistik
-      - [ ] Spielstand
-      - [ ] Satzstand
+      - [x] Spielstand
+      - [x] Satzstand
       - [x] Punkte pro Art
       - [x] Fehler pro Art
       - [x] Spieler

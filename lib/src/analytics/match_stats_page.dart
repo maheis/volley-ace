@@ -499,6 +499,36 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return summary;
   }
 
+  // Replays events chronologically: 'point' scores for us, 'error' scores for
+  // the opponent, sets end at 25 with two points lead (same rule as the
+  // scoreboard).
+  List<_SetScore> _computeSets(MatchGame match) {
+    final sortedEvents = List<MatchEvent>.from(match.events)
+      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+
+    final sets = <_SetScore>[];
+    var us = 0;
+    var opponent = 0;
+    for (final event in sortedEvents) {
+      if (event.kind == 'point') {
+        us++;
+      } else {
+        opponent++;
+      }
+      final usWon = us >= 25 && us - opponent >= 2;
+      final opponentWon = opponent >= 25 && opponent - us >= 2;
+      if (usWon || opponentWon) {
+        sets.add(_SetScore(us: us, opponent: opponent, isFinished: true));
+        us = 0;
+        opponent = 0;
+      }
+    }
+    if (us > 0 || opponent > 0) {
+      sets.add(_SetScore(us: us, opponent: opponent, isFinished: false));
+    }
+    return sets;
+  }
+
   Map<String, int> _playerSummary(
     MatchGame match,
     int playerId, {
@@ -1003,6 +1033,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Widget _buildStatsView(MatchGame match) {
     final points = _pointSummary(match);
     final errors = _errorSummary(match);
+    final sets = _computeSets(match);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Statistik'),
@@ -1015,6 +1046,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (sets.isNotEmpty) ...[
+              _SetsOverview(sets: sets),
+              const SizedBox(height: 12),
+            ],
             _StatGroup(title: 'Punkte pro Art', entries: points),
             const SizedBox(height: 12),
             _StatGroup(title: 'Fehler pro Art', entries: errors),
@@ -1213,6 +1248,90 @@ class _PlayerStatsTableState extends State<_PlayerStatsTable> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SetScore {
+  const _SetScore({
+    required this.us,
+    required this.opponent,
+    required this.isFinished,
+  });
+
+  final int us;
+  final int opponent;
+  final bool isFinished;
+}
+
+class _SetsOverview extends StatelessWidget {
+  const _SetsOverview({required this.sets});
+
+  final List<_SetScore> sets;
+
+  @override
+  Widget build(BuildContext context) {
+    final finishedSets = sets.where((set) => set.isFinished);
+    final setsWonByUs =
+        finishedSets.where((set) => set.us > set.opponent).length;
+    final setsWonByOpponent =
+        finishedSets.where((set) => set.opponent > set.us).length;
+    final currentSet = sets.last;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Satzstand',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(
+              '$setsWonByUs : $setsWonByOpponent',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              currentSet.isFinished ? 'Letzter Satz' : 'Aktueller Satz',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${currentSet.us} : ${currentSet.opponent}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (sets.length > 1) ...[
+              const SizedBox(height: 12),
+              const Text('Sätze im Verlauf'),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var index = 0; index < sets.length; index++)
+                    Chip(
+                      label: Text(
+                        '${sets[index].us}:${sets[index].opponent}',
+                      ),
+                      backgroundColor: !sets[index].isFinished
+                          ? null
+                          : sets[index].us > sets[index].opponent
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.red.withValues(alpha: 0.2),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
