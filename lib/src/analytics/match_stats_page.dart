@@ -1429,13 +1429,14 @@ class _ClockStopwatchBanner extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('Uhrzeit'),
                 const SizedBox(height: 4),
                 Text(
                   clockText,
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 44,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1445,6 +1446,7 @@ class _ClockStopwatchBanner extends StatelessWidget {
               onTap: onToggleStopwatch,
               onLongPress: onResetStopwatch,
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Stoppuhr'),
                   const SizedBox(height: 4),
@@ -1455,13 +1457,13 @@ class _ClockStopwatchBanner extends StatelessWidget {
                         stopwatchRunning
                             ? Icons.pause_circle_filled
                             : Icons.play_circle_fill,
-                        size: 22,
+                        size: 44,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         stopwatchText,
                         style: const TextStyle(
-                          fontSize: 22,
+                          fontSize: 44,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1498,26 +1500,28 @@ class _ScoreBanner extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('Sätze'),
                 const SizedBox(height: 4),
                 Text(
                   '$setsWonByUs : $setsWonByOpponent',
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 44,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
             Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(currentSet.isFinished ? 'Letzter Satz' : 'Punktestand'),
                 const SizedBox(height: 4),
                 Text(
                   '${currentSet.us} : ${currentSet.opponent}',
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 44,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
