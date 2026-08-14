@@ -1,6 +1,11 @@
 # VolleyAce
 
-Volleyball Assistenz
+Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
+
+- Punktetafel - Ersetzt die klassische Punktetafel, mit Touchbedienung!
+- Punktewertung - Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
+
+![Vorstellungsgrafik](.notes/vorstellungsgrafik.png)
 
 ## Technologie
 
