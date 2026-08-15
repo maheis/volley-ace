@@ -8,6 +8,7 @@ import 'scoreboard/scoreboard_page.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_controller.dart';
 import 'settings/settings_page.dart';
+import 'teams/teams_page.dart';
 
 class VolleyAceApp extends StatelessWidget {
   const VolleyAceApp({
@@ -52,6 +53,7 @@ class VolleyAceApp extends StatelessWidget {
               onOpenSettings: () => _openSettings(homeContext, settings),
               onOpenScoreboard: () => _openScoreboard(homeContext),
               onOpenMatchStats: () => _openMatchStats(homeContext),
+              onOpenTeams: () => _openTeams(homeContext),
             ),
           ),
         );
@@ -72,6 +74,12 @@ class VolleyAceApp extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (_) => MatchStatsPage(database: database),
       ),
+    );
+  }
+
+  Future<void> _openTeams(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => TeamsPage(database: database)),
     );
   }
 

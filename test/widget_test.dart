@@ -6,6 +6,7 @@ import 'package:volleyace/src/analytics/match_stats_page.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
+import 'package:volleyace/src/teams/teams_page.dart';
 
 void main() {
   testWidgets('Settings page shows typography controls', (
@@ -168,5 +169,61 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ass'), findsWidgets);
+  });
+
+  testWidgets('Teams with players and coaches are persisted', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('teams.db');
+    await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('new-team-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('team-name-input')),
+      'SV Beispiel',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Spieler'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('team-player-name-input')),
+      'Ada',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('team-player-number-input')),
+      '7',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('team-player-position-input')),
+      'Mittelblock',
+    );
+    await tester.tap(find.byKey(const ValueKey('add-team-player-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ada'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trainer'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('team-coach-name-input')),
+      'Mara',
+    );
+    await tester.tap(find.byKey(const ValueKey('add-team-coach-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Mara'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SV Beispiel'), findsOneWidget);
+    expect(find.text('1 Spieler • 1 Trainer'), findsOneWidget);
   });
 }

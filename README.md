@@ -86,22 +86,33 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Punkte pro Art
         - [x] Fehler pro Art
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
-- [ ] Team
-  - [ ] Spieler
-    - [ ] Name
-    - [ ] Trikotnummer
-    - [ ] Geburtsdatum / Alter
-    - [ ] Position
+- [x] Team
+  - [x] Info
+    - [x] Teamname
+    - [ ] Teamlogo
+    - [ ] Teamfarben
+    - [ ] Teamprofil
+    - [ ] Teamstatistik
+    - [ ] Teambewertung
+    - [ ] Achievements
+  - [x] Spieler
+    - [x] Name
+    - [x] Trikotnummer
+    - [x] Geburtsdatum / Alter
+    - [x] Position
     - [ ] Spielerprofil
     - [ ] Spielerstatistik
     - [ ] Spielerbewertung
     - [ ] Spielertraining
     - [ ] Achievements
-  - [ ] Trainer
+  - [x] Trainer
+    - [x] Name
     - [ ] Trainerprofil
     - [ ] Trainerstatistik
     - [ ] Trainerbewertung
     - [ ] Achievements
+  - [ ] Teamsharing
+    - [ ] Export/Import
 - [ ] Achievements
 - [ ] Rotation
 - [ ] Soundboard

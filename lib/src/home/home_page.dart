@@ -6,11 +6,13 @@ class HomePage extends StatelessWidget {
     required this.onOpenSettings,
     required this.onOpenScoreboard,
     required this.onOpenMatchStats,
+    required this.onOpenTeams,
   });
 
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenScoreboard;
   final VoidCallback onOpenMatchStats;
+  final VoidCallback onOpenTeams;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +60,16 @@ class HomePage extends StatelessWidget {
               subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenMatchStats,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.groups_outlined, color: scheme.secondary),
+              title: const Text('Teams'),
+              subtitle: const Text('Teams, Spieler und Trainer verwalten.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenTeams,
             ),
           ),
         ],
