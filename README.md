@@ -114,7 +114,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Trainerbewertung
     - [ ] Achievements
 - [ ] Rotation
-- [ ] Spieltafel
+- [x] Taktiktafel
+  - [ ] Speichern von Taktiken
 - [ ] Soundboard
 - [ ] Achievements
 - [ ] Trainingsübungen
@@ -131,3 +132,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] sportschrift
 - [x] app name aktuell mit unterstich
 - [ ] import / export (teams, punktewertung)
+- [ ] farbe rosa in die app übernehmen

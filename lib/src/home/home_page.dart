@@ -7,12 +7,14 @@ class HomePage extends StatelessWidget {
     required this.onOpenScoreboard,
     required this.onOpenMatchStats,
     required this.onOpenTeams,
+    required this.onOpenTactics,
   });
 
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenScoreboard;
   final VoidCallback onOpenMatchStats;
   final VoidCallback onOpenTeams;
+  final VoidCallback onOpenTactics;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +72,16 @@ class HomePage extends StatelessWidget {
               subtitle: const Text('Teams, Spieler und Trainer verwalten.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenTeams,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.sports_volleyball, color: scheme.primary),
+              title: const Text('Taktiktafel'),
+              subtitle: const Text('Aufstellungen und Laufwege zeichnen.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenTactics,
             ),
           ),
         ],

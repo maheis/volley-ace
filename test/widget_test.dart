@@ -7,6 +7,7 @@ import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
 import 'package:volleyace/src/teams/teams_page.dart';
+import 'package:volleyace/src/tactics/tactics_page.dart';
 
 void main() {
   testWidgets('Settings page shows typography controls', (
@@ -19,6 +20,19 @@ void main() {
     expect(find.text('Einstellungen'), findsOneWidget);
     expect(find.text('Schriftart'), findsOneWidget);
     expect(find.text('Speichern'), findsOneWidget);
+  });
+
+  testWidgets('Tactics board adds a colored point',
+      (WidgetTester tester) async {
+    final database = await databaseFactoryMemory.openDatabase('tactics.db');
+    await tester.pumpWidget(MaterialApp(home: TacticsPage(database: database)));
+    await tester.pumpAndSettle();
+
+    final board = find.byKey(const ValueKey('tactics-board'));
+    expect(board, findsOneWidget);
+    await tester.tap(board);
+    await tester.pumpAndSettle();
+    expect(find.text('Taktiktafel'), findsOneWidget);
   });
 
   testWidgets('Scoreboard awards and undoes a point with vertical swipes', (
