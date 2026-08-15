@@ -18,6 +18,22 @@ class TeamPlayer {
   final DateTime? birthDate;
   final String position;
 
+  TeamPlayer copyWith({
+    String? name,
+    int? number,
+    bool clearNumber = false,
+    DateTime? birthDate,
+    bool clearBirthDate = false,
+    String? position,
+  }) =>
+      TeamPlayer(
+        id: id,
+        name: name ?? this.name,
+        number: clearNumber ? null : (number ?? this.number),
+        birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
+        position: position ?? this.position,
+      );
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'name': name,
@@ -45,6 +61,9 @@ class TeamCoach {
 
   final int id;
   final String name;
+
+  TeamCoach copyWith({String? name}) =>
+      TeamCoach(id: id, name: name ?? this.name);
 
   Map<String, dynamic> toJson() => <String, dynamic>{'id': id, 'name': name};
 
@@ -155,6 +174,8 @@ class _TeamsPageState extends State<TeamsPage> {
   int? _selectedTeamId;
   String? _activeSection;
   DateTime? _playerBirthDate;
+  TeamPlayer? _editingPlayer;
+  TeamCoach? _editingCoach;
   int _nextTeamId = 1;
   bool _isLoaded = false;
 
@@ -200,12 +221,9 @@ class _TeamsPageState extends State<TeamsPage> {
   void _openTeam(Team team, {String? section}) {
     if (section == 'info') _teamNameController.text = team.name;
     if (section == 'players') {
-      _playerNameController.clear();
-      _playerNumberController.clear();
-      _playerPositionController.clear();
-      _playerBirthDate = null;
+      _clearPlayerForm();
     }
-    if (section == 'coaches') _coachNameController.clear();
+    if (section == 'coaches') _clearCoachForm();
     setState(() {
       _selectedTeamId = team.id;
       _activeSection = section;
@@ -267,7 +285,20 @@ class _TeamsPageState extends State<TeamsPage> {
     unawaited(_persist());
   }
 
-  void _addPlayer(Team team) {
+  void _clearPlayerForm() {
+    _playerNameController.clear();
+    _playerNumberController.clear();
+    _playerPositionController.clear();
+    _playerBirthDate = null;
+    _editingPlayer = null;
+  }
+
+  void _clearCoachForm() {
+    _coachNameController.clear();
+    _editingCoach = null;
+  }
+
+  void _savePlayer(Team team) {
     final name = _playerNameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -283,28 +314,39 @@ class _TeamsPageState extends State<TeamsPage> {
       );
       return;
     }
+    final editingPlayer = _editingPlayer;
     final nextId = team.players.isEmpty
         ? 1
         : team.players
                 .map((player) => player.id)
                 .reduce((a, b) => a > b ? a : b) +
             1;
-    _replaceTeam(team.copyWith(
-      players: <TeamPlayer>[
-        ...team.players,
+    final player = editingPlayer?.copyWith(
+          name: name,
+          number: number,
+          clearNumber: numberText.isEmpty,
+          birthDate: _playerBirthDate,
+          clearBirthDate: _playerBirthDate == null,
+          position: _playerPositionController.text.trim(),
+        ) ??
         TeamPlayer(
           id: nextId,
           name: name,
           number: number,
           birthDate: _playerBirthDate,
           position: _playerPositionController.text.trim(),
-        ),
-      ],
+        );
+    _replaceTeam(team.copyWith(
+      players: editingPlayer == null
+          ? <TeamPlayer>[...team.players, player]
+          : team.players
+              .map((entry) => entry.id == player.id ? player : entry)
+              .toList(),
     ));
-    _openTeam(_selectedTeam!, section: 'players');
+    setState(_clearPlayerForm);
   }
 
-  void _addCoach(Team team) {
+  void _saveCoach(Team team) {
     final name = _coachNameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -312,27 +354,60 @@ class _TeamsPageState extends State<TeamsPage> {
       );
       return;
     }
+    final editingCoach = _editingCoach;
     final nextId = team.coaches.isEmpty
         ? 1
         : team.coaches
                 .map((coach) => coach.id)
                 .reduce((a, b) => a > b ? a : b) +
             1;
+    final coach =
+        editingCoach?.copyWith(name: name) ?? TeamCoach(id: nextId, name: name);
     _replaceTeam(team.copyWith(
-      coaches: <TeamCoach>[...team.coaches, TeamCoach(id: nextId, name: name)],
+      coaches: editingCoach == null
+          ? <TeamCoach>[...team.coaches, coach]
+          : team.coaches
+              .map((entry) => entry.id == coach.id ? coach : entry)
+              .toList(),
     ));
-    _openTeam(_selectedTeam!, section: 'coaches');
+    setState(_clearCoachForm);
+  }
+
+  void _startEditingPlayer(TeamPlayer player) {
+    setState(() {
+      _editingPlayer = player;
+      _playerNameController.text = player.name;
+      _playerNumberController.text = player.number?.toString() ?? '';
+      _playerPositionController.text = player.position;
+      _playerBirthDate = player.birthDate;
+    });
+  }
+
+  void _startEditingCoach(TeamCoach coach) {
+    setState(() {
+      _editingCoach = coach;
+      _coachNameController.text = coach.name;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoaded)
+    if (!_isLoaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final team = _selectedTeam;
-    if (team == null) return _buildTeamList();
-    if (_activeSection == 'info') return _buildInfo(team);
-    if (_activeSection == 'players') return _buildPlayers(team);
-    if (_activeSection == 'coaches') return _buildCoaches(team);
+    if (team == null) {
+      return _buildTeamList();
+    }
+    if (_activeSection == 'info') {
+      return _buildInfo(team);
+    }
+    if (_activeSection == 'players') {
+      return _buildPlayers(team);
+    }
+    if (_activeSection == 'coaches') {
+      return _buildCoaches(team);
+    }
     return _buildTeamDetail(team);
   }
 
@@ -465,17 +540,30 @@ class _TeamsPageState extends State<TeamsPage> {
                       initialDate: _playerBirthDate ?? DateTime(2000),
                       firstDate: DateTime(1900),
                       lastDate: DateTime.now());
-                  if (date != null && mounted)
+                  if (date != null && mounted) {
                     setState(() => _playerBirthDate = date);
+                  }
                 },
               ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
                 key: const ValueKey('add-team-player-button'),
-                onPressed: () => _addPlayer(team),
-                icon: const Icon(Icons.person_add),
-                label: const Text('Spieler hinzufügen')),
+                onPressed: () => _savePlayer(team),
+                icon: Icon(
+                    _editingPlayer == null ? Icons.person_add : Icons.save),
+                label: Text(
+                  _editingPlayer == null ? 'Spieler hinzufügen' : 'Speichern',
+                )),
+            if (_editingPlayer != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Bearbeitung abbrechen',
+                  onPressed: () => setState(_clearPlayerForm),
+                ),
+              ),
             const SizedBox(height: 24),
             if (team.players.isEmpty)
               const Text('Noch keine Spieler angelegt.')
@@ -489,13 +577,24 @@ class _TeamsPageState extends State<TeamsPage> {
                     if (player.position.isNotEmpty) player.position,
                     if (player.birthDate != null) _formatDate(player.birthDate!)
                   ].join(' • ')),
-                  trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      tooltip: 'Spieler entfernen',
-                      onPressed: () => _replaceTeam(team.copyWith(
-                          players: team.players
-                              .where((entry) => entry.id != player.id)
-                              .toList()))),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'Spieler bearbeiten',
+                        onPressed: () => _startEditingPlayer(player),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        tooltip: 'Spieler entfernen',
+                        onPressed: () => _replaceTeam(team.copyWith(
+                            players: team.players
+                                .where((entry) => entry.id != player.id)
+                                .toList())),
+                      ),
+                    ],
+                  ),
                 ),
           ],
         ),
@@ -514,9 +613,21 @@ class _TeamsPageState extends State<TeamsPage> {
             const SizedBox(height: 12),
             FilledButton.icon(
                 key: const ValueKey('add-team-coach-button'),
-                onPressed: () => _addCoach(team),
-                icon: const Icon(Icons.person_add),
-                label: const Text('Trainer hinzufügen')),
+                onPressed: () => _saveCoach(team),
+                icon:
+                    Icon(_editingCoach == null ? Icons.person_add : Icons.save),
+                label: Text(
+                  _editingCoach == null ? 'Trainer hinzufügen' : 'Speichern',
+                )),
+            if (_editingCoach != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Bearbeitung abbrechen',
+                  onPressed: () => setState(_clearCoachForm),
+                ),
+              ),
             const SizedBox(height: 24),
             if (team.coaches.isEmpty)
               const Text('Noch keine Trainer angelegt.')
@@ -525,13 +636,24 @@ class _TeamsPageState extends State<TeamsPage> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(coach.name),
-                  trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      tooltip: 'Trainer entfernen',
-                      onPressed: () => _replaceTeam(team.copyWith(
-                          coaches: team.coaches
-                              .where((entry) => entry.id != coach.id)
-                              .toList()))),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'Trainer bearbeiten',
+                        onPressed: () => _startEditingCoach(coach),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        tooltip: 'Trainer entfernen',
+                        onPressed: () => _replaceTeam(team.copyWith(
+                            coaches: team.coaches
+                                .where((entry) => entry.id != coach.id)
+                                .toList())),
+                      ),
+                    ],
+                  ),
                 ),
           ],
         ),

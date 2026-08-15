@@ -206,6 +206,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ada'), findsOneWidget);
 
+    await tester.tap(find.byTooltip('Spieler bearbeiten'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('team-player-name-input')),
+      'Ada Lovelace',
+    );
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ada Lovelace'), findsOneWidget);
+
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Trainer'));
@@ -218,6 +228,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Mara'), findsOneWidget);
 
+    await tester.tap(find.byTooltip('Trainer bearbeiten'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('team-coach-name-input')),
+      'Mara Mustermann',
+    );
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mara Mustermann'), findsOneWidget);
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
     await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
@@ -225,5 +245,15 @@ void main() {
 
     expect(find.text('SV Beispiel'), findsOneWidget);
     expect(find.text('1 Spieler • 1 Trainer'), findsOneWidget);
+    await tester.tap(find.text('SV Beispiel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Spieler'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ada Lovelace'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trainer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mara Mustermann'), findsOneWidget);
   });
 }
