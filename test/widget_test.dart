@@ -32,6 +32,8 @@ void main() {
     expect(board, findsOneWidget);
     await tester.tap(board);
     await tester.pumpAndSettle();
+    await tester.drag(board, const Offset(32, 24));
+    await tester.pumpAndSettle();
     expect(find.text('Taktiktafel'), findsOneWidget);
   });
 

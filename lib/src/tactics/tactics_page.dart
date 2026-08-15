@@ -82,6 +82,9 @@ class _TacticsPageState extends State<TacticsPage> {
   Color _selectedColor = Colors.red;
   _Tool _tool = _Tool.point;
   List<Offset>? _activeLine;
+  int? _movingPointIndex;
+  int? _movingLineIndex;
+  Offset? _lastDragPosition;
   bool _isLoaded = false;
 
   @override
@@ -131,38 +134,132 @@ class _TacticsPageState extends State<TacticsPage> {
 
   void _handleTap(TapUpDetails details, Size size) {
     if (_tool != _Tool.point) return;
+    final position = _relativePosition(details.localPosition, size);
+    if (_findPointAt(position, size) != null) return;
     setState(() => _points.add(
           _BoardPoint(
-            position: _relativePosition(details.localPosition, size),
+            position: position,
             color: _selectedColor,
           ),
         ));
     _persist();
   }
 
-  void _startLine(DragStartDetails details, Size size) {
-    if (_tool != _Tool.line) return;
+  void _startDrag(DragStartDetails details, Size size) {
+    final position = _relativePosition(details.localPosition, size);
+    if (_tool == _Tool.point) {
+      final pointIndex = _findPointAt(position, size);
+      if (pointIndex == null) return;
+      setState(() {
+        _movingPointIndex = pointIndex;
+        _lastDragPosition = position;
+      });
+      return;
+    }
+    final lineIndex = _findLineAt(position, size);
     setState(() {
-      _activeLine = <Offset>[_relativePosition(details.localPosition, size)];
+      _lastDragPosition = position;
+      if (lineIndex != null) {
+        _movingLineIndex = lineIndex;
+      } else {
+        _activeLine = <Offset>[position];
+      }
     });
   }
 
-  void _extendLine(DragUpdateDetails details, Size size) {
+  void _updateDrag(DragUpdateDetails details, Size size) {
+    final position = _relativePosition(details.localPosition, size);
+    final pointIndex = _movingPointIndex;
+    if (pointIndex != null) {
+      setState(() {
+        _points[pointIndex] = _BoardPoint(
+          position: position,
+          color: _points[pointIndex].color,
+        );
+        _lastDragPosition = position;
+      });
+      return;
+    }
+    final lineIndex = _movingLineIndex;
+    final lastPosition = _lastDragPosition;
+    if (lineIndex != null && lastPosition != null) {
+      final delta = position - lastPosition;
+      setState(() {
+        final line = _lines[lineIndex];
+        _lines[lineIndex] = _BoardLine(
+          color: line.color,
+          points: line.points
+              .map(
+                (point) => Offset(
+                  (point.dx + delta.dx).clamp(0.0, 1.0),
+                  (point.dy + delta.dy).clamp(0.0, 1.0),
+                ),
+              )
+              .toList(),
+        );
+        _lastDragPosition = position;
+      });
+      return;
+    }
     if (_activeLine == null) return;
     setState(() {
-      _activeLine!.add(_relativePosition(details.localPosition, size));
+      _activeLine!.add(position);
     });
   }
 
-  void _finishLine(DragEndDetails details) {
+  void _finishDrag(DragEndDetails details) {
     final line = _activeLine;
-    if (line == null) return;
     setState(() {
-      if (line.length > 1)
+      if (line != null && line.length > 1) {
         _lines.add(_BoardLine(points: line, color: _selectedColor));
+      }
       _activeLine = null;
+      _movingPointIndex = null;
+      _movingLineIndex = null;
+      _lastDragPosition = null;
     });
     _persist();
+  }
+
+  int? _findPointAt(Offset position, Size size) {
+    const hitRadius = 20.0;
+    for (var index = _points.length - 1; index >= 0; index--) {
+      final point = _points[index].position;
+      final distance = Offset(
+        (point.dx - position.dx) * size.width,
+        (point.dy - position.dy) * size.height,
+      ).distance;
+      if (distance <= hitRadius) return index;
+    }
+    return null;
+  }
+
+  int? _findLineAt(Offset position, Size size) {
+    const hitDistance = 14.0;
+    for (var index = _lines.length - 1; index >= 0; index--) {
+      final points = _lines[index].points;
+      for (var pointIndex = 1; pointIndex < points.length; pointIndex++) {
+        final start = Offset(points[pointIndex - 1].dx * size.width,
+            points[pointIndex - 1].dy * size.height);
+        final end = Offset(points[pointIndex].dx * size.width,
+            points[pointIndex].dy * size.height);
+        final target =
+            Offset(position.dx * size.width, position.dy * size.height);
+        if (_distanceToSegment(target, start, end) <= hitDistance) return index;
+      }
+    }
+    return null;
+  }
+
+  static double _distanceToSegment(Offset point, Offset start, Offset end) {
+    final segment = end - start;
+    final lengthSquared = segment.distanceSquared;
+    if (lengthSquared == 0) return (point - start).distance;
+    final projection =
+        ((point - start).dx * segment.dx + (point - start).dy * segment.dy) /
+            lengthSquared;
+    final nearest = start + segment * projection.clamp(0.0, 1.0);
+    return (point - nearest).distance;
   }
 
   void _undo() {
@@ -278,10 +375,10 @@ class _TacticsPageState extends State<TacticsPage> {
                               key: const ValueKey('tactics-board'),
                               onTapUp: (details) => _handleTap(details, size),
                               onPanStart: (details) =>
-                                  _startLine(details, size),
+                                  _startDrag(details, size),
                               onPanUpdate: (details) =>
-                                  _extendLine(details, size),
-                              onPanEnd: _finishLine,
+                                  _updateDrag(details, size),
+                              onPanEnd: _finishDrag,
                               child: CustomPaint(
                                 size: size,
                                 painter: _VolleyballCourtPainter(
