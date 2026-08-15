@@ -206,12 +206,15 @@ class TeamsPage extends StatefulWidget {
 class _TeamsPageState extends State<TeamsPage> {
   late final TeamsRepository _repository = TeamsRepository(widget.database);
   final List<Team> _teams = <Team>[];
+  static final StoreRef<String, Map<String, dynamic>> _matchStatsStore =
+      StoreRef<String, Map<String, dynamic>>('analytics');
+  final List<Map<String, dynamic>> _matches = <Map<String, dynamic>>[];
   final TextEditingController _teamNameController = TextEditingController();
   final TextEditingController _playerNameController = TextEditingController();
   final TextEditingController _playerNumberController = TextEditingController();
   final TextEditingController _playerPositionController =
       TextEditingController();
-    final TextEditingController _playerProfileController =
+  final TextEditingController _playerProfileController =
       TextEditingController();
   final TextEditingController _coachNameController = TextEditingController();
   final TextEditingController _coachProfileController = TextEditingController();
@@ -223,6 +226,7 @@ class _TeamsPageState extends State<TeamsPage> {
   DateTime? _coachBirthDate;
   TeamPlayer? _editingPlayer;
   TeamCoach? _editingCoach;
+  int? _selectedPlayerId;
   int _nextTeamId = 1;
   bool _isLoaded = false;
 
@@ -246,12 +250,27 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 
   Future<void> _load() async {
-    final teams = await _repository.load();
+    final results = await Future.wait<Object?>([
+      _repository.load(),
+      _matchStatsStore.record('match_stats').get(widget.database),
+    ]);
+    final teams = results[0] as List<Team>;
+    final matchStats = results[1] as Map<String, dynamic>?;
+    final storedMatches = matchStats?['matches'];
     if (!mounted) return;
     setState(() {
       _teams
         ..clear()
         ..addAll(teams);
+      _matches
+        ..clear()
+        ..addAll(
+          storedMatches is List
+              ? storedMatches
+                  .whereType<Map>()
+                  .map((item) => Map<String, dynamic>.from(item))
+              : <Map<String, dynamic>>[],
+        );
       _nextTeamId = _teams.isEmpty
           ? 1
           : _teams.map((team) => team.id).reduce((a, b) => a > b ? a : b) + 1;
@@ -283,6 +302,12 @@ class _TeamsPageState extends State<TeamsPage> {
   void _closeTeam() => setState(() {
         _selectedTeamId = null;
         _activeSection = null;
+        _selectedPlayerId = null;
+      });
+
+  void _showPlayerStats(TeamPlayer player) => setState(() {
+        _selectedPlayerId = player.id;
+        _activeSection = 'player-stats';
       });
 
   void _createTeam() {
@@ -478,6 +503,13 @@ class _TeamsPageState extends State<TeamsPage> {
     if (_activeSection == 'players') {
       return _buildPlayers(team);
     }
+    if (_activeSection == 'player-stats') {
+      final player = team.players.cast<TeamPlayer?>().firstWhere(
+            (entry) => entry?.id == _selectedPlayerId,
+            orElse: () => null,
+          );
+      if (player != null) return _buildPlayerStats(team, player);
+    }
     if (_activeSection == 'coaches') {
       return _buildCoaches(team);
     }
@@ -660,8 +692,9 @@ class _TeamsPageState extends State<TeamsPage> {
                   subtitle: Text([
                     if (player.number != null) 'Trikot ${player.number}',
                     if (player.position.isNotEmpty) player.position,
-                    if (player.birthDate != null) _formatDate(player.birthDate!)
-                    ,if (player.profile.isNotEmpty) player.profile,
+                    if (player.birthDate != null)
+                      _formatDate(player.birthDate!),
+                    if (player.profile.isNotEmpty) player.profile,
                   ].join(' • ')),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -670,6 +703,11 @@ class _TeamsPageState extends State<TeamsPage> {
                         icon: const Icon(Icons.edit_outlined),
                         tooltip: 'Spieler bearbeiten',
                         onPressed: () => _startEditingPlayer(player),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.bar_chart_outlined),
+                        tooltip: 'Spielerstatistik',
+                        onPressed: () => _showPlayerStats(player),
                       ),
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline),
@@ -685,6 +723,121 @@ class _TeamsPageState extends State<TeamsPage> {
           ],
         ),
       );
+
+  Widget _buildPlayerStats(Team team, TeamPlayer player) {
+    final games = <_PlayerMatchStats>[];
+    for (final match in _matches) {
+      if (match['teamId'] is! num ||
+          (match['teamId'] as num).toInt() != team.id) {
+        continue;
+      }
+      final players = match['players'];
+      if (players is! List) continue;
+      final matchPlayer = players.whereType<Map>().cast<Map?>().firstWhere(
+            (entry) =>
+                entry?['teamPlayerId'] is num &&
+                (entry?['teamPlayerId'] as num).toInt() == player.id,
+            orElse: () => null,
+          );
+      if (matchPlayer == null || matchPlayer['id'] is! num) continue;
+      final playerId = (matchPlayer['id'] as num).toInt();
+      final events = match['events'];
+      final playerEvents = events is List
+          ? events
+              .whereType<Map>()
+              .where((event) =>
+                  event['playerId'] is num &&
+                  (event['playerId'] as num).toInt() == playerId)
+              .map((event) => Map<String, dynamic>.from(event))
+              .toList()
+          : <Map<String, dynamic>>[];
+      games.add(_PlayerMatchStats(match: match, events: playerEvents));
+    }
+
+    final totalPoints = games.fold<int>(
+      0,
+      (total, game) =>
+          total + game.events.where((event) => event['kind'] == 'point').length,
+    );
+    final totalErrors = games.fold<int>(
+      0,
+      (total, game) =>
+          total + game.events.where((event) => event['kind'] == 'error').length,
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Statistik: ${player.name}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _openTeam(team, section: 'players'),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _StatTile(label: 'Spiele', value: games.length),
+          _StatTile(label: 'Punkte', value: totalPoints),
+          _StatTile(label: 'Fehler', value: totalErrors),
+          const SizedBox(height: 20),
+          const Text('Pro Spiel',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          if (games.isEmpty)
+            const Text(
+                'Für diesen Spieler wurden noch keine Punktewertungen erfasst.')
+          else
+            for (final game in games) _buildPlayerMatchStats(game),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerMatchStats(_PlayerMatchStats game) {
+    final points = _eventSummary(game.events, 'point');
+    final errors = _eventSummary(game.events, 'error');
+    final opponent = game.match['opponentTeam'] is String
+        ? game.match['opponentTeam'] as String
+        : '';
+    final matchType = game.match['matchType'] is String
+        ? game.match['matchType'] as String
+        : 'Spiel';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(opponent.isEmpty ? matchType : 'vs. $opponent',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Punkte: ${_formatSummary(points)}'),
+            Text('Fehler: ${_formatSummary(errors)}'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Map<String, int> _eventSummary(
+    List<Map<String, dynamic>> events,
+    String kind,
+  ) {
+    final summary = <String, int>{};
+    for (final event in events.where((entry) => entry['kind'] == kind)) {
+      final category = event['category'] is String
+          ? event['category'] as String
+          : 'Sonstiges';
+      summary[category] = (summary[category] ?? 0) + 1;
+    }
+    return summary;
+  }
+
+  static String _formatSummary(Map<String, int> summary) => summary.isEmpty
+      ? '0'
+      : summary.entries
+          .map((entry) => '${entry.key}: ${entry.value}')
+          .join(', ');
 
   Widget _buildCoaches(Team team) => Scaffold(
         appBar: _sectionAppBar('Trainer', team),
@@ -830,5 +983,24 @@ class _DetailTile extends StatelessWidget {
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
         ),
+      );
+}
+
+class _PlayerMatchStats {
+  const _PlayerMatchStats({required this.match, required this.events});
+
+  final Map<String, dynamic> match;
+  final List<Map<String, dynamic>> events;
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: ListTile(title: Text(label), trailing: Text('$value')),
       );
 }

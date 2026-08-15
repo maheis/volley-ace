@@ -101,7 +101,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Geburtsdatum / Alter
     - [x] Position
     - [x] Spielerprofil
-    - [ ] Spielerstatistik
+    - [x] Spielerstatistik
     - [ ] Spielerbewertung
     - [ ] Spielertraining
     - [ ] Achievements
