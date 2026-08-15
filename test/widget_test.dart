@@ -37,6 +37,19 @@ void main() {
     expect(find.byTooltip('Ausgewähltes Objekt löschen'), findsOneWidget);
     await tester.tap(find.byTooltip('Ausgewähltes Objekt löschen'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Taktik speichern'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('tactic-name-input')),
+      'Aufschlag',
+    );
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Taktik laden'));
+    await tester.pumpAndSettle();
+    expect(find.text('Aufschlag'), findsOneWidget);
+    await tester.tap(find.text('Aufschlag'));
+    await tester.pumpAndSettle();
     await tester.drag(board, const Offset(32, 24));
     await tester.pumpAndSettle();
     expect(find.text('Taktiktafel'), findsOneWidget);

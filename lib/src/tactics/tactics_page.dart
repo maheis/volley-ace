@@ -65,6 +65,50 @@ class _BoardLine {
   }
 }
 
+class _SavedTactic {
+  const _SavedTactic({
+    required this.id,
+    required this.name,
+    required this.points,
+    required this.lines,
+  });
+
+  final int id;
+  final String name;
+  final List<_BoardPoint> points;
+  final List<_BoardLine> lines;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'name': name,
+        'points': points.map((point) => point.toJson()).toList(),
+        'lines': lines.map((line) => line.toJson()).toList(),
+      };
+
+  static _SavedTactic fromJson(Map<String, dynamic> data) {
+    final storedPoints = data['points'];
+    final storedLines = data['lines'];
+    return _SavedTactic(
+      id: data['id'] is num ? (data['id'] as num).toInt() : 0,
+      name: data['name'] is String ? data['name'] as String : 'Unbenannt',
+      points: storedPoints is List
+          ? storedPoints
+              .whereType<Map>()
+              .map((item) =>
+                  _BoardPoint.fromJson(Map<String, dynamic>.from(item)))
+              .toList()
+          : const <_BoardPoint>[],
+      lines: storedLines is List
+          ? storedLines
+              .whereType<Map>()
+              .map((item) =>
+                  _BoardLine.fromJson(Map<String, dynamic>.from(item)))
+              .toList()
+          : const <_BoardLine>[],
+    );
+  }
+}
+
 class TacticsPage extends StatefulWidget {
   const TacticsPage({super.key, required this.database});
 
@@ -88,6 +132,7 @@ class _TacticsPageState extends State<TacticsPage> {
 
   final List<_BoardPoint> _points = <_BoardPoint>[];
   final List<_BoardLine> _lines = <_BoardLine>[];
+  final List<_SavedTactic> _savedTactics = <_SavedTactic>[];
   Color _selectedColor = Colors.red;
   _Tool _tool = _Tool.point;
   List<Offset>? _activeLine;
@@ -95,6 +140,7 @@ class _TacticsPageState extends State<TacticsPage> {
   int? _movingLineIndex;
   Offset? _lastDragPosition;
   _BoardSelection? _selection;
+  String? _activeTacticName;
   bool _isLoaded = false;
 
   @override
@@ -108,6 +154,7 @@ class _TacticsPageState extends State<TacticsPage> {
     if (!mounted) return;
     final storedPoints = data?['points'];
     final storedLines = data?['lines'];
+    final storedTactics = data?['tactics'];
     setState(() {
       _points
         ..clear()
@@ -125,6 +172,15 @@ class _TacticsPageState extends State<TacticsPage> {
                   _BoardLine.fromJson(Map<String, dynamic>.from(item)))
               : const <_BoardLine>[],
         );
+      _savedTactics
+        ..clear()
+        ..addAll(
+          storedTactics is List
+              ? storedTactics.whereType<Map>().map((item) =>
+                  _SavedTactic.fromJson(Map<String, dynamic>.from(item)))
+              : const <_SavedTactic>[],
+        );
+      _activeTacticName = data?['activeTacticName'] as String?;
       _isLoaded = true;
     });
   }
@@ -134,8 +190,121 @@ class _TacticsPageState extends State<TacticsPage> {
         <String, dynamic>{
           'points': _points.map((point) => point.toJson()).toList(),
           'lines': _lines.map((line) => line.toJson()).toList(),
+          'tactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
+          'activeTacticName': _activeTacticName,
         },
       );
+
+  Future<void> _saveTactic() async {
+    final controller = TextEditingController(text: _activeTacticName ?? '');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Taktik speichern'),
+        content: TextField(
+          key: const ValueKey('tactic-name-input'),
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Name der Taktik'),
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    final trimmedName = name?.trim();
+    if (trimmedName == null || trimmedName.isEmpty || !mounted) return;
+    setState(() {
+      final index =
+          _savedTactics.indexWhere((tactic) => tactic.name == trimmedName);
+      final id = index >= 0
+          ? _savedTactics[index].id
+          : (_savedTactics.isEmpty
+              ? 1
+              : _savedTactics
+                      .map((tactic) => tactic.id)
+                      .reduce((a, b) => a > b ? a : b) +
+                  1);
+      final tactic = _SavedTactic(
+        id: id,
+        name: trimmedName,
+        points: List<_BoardPoint>.from(_points),
+        lines: List<_BoardLine>.from(_lines),
+      );
+      if (index >= 0) {
+        _savedTactics[index] = tactic;
+      } else {
+        _savedTactics.add(tactic);
+      }
+      _activeTacticName = trimmedName;
+    });
+    await _persist();
+  }
+
+  Future<void> _showTactics() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: _savedTactics.isEmpty
+            ? const SizedBox(
+                height: 128,
+                child: Center(child: Text('Noch keine Taktiken gespeichert.')),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final tactic in _savedTactics)
+                    ListTile(
+                      leading: const Icon(Icons.sports_volleyball),
+                      title: Text(tactic.name),
+                      subtitle: Text(
+                          '${tactic.points.length} Punkte • ${tactic.lines.length} Linien'),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        _loadTactic(tactic);
+                      },
+                      trailing: IconButton(
+                        tooltip: 'Taktik löschen',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deleteTactic(tactic),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  void _loadTactic(_SavedTactic tactic) {
+    setState(() {
+      _points
+        ..clear()
+        ..addAll(tactic.points);
+      _lines
+        ..clear()
+        ..addAll(tactic.lines);
+      _selection = null;
+      _activeTacticName = tactic.name;
+    });
+    _persist();
+  }
+
+  void _deleteTactic(_SavedTactic tactic) {
+    setState(() {
+      _savedTactics.removeWhere((entry) => entry.id == tactic.id);
+      if (_activeTacticName == tactic.name) _activeTacticName = null;
+    });
+    _persist();
+  }
 
   Offset _relativePosition(Offset position, Size size) => Offset(
         (position.dx / size.width).clamp(0.0, 1.0),
@@ -340,6 +509,16 @@ class _TacticsPageState extends State<TacticsPage> {
       appBar: AppBar(
         title: const Text('Taktiktafel'),
         actions: [
+          IconButton(
+            tooltip: 'Taktik laden',
+            onPressed: _showTactics,
+            icon: const Icon(Icons.folder_open),
+          ),
+          IconButton(
+            tooltip: 'Taktik speichern',
+            onPressed: _saveTactic,
+            icon: const Icon(Icons.save),
+          ),
           IconButton(
             tooltip: 'Rückgängig',
             onPressed: _points.isEmpty && _lines.isEmpty ? null : _undo,

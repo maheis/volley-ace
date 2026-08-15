@@ -115,7 +115,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Achievements
 - [ ] Rotation
 - [x] Taktiktafel
-  - [ ] Speichern von Taktiken
+  - [x] Speichern von Taktiken
 - [ ] Soundboard
 - [ ] Achievements
 - [ ] Trainingsübungen
