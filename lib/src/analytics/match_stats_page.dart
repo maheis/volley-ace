@@ -3,22 +3,40 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
+import '../teams/teams_page.dart';
+
 class MatchPlayer {
   const MatchPlayer({
     required this.id,
     required this.name,
     required this.number,
+    this.teamPlayerId,
+    this.sourceTeamId,
   });
 
   final int id;
   final String name;
   final int number;
+  final int? teamPlayerId;
+  final int? sourceTeamId;
 
-  MatchPlayer copyWith({int? id, String? name, int? number}) {
+  MatchPlayer copyWith({
+    int? id,
+    String? name,
+    int? number,
+    int? teamPlayerId,
+    bool clearTeamPlayerId = false,
+    int? sourceTeamId,
+    bool clearSourceTeamId = false,
+  }) {
     return MatchPlayer(
       id: id ?? this.id,
       name: name ?? this.name,
       number: number ?? this.number,
+      teamPlayerId:
+          clearTeamPlayerId ? null : (teamPlayerId ?? this.teamPlayerId),
+      sourceTeamId:
+          clearSourceTeamId ? null : (sourceTeamId ?? this.sourceTeamId),
     );
   }
 
@@ -26,6 +44,8 @@ class MatchPlayer {
         'id': id,
         'name': name,
         'number': number,
+        'teamPlayerId': teamPlayerId,
+        'sourceTeamId': sourceTeamId,
       };
 
   static MatchPlayer fromJson(Map<String, dynamic> data) {
@@ -37,6 +57,12 @@ class MatchPlayer {
       id: id is num ? id.toInt() : 0,
       name: name is String ? name : '',
       number: number is num ? number.toInt() : 0,
+      teamPlayerId: data['teamPlayerId'] is num
+          ? (data['teamPlayerId'] as num).toInt()
+          : null,
+      sourceTeamId: data['sourceTeamId'] is num
+          ? (data['sourceTeamId'] as num).toInt()
+          : null,
     );
   }
 }
@@ -102,6 +128,7 @@ class MatchGame {
     required this.matchDateTime,
     required this.matchTag,
     required this.matchType,
+    this.teamId,
     required this.players,
     required this.events,
     this.stopwatchElapsed = Duration.zero,
@@ -116,6 +143,7 @@ class MatchGame {
   final DateTime matchDateTime;
   final String matchTag;
   final String matchType;
+  final int? teamId;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
   final Duration stopwatchElapsed;
@@ -130,6 +158,8 @@ class MatchGame {
     DateTime? matchDateTime,
     String? matchTag,
     String? matchType,
+    int? teamId,
+    bool clearTeamId = false,
     List<MatchPlayer>? players,
     List<MatchEvent>? events,
     Duration? stopwatchElapsed,
@@ -145,6 +175,7 @@ class MatchGame {
       matchDateTime: matchDateTime ?? this.matchDateTime,
       matchTag: matchTag ?? this.matchTag,
       matchType: matchType ?? this.matchType,
+      teamId: clearTeamId ? null : (teamId ?? this.teamId),
       players: players ?? this.players,
       events: events ?? this.events,
       stopwatchElapsed: stopwatchElapsed ?? this.stopwatchElapsed,
@@ -163,6 +194,7 @@ class MatchGame {
         'matchDateTimeMillis': matchDateTime.millisecondsSinceEpoch,
         'matchTag': matchTag,
         'matchType': matchType,
+        'teamId': teamId,
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
         'stopwatchElapsedMillis': stopwatchElapsed.inMilliseconds,
@@ -209,6 +241,7 @@ class MatchGame {
       matchType: data['matchType'] is String
           ? data['matchType'] as String
           : 'Freundschaftsspiel',
+      teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
       players: players,
       events: events,
       stopwatchElapsed: stopwatchElapsedMillis is num
@@ -303,8 +336,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   late final MatchStatsRepository _repository = MatchStatsRepository(
     widget.database,
   );
+  late final TeamsRepository _teamsRepository =
+      TeamsRepository(widget.database);
 
   final List<MatchGame> _matches = <MatchGame>[];
+  final List<Team> _teams = <Team>[];
   int? _selectedMatchId;
   String? _activeSection;
   String? _pendingEventKind;
@@ -331,7 +367,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Future<void> _load() async {
-    final state = await _repository.load();
+    final results = await Future.wait<Object>([
+      _repository.load(),
+      _teamsRepository.load(),
+    ]);
+    final state = results[0] as MatchStatsState;
+    final teams = results[1] as List<Team>;
     if (!mounted) return;
 
     setState(() {
@@ -339,6 +380,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ..clear()
         ..addAll(state.matches)
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _teams
+        ..clear()
+        ..addAll(teams);
       _isLoaded = true;
       _nextMatchId = _matches.isEmpty
           ? 1
@@ -393,6 +437,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       matchDateTime: DateTime.now(),
       matchTag: '',
       matchType: _matchTypes[2],
+      teamId: null,
       players: const <MatchPlayer>[],
       events: const <MatchEvent>[],
     );
@@ -414,6 +459,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     DateTime? matchDateTime,
     String? matchTag,
     String? matchType,
+    int? teamId,
+    bool clearTeamId = false,
   }) {
     _replaceMatch(
       match.copyWith(
@@ -422,6 +469,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         matchDateTime: matchDateTime,
         matchTag: matchTag,
         matchType: matchType,
+        teamId: teamId,
+        clearTeamId: clearTeamId,
       ),
     );
   }
@@ -446,13 +495,58 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       return;
     }
 
+    final nextId = match.players.isEmpty
+        ? 1
+        : match.players
+                .map((player) => player.id)
+                .reduce((a, b) => a > b ? a : b) +
+            1;
     final players = List<MatchPlayer>.from(match.players)
-      ..add(MatchPlayer(
-          id: match.players.length + 1, name: name, number: number));
+      ..add(MatchPlayer(id: nextId, name: name, number: number));
 
     _replaceMatch(match.copyWith(players: players));
     _playerNameController.clear();
     _playerNumberController.clear();
+  }
+
+  void _toggleTeamPlayer(MatchGame match, TeamPlayer player, bool selected) {
+    final players = List<MatchPlayer>.from(match.players);
+    if (selected) {
+      final nextId = players.isEmpty
+          ? 1
+          : players.map((entry) => entry.id).reduce((a, b) => a > b ? a : b) +
+              1;
+      players.add(MatchPlayer(
+        id: nextId,
+        name: player.name,
+        number: player.number ?? 0,
+        teamPlayerId: player.id,
+        sourceTeamId: match.teamId,
+      ));
+    } else {
+      players.removeWhere((entry) => entry.teamPlayerId == player.id);
+    }
+    _replaceMatch(match.copyWith(players: players));
+  }
+
+  void _selectTeam(MatchGame match, int? teamId) {
+    _updateMatchInfo(
+      match,
+      teamId: teamId,
+      clearTeamId: teamId == null,
+    );
+  }
+
+  void _updateTeamPlayerNumber(
+      MatchGame match, MatchPlayer player, String value) {
+    final number = int.tryParse(value.trim());
+    if (number == null) return;
+    _replaceMatch(match.copyWith(
+      players: match.players
+          .map((entry) =>
+              entry.id == player.id ? entry.copyWith(number: number) : entry)
+          .toList(),
+    ));
   }
 
   void _removePlayerFromMatch(MatchGame match, MatchPlayer player) {
@@ -769,6 +863,29 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ),
             ),
             const SizedBox(height: 12),
+            DropdownButtonFormField<int?>(
+              key: const ValueKey('match-team-select'),
+              value: match.teamId,
+              decoration: const InputDecoration(
+                labelText: 'Eigenes Team',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Kein Team auswählen'),
+                ),
+                ..._teams.map(
+                  (team) => DropdownMenuItem<int?>(
+                    value: team.id,
+                    child: Text(
+                        team.name.isEmpty ? 'Unbenanntes Team' : team.name),
+                  ),
+                ),
+              ],
+              onChanged: (teamId) => _selectTeam(match, teamId),
+            ),
+            const SizedBox(height: 12),
             TextField(
               key: const ValueKey('match-opponent-input'),
               controller: _opponentController,
@@ -891,9 +1008,75 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildPlayerEditor(MatchGame match) {
+    final team = match.teamId == null
+        ? null
+        : _teams.cast<Team?>().firstWhere(
+              (entry) => entry?.id == match.teamId,
+              orElse: () => null,
+            );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (team != null) ...[
+          const Text(
+            'Kader für dieses Spiel',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          if (team.players.isEmpty)
+            const Text('Im ausgewählten Team sind noch keine Spieler angelegt.')
+          else
+            for (final teamPlayer in team.players)
+              Builder(
+                builder: (context) {
+                  final matchPlayer =
+                      match.players.cast<MatchPlayer?>().firstWhere(
+                            (entry) =>
+                                entry?.sourceTeamId == team.id &&
+                                entry?.teamPlayerId == teamPlayer.id,
+                            orElse: () => null,
+                          );
+                  final isSelected = matchPlayer != null;
+                  return Row(
+                    children: [
+                      Checkbox(
+                        key: ValueKey('select-team-player-${teamPlayer.id}'),
+                        value: isSelected,
+                        onChanged: (selected) => _toggleTeamPlayer(
+                          match,
+                          teamPlayer,
+                          selected ?? false,
+                        ),
+                      ),
+                      Expanded(child: Text(teamPlayer.name)),
+                      SizedBox(
+                        width: 96,
+                        child: TextFormField(
+                          key: ValueKey('team-player-number-${teamPlayer.id}'),
+                          enabled: isSelected,
+                          initialValue: matchPlayer?.number.toString() ??
+                              (teamPlayer.number?.toString() ?? ''),
+                          keyboardType: TextInputType.number,
+                          onFieldSubmitted: (value) {
+                            if (matchPlayer != null) {
+                              _updateTeamPlayerNumber(
+                                  match, matchPlayer, value);
+                            }
+                          },
+                          decoration: const InputDecoration(labelText: 'Nr.'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+          const Divider(height: 32),
+        ],
+        const Text(
+          'Spieler manuell hinzufügen',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
