@@ -227,6 +227,7 @@ class _TeamsPageState extends State<TeamsPage> {
   TeamPlayer? _editingPlayer;
   TeamCoach? _editingCoach;
   int? _selectedPlayerId;
+  int? _selectedCoachId;
   int _nextTeamId = 1;
   bool _isLoaded = false;
 
@@ -303,11 +304,17 @@ class _TeamsPageState extends State<TeamsPage> {
         _selectedTeamId = null;
         _activeSection = null;
         _selectedPlayerId = null;
+        _selectedCoachId = null;
       });
 
   void _showPlayerStats(TeamPlayer player) => setState(() {
         _selectedPlayerId = player.id;
         _activeSection = 'player-stats';
+      });
+
+  void _showCoachStats(TeamCoach coach) => setState(() {
+        _selectedCoachId = coach.id;
+        _activeSection = 'coach-stats';
       });
 
   void _createTeam() {
@@ -509,6 +516,13 @@ class _TeamsPageState extends State<TeamsPage> {
             orElse: () => null,
           );
       if (player != null) return _buildPlayerStats(team, player);
+    }
+    if (_activeSection == 'coach-stats') {
+      final coach = team.coaches.cast<TeamCoach?>().firstWhere(
+            (entry) => entry?.id == _selectedCoachId,
+            orElse: () => null,
+          );
+      if (coach != null) return _buildCoachStats(team, coach);
     }
     if (_activeSection == 'coaches') {
       return _buildCoaches(team);
@@ -788,6 +802,41 @@ class _TeamsPageState extends State<TeamsPage> {
     );
   }
 
+  Widget _buildCoachStats(Team team, TeamCoach coach) {
+    final matches = _matches.where((match) {
+      if (match['teamId'] is! num ||
+          (match['teamId'] as num).toInt() != team.id) {
+        return false;
+      }
+      final coaches = match['coaches'];
+      return coaches is List &&
+          coaches.whereType<Map>().any(
+                (entry) =>
+                    entry['id'] is num &&
+                    (entry['id'] as num).toInt() == coach.id,
+              );
+    }).toList();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Statistik: ${coach.name}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _openTeam(team, section: 'coaches'),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (matches.isEmpty)
+            const Text(
+                'Für diesen Trainer wurden noch keine Teilnahmen erfasst.')
+          else
+            _CoachParticipationTable(matches: matches),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCoaches(Team team) => Scaffold(
         appBar: _sectionAppBar('Trainer', team),
         body: ListView(
@@ -882,6 +931,11 @@ class _TeamsPageState extends State<TeamsPage> {
                         icon: const Icon(Icons.edit_outlined),
                         tooltip: 'Trainer bearbeiten',
                         onPressed: () => _startEditingCoach(coach),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.bar_chart_outlined),
+                        tooltip: 'Trainerstatistik',
+                        onPressed: () => _showCoachStats(coach),
                       ),
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline),
@@ -1080,6 +1134,33 @@ class _PlayerCategoryStatsTable extends StatelessWidget {
     }
     return summary;
   }
+}
+
+class _CoachParticipationTable extends StatelessWidget {
+  const _CoachParticipationTable({required this.matches});
+
+  final List<Map<String, dynamic>> matches;
+
+  @override
+  Widget build(BuildContext context) => _StatsTableCard(
+        title: 'Teilgenommene Spiele',
+        table: DataTable(
+          border: TableBorder(
+            verticalInside: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          columns: const [
+            DataColumn(label: Text('Spiel')),
+            DataColumn(label: Text('Typ')),
+          ],
+          rows: [
+            for (final match in matches)
+              DataRow(cells: [
+                DataCell(Text(_MatchParticipationTable._matchLabel(match))),
+                DataCell(Text(_MatchParticipationTable._matchType(match))),
+              ]),
+          ],
+        ),
+      );
 }
 
 class _StatsTableCard extends StatelessWidget {
