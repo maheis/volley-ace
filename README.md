@@ -115,6 +115,6 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Toast ist weiß!
 - [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
 - [ ] icon (z.B. taskbar)
-- [ ] settings deutsch
+- [x] settings deutsch
 - [ ] sportschrift
-- [ ] app name aktuell mit _
+- [x] app name aktuell mit unterstich
