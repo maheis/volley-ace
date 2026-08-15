@@ -10,6 +10,7 @@ class TeamPlayer {
     required this.number,
     required this.birthDate,
     required this.position,
+    required this.profile,
   });
 
   final int id;
@@ -17,6 +18,7 @@ class TeamPlayer {
   final int? number;
   final DateTime? birthDate;
   final String position;
+  final String profile;
 
   TeamPlayer copyWith({
     String? name,
@@ -25,6 +27,7 @@ class TeamPlayer {
     DateTime? birthDate,
     bool clearBirthDate = false,
     String? position,
+    String? profile,
   }) =>
       TeamPlayer(
         id: id,
@@ -32,6 +35,7 @@ class TeamPlayer {
         number: clearNumber ? null : (number ?? this.number),
         birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
         position: position ?? this.position,
+        profile: profile ?? this.profile,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -40,6 +44,7 @@ class TeamPlayer {
         'number': number,
         'birthDateMillis': birthDate?.millisecondsSinceEpoch,
         'position': position,
+        'profile': profile,
       };
 
   static TeamPlayer fromJson(Map<String, dynamic> data) {
@@ -52,6 +57,7 @@ class TeamPlayer {
           ? DateTime.fromMillisecondsSinceEpoch(birthDateMillis.toInt())
           : null,
       position: data['position'] is String ? data['position'] as String : '',
+      profile: data['profile'] is String ? data['profile'] as String : '',
     );
   }
 }
@@ -205,6 +211,8 @@ class _TeamsPageState extends State<TeamsPage> {
   final TextEditingController _playerNumberController = TextEditingController();
   final TextEditingController _playerPositionController =
       TextEditingController();
+    final TextEditingController _playerProfileController =
+      TextEditingController();
   final TextEditingController _coachNameController = TextEditingController();
   final TextEditingController _coachProfileController = TextEditingController();
   final TextEditingController _coachPositionController =
@@ -230,6 +238,7 @@ class _TeamsPageState extends State<TeamsPage> {
     _playerNameController.dispose();
     _playerNumberController.dispose();
     _playerPositionController.dispose();
+    _playerProfileController.dispose();
     _coachNameController.dispose();
     _coachProfileController.dispose();
     _coachPositionController.dispose();
@@ -330,6 +339,7 @@ class _TeamsPageState extends State<TeamsPage> {
     _playerNameController.clear();
     _playerNumberController.clear();
     _playerPositionController.clear();
+    _playerProfileController.clear();
     _playerBirthDate = null;
     _editingPlayer = null;
   }
@@ -372,6 +382,7 @@ class _TeamsPageState extends State<TeamsPage> {
           birthDate: _playerBirthDate,
           clearBirthDate: _playerBirthDate == null,
           position: _playerPositionController.text.trim(),
+          profile: _playerProfileController.text.trim(),
         ) ??
         TeamPlayer(
           id: nextId,
@@ -379,6 +390,7 @@ class _TeamsPageState extends State<TeamsPage> {
           number: number,
           birthDate: _playerBirthDate,
           position: _playerPositionController.text.trim(),
+          profile: _playerProfileController.text.trim(),
         );
     _replaceTeam(team.copyWith(
       players: editingPlayer == null
@@ -436,6 +448,7 @@ class _TeamsPageState extends State<TeamsPage> {
       _playerNameController.text = player.name;
       _playerNumberController.text = player.number?.toString() ?? '';
       _playerPositionController.text = player.position;
+      _playerProfileController.text = player.profile;
       _playerBirthDate = player.birthDate;
     });
   }
@@ -585,6 +598,18 @@ class _TeamsPageState extends State<TeamsPage> {
                 decoration: const InputDecoration(
                     labelText: 'Position', border: OutlineInputBorder())),
             const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('team-player-profile-input'),
+              controller: _playerProfileController,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                labelText: 'Spielerprofil',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
             InputDecorator(
               decoration: const InputDecoration(
                   labelText: 'Geburtsdatum', border: OutlineInputBorder()),
@@ -636,6 +661,7 @@ class _TeamsPageState extends State<TeamsPage> {
                     if (player.number != null) 'Trikot ${player.number}',
                     if (player.position.isNotEmpty) player.position,
                     if (player.birthDate != null) _formatDate(player.birthDate!)
+                    ,if (player.profile.isNotEmpty) player.profile,
                   ].join(' • ')),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,

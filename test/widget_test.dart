@@ -239,15 +239,11 @@ void main() {
       find.byKey(const ValueKey('team-player-number-input')),
       '7',
     );
-    await tester.tap(find.byKey(const ValueKey('add-team-player-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Spieler bearbeiten'));
-    await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const ValueKey('team-player-name-input')),
-      'Ada Lovelace',
+      find.byKey(const ValueKey('team-player-profile-input')),
+      'Schnelle Mittelblockerin.',
     );
-    await tester.tap(find.text('Speichern'));
+    await tester.tap(find.byKey(const ValueKey('add-team-player-button')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.arrow_back));
@@ -289,7 +285,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Spieler'));
     await tester.pumpAndSettle();
-    expect(find.text('Ada Lovelace'), findsOneWidget);
+    expect(find.text('Ada'), findsOneWidget);
+    expect(find.textContaining('Schnelle Mittelblockerin.'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Trainer'));
