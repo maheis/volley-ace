@@ -113,9 +113,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Trainerstatistik
     - [ ] Trainerbewertung
     - [ ] Achievements
-- [ ] Achievements
 - [ ] Rotation
 - [ ] Soundboard
+- [ ] Achievements
 - [ ] Trainingsübungen
 - [ ] Trainingsteilnahme
 - [ ] Trainingsbewertungen

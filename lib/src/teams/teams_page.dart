@@ -754,16 +754,6 @@ class _TeamsPageState extends State<TeamsPage> {
       games.add(_PlayerMatchStats(match: match, events: playerEvents));
     }
 
-    final totalPoints = games.fold<int>(
-      0,
-      (total, game) =>
-          total + game.events.where((event) => event['kind'] == 'point').length,
-    );
-    final totalErrors = games.fold<int>(
-      0,
-      (total, game) =>
-          total + game.events.where((event) => event['kind'] == 'error').length,
-    );
     return Scaffold(
       appBar: AppBar(
         title: Text('Statistik: ${player.name}'),
@@ -775,69 +765,28 @@ class _TeamsPageState extends State<TeamsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _StatTile(label: 'Spiele', value: games.length),
-          _StatTile(label: 'Punkte', value: totalPoints),
-          _StatTile(label: 'Fehler', value: totalErrors),
-          const SizedBox(height: 20),
-          const Text('Pro Spiel',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
           if (games.isEmpty)
             const Text(
                 'Für diesen Spieler wurden noch keine Punktewertungen erfasst.')
-          else
-            for (final game in games) _buildPlayerMatchStats(game),
+          else ...[
+            _MatchParticipationTable(games: games),
+            const SizedBox(height: 12),
+            _PlayerCategoryStatsTable(
+              title: 'Punkte pro Art',
+              kind: 'point',
+              games: games,
+            ),
+            const SizedBox(height: 12),
+            _PlayerCategoryStatsTable(
+              title: 'Fehler pro Art',
+              kind: 'error',
+              games: games,
+            ),
+          ],
         ],
       ),
     );
   }
-
-  Widget _buildPlayerMatchStats(_PlayerMatchStats game) {
-    final points = _eventSummary(game.events, 'point');
-    final errors = _eventSummary(game.events, 'error');
-    final opponent = game.match['opponentTeam'] is String
-        ? game.match['opponentTeam'] as String
-        : '';
-    final matchType = game.match['matchType'] is String
-        ? game.match['matchType'] as String
-        : 'Spiel';
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(opponent.isEmpty ? matchType : 'vs. $opponent',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Punkte: ${_formatSummary(points)}'),
-            Text('Fehler: ${_formatSummary(errors)}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Map<String, int> _eventSummary(
-    List<Map<String, dynamic>> events,
-    String kind,
-  ) {
-    final summary = <String, int>{};
-    for (final event in events.where((entry) => entry['kind'] == kind)) {
-      final category = event['category'] is String
-          ? event['category'] as String
-          : 'Sonstiges';
-      summary[category] = (summary[category] ?? 0) + 1;
-    }
-    return summary;
-  }
-
-  static String _formatSummary(Map<String, int> summary) => summary.isEmpty
-      ? '0'
-      : summary.entries
-          .map((entry) => '${entry.key}: ${entry.value}')
-          .join(', ');
 
   Widget _buildCoaches(Team team) => Scaffold(
         appBar: _sectionAppBar('Trainer', team),
@@ -993,14 +942,167 @@ class _PlayerMatchStats {
   final List<Map<String, dynamic>> events;
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
+class _MatchParticipationTable extends StatelessWidget {
+  const _MatchParticipationTable({required this.games});
 
-  final String label;
-  final int value;
+  final List<_PlayerMatchStats> games;
+
+  @override
+  Widget build(BuildContext context) => _StatsTableCard(
+        title: 'Teilgenommene Spiele',
+        table: DataTable(
+          border: TableBorder(
+            verticalInside: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          columns: const [
+            DataColumn(label: Text('Spiel')),
+            DataColumn(label: Text('Typ')),
+            DataColumn(label: Text('Punkte'), numeric: true),
+            DataColumn(label: Text('Fehler'), numeric: true),
+          ],
+          rows: [
+            for (final game in games)
+              DataRow(cells: [
+                DataCell(Text(_matchLabel(game.match))),
+                DataCell(Text(_matchType(game.match))),
+                DataCell(Text('${_countEvents(game.events, 'point')}')),
+                DataCell(Text('${_countEvents(game.events, 'error')}')),
+              ]),
+          ],
+        ),
+      );
+
+  static String _matchLabel(Map<String, dynamic> match) {
+    final opponent = match['opponentTeam'];
+    final opponentLabel =
+        opponent is String && opponent.isNotEmpty ? 'vs. $opponent' : 'Spiel';
+    final dateMillis = match['matchDateTimeMillis'];
+    if (dateMillis is! num) return opponentLabel;
+    final date = DateTime.fromMillisecondsSinceEpoch(dateMillis.toInt());
+    final formattedDate =
+        '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+    return '$opponentLabel / $formattedDate';
+  }
+
+  static String _matchType(Map<String, dynamic> match) =>
+      match['matchType'] is String ? match['matchType'] as String : '-';
+
+  static int _countEvents(List<Map<String, dynamic>> events, String kind) =>
+      events.where((event) => event['kind'] == kind).length;
+}
+
+class _PlayerCategoryStatsTable extends StatelessWidget {
+  const _PlayerCategoryStatsTable({
+    required this.title,
+    required this.kind,
+    required this.games,
+  });
+
+  final String title;
+  final String kind;
+  final List<_PlayerMatchStats> games;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = <String>{
+      for (final game in games)
+        for (final event in game.events)
+          if (event['kind'] == kind && event['category'] is String)
+            event['category'] as String,
+    }.toList()
+      ..sort();
+    final summaries = [for (final game in games) _summaryFor(game.events)];
+    return _StatsTableCard(
+      title: title,
+      table: DataTable(
+        border: TableBorder(
+          verticalInside: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+        columns: [
+          const DataColumn(label: Text('Spiel')),
+          for (final category in categories)
+            DataColumn(
+              label: Text(category),
+              numeric: true,
+            ),
+          const DataColumn(
+            label:
+                Text('Gesamt', style: TextStyle(fontWeight: FontWeight.bold)),
+            numeric: true,
+          ),
+        ],
+        rows: [
+          for (var index = 0; index < games.length; index++)
+            DataRow(cells: [
+              DataCell(Text(
+                  _MatchParticipationTable._matchLabel(games[index].match))),
+              for (final category in categories)
+                DataCell(Text('${summaries[index][category] ?? 0}')),
+              DataCell(
+                Text(
+                  '${summaries[index].values.fold<int>(0, (total, value) => total + value)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ]),
+          DataRow(
+            cells: [
+              const DataCell(
+                Text('Gesamt', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              for (final category in categories)
+                DataCell(
+                  Text(
+                    '${summaries.fold<int>(0, (total, summary) => total + (summary[category] ?? 0))}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              DataCell(
+                Text(
+                  '${summaries.fold<int>(0, (total, summary) => total + summary.values.fold<int>(0, (rowTotal, value) => rowTotal + value))}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, int> _summaryFor(List<Map<String, dynamic>> events) {
+    final summary = <String, int>{};
+    for (final event in events.where((entry) => entry['kind'] == kind)) {
+      final category = event['category'] is String
+          ? event['category'] as String
+          : 'Sonstiges';
+      summary[category] = (summary[category] ?? 0) + 1;
+    }
+    return summary;
+  }
+}
+
+class _StatsTableCard extends StatelessWidget {
+  const _StatsTableCard({required this.title, required this.table});
+
+  final String title;
+  final DataTable table;
 
   @override
   Widget build(BuildContext context) => Card(
-        child: ListTile(title: Text(label), trailing: Text('$value')),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: table,
+              ),
+            ],
+          ),
+        ),
       );
 }
