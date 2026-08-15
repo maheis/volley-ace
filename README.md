@@ -48,7 +48,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Gegnerteam
     - [x] Spieltag / Datum (Heute) / Uhrzeit (Jetzt)
     - [x] Spieltyp (Liga, Turnier, Freundschaftsspiel, Trainingsspiel)
-    - [x] Team / Spieler
+    - [x] Team / Spieler / Trainer
           Im Ersten Schritt pro Wertungsbogen Spieler (Name und Trikotnummer) mit + und - Buttons hinzufügen oder entfernen.
           Im zweiten Schritt Spieler aus dem Team welches vorab angelegt wird ausgewählt werden und die Punktewertung pro Spieler speichern.
   - [x] Punktewertung erfassen
@@ -92,7 +92,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Teamlogo
     - [ ] Teamfarben
     - [ ] Teamprofil
-    - [ ] Teamstatistik[text](about:blank#blocked)
+    - [ ] Teamstatistik
     - [ ] Teambewertung
     - [ ] Achievements
   - [x] Spieler
@@ -107,12 +107,12 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Achievements
   - [x] Trainer
     - [x] Name
+    - [ ] Geburtsdatum / Alter
+    - [ ] Position
     - [x] Trainerprofil
     - [ ] Trainerstatistik
     - [ ] Trainerbewertung
     - [ ] Achievements
-  - [ ] Teamsharing
-    - [ ] Export/Import
 - [ ] Achievements
 - [ ] Rotation
 - [ ] Soundboard
@@ -129,3 +129,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] settings deutsch
 - [ ] sportschrift
 - [x] app name aktuell mit unterstich
+- [ ] import / export (teams, punktewertung)

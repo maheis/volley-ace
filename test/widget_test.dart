@@ -181,6 +181,10 @@ void main() {
       matchTag: '',
       matchType: 'Liga',
       teamId: 3,
+      coaches: const [
+        MatchCoach(id: 5, name: 'Mara Mustermann'),
+        MatchCoach(id: 6, name: 'Kai Beispiel'),
+      ],
       players: const [
         MatchPlayer(
           id: 1,
@@ -197,6 +201,11 @@ void main() {
     final restored = MatchGame.fromJson(match.toJson());
 
     expect(restored.teamId, 3);
+    expect(restored.coaches.map((coach) => coach.id), [5, 6]);
+    expect(restored.coaches.map((coach) => coach.name), [
+      'Mara Mustermann',
+      'Kai Beispiel',
+    ]);
     expect(restored.players[0].number, 12);
     expect(restored.players[0].teamPlayerId, 4);
     expect(restored.players[0].sourceTeamId, 3);

@@ -119,6 +119,20 @@ class MatchEvent {
   }
 }
 
+class MatchCoach {
+  const MatchCoach({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{'id': id, 'name': name};
+
+  static MatchCoach fromJson(Map<String, dynamic> data) => MatchCoach(
+        id: data['id'] is num ? (data['id'] as num).toInt() : 0,
+        name: data['name'] is String ? data['name'] as String : '',
+      );
+}
+
 class MatchGame {
   const MatchGame({
     required this.id,
@@ -129,6 +143,7 @@ class MatchGame {
     required this.matchTag,
     required this.matchType,
     this.teamId,
+    this.coaches = const <MatchCoach>[],
     required this.players,
     required this.events,
     this.stopwatchElapsed = Duration.zero,
@@ -144,6 +159,7 @@ class MatchGame {
   final String matchTag;
   final String matchType;
   final int? teamId;
+  final List<MatchCoach> coaches;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
   final Duration stopwatchElapsed;
@@ -160,6 +176,7 @@ class MatchGame {
     String? matchType,
     int? teamId,
     bool clearTeamId = false,
+    List<MatchCoach>? coaches,
     List<MatchPlayer>? players,
     List<MatchEvent>? events,
     Duration? stopwatchElapsed,
@@ -176,6 +193,7 @@ class MatchGame {
       matchTag: matchTag ?? this.matchTag,
       matchType: matchType ?? this.matchType,
       teamId: clearTeamId ? null : (teamId ?? this.teamId),
+      coaches: coaches ?? this.coaches,
       players: players ?? this.players,
       events: events ?? this.events,
       stopwatchElapsed: stopwatchElapsed ?? this.stopwatchElapsed,
@@ -195,6 +213,7 @@ class MatchGame {
         'matchTag': matchTag,
         'matchType': matchType,
         'teamId': teamId,
+        'coaches': coaches.map((coach) => coach.toJson()).toList(),
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
         'stopwatchElapsedMillis': stopwatchElapsed.inMilliseconds,
@@ -224,6 +243,22 @@ class MatchGame {
             .map((item) => MatchEvent.fromJson(Map<String, dynamic>.from(item)))
             .toList()
         : <MatchEvent>[];
+    final coachesData = data['coaches'];
+    final coaches = coachesData is List
+        ? coachesData
+            .whereType<Map>()
+            .map((item) => MatchCoach.fromJson(Map<String, dynamic>.from(item)))
+            .toList()
+        : data['coachId'] is num
+            ? <MatchCoach>[
+                MatchCoach(
+                  id: (data['coachId'] as num).toInt(),
+                  name: data['coachName'] is String
+                      ? data['coachName'] as String
+                      : '',
+                ),
+              ]
+            : <MatchCoach>[];
 
     final stopwatchElapsedMillis = data['stopwatchElapsedMillis'];
     final stopwatchStartedAtMillis = data['stopwatchStartedAtMillis'];
@@ -242,6 +277,7 @@ class MatchGame {
           ? data['matchType'] as String
           : 'Freundschaftsspiel',
       teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
+      coaches: coaches,
       players: players,
       events: events,
       stopwatchElapsed: stopwatchElapsedMillis is num
@@ -438,6 +474,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       matchTag: '',
       matchType: _matchTypes[2],
       teamId: null,
+      coaches: const <MatchCoach>[],
       players: const <MatchPlayer>[],
       events: const <MatchEvent>[],
     );
@@ -461,6 +498,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     String? matchType,
     int? teamId,
     bool clearTeamId = false,
+    List<MatchCoach>? coaches,
   }) {
     _replaceMatch(
       match.copyWith(
@@ -471,6 +509,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         matchType: matchType,
         teamId: teamId,
         clearTeamId: clearTeamId,
+        coaches: coaches,
       ),
     );
   }
@@ -534,6 +573,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       match,
       teamId: teamId,
       clearTeamId: teamId == null,
+      coaches: const <MatchCoach>[],
+    );
+  }
+
+  void _toggleCoach(MatchGame match, TeamCoach coach, bool selected) {
+    final coaches = List<MatchCoach>.from(match.coaches);
+    if (selected) {
+      coaches.add(MatchCoach(id: coach.id, name: coach.name));
+    } else {
+      coaches.removeWhere((entry) => entry.id == coach.id);
+    }
+    _updateMatchInfo(
+      match,
+      coaches: coaches,
     );
   }
 
@@ -840,6 +893,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildMatchInfoView(MatchGame match) {
+    final selectedTeam = match.teamId == null
+        ? null
+        : _teams.cast<Team?>().firstWhere(
+              (team) => team?.id == match.teamId,
+              orElse: () => null,
+            );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Spielinfos'),
@@ -886,6 +945,29 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               onChanged: (teamId) => _selectTeam(match, teamId),
             ),
             const SizedBox(height: 12),
+            if (selectedTeam != null) ...[
+              const Text(
+                'Trainer beim Spiel',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              if (selectedTeam.coaches.isEmpty)
+                const Text('Im ausgewählten Team sind keine Trainer angelegt.')
+              else
+                for (final coach in selectedTeam.coaches)
+                  Row(
+                    children: [
+                      Checkbox(
+                        key: ValueKey('select-match-coach-${coach.id}'),
+                        value:
+                            match.coaches.any((entry) => entry.id == coach.id),
+                        onChanged: (selected) =>
+                            _toggleCoach(match, coach, selected ?? false),
+                      ),
+                      Expanded(child: Text(coach.name)),
+                    ],
+                  ),
+            ],
+            if (selectedTeam != null) const SizedBox(height: 12),
             TextField(
               key: const ValueKey('match-opponent-input'),
               controller: _opponentController,
