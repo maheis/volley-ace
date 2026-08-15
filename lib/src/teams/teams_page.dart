@@ -61,29 +61,51 @@ class TeamCoach {
     required this.id,
     required this.name,
     required this.profile,
+    required this.birthDate,
+    required this.position,
   });
 
   final int id;
   final String name;
   final String profile;
+  final DateTime? birthDate;
+  final String position;
 
-  TeamCoach copyWith({String? name, String? profile}) => TeamCoach(
+  TeamCoach copyWith({
+    String? name,
+    String? profile,
+    DateTime? birthDate,
+    bool clearBirthDate = false,
+    String? position,
+  }) =>
+      TeamCoach(
         id: id,
         name: name ?? this.name,
         profile: profile ?? this.profile,
+        birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
+        position: position ?? this.position,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'name': name,
         'profile': profile,
+        'birthDateMillis': birthDate?.millisecondsSinceEpoch,
+        'position': position,
       };
 
-  static TeamCoach fromJson(Map<String, dynamic> data) => TeamCoach(
-        id: data['id'] is num ? (data['id'] as num).toInt() : 0,
-        name: data['name'] is String ? data['name'] as String : '',
-        profile: data['profile'] is String ? data['profile'] as String : '',
-      );
+  static TeamCoach fromJson(Map<String, dynamic> data) {
+    final birthDateMillis = data['birthDateMillis'];
+    return TeamCoach(
+      id: data['id'] is num ? (data['id'] as num).toInt() : 0,
+      name: data['name'] is String ? data['name'] as String : '',
+      profile: data['profile'] is String ? data['profile'] as String : '',
+      birthDate: birthDateMillis is num
+          ? DateTime.fromMillisecondsSinceEpoch(birthDateMillis.toInt())
+          : null,
+      position: data['position'] is String ? data['position'] as String : '',
+    );
+  }
 }
 
 class Team {
@@ -185,9 +207,12 @@ class _TeamsPageState extends State<TeamsPage> {
       TextEditingController();
   final TextEditingController _coachNameController = TextEditingController();
   final TextEditingController _coachProfileController = TextEditingController();
+  final TextEditingController _coachPositionController =
+      TextEditingController();
   int? _selectedTeamId;
   String? _activeSection;
   DateTime? _playerBirthDate;
+  DateTime? _coachBirthDate;
   TeamPlayer? _editingPlayer;
   TeamCoach? _editingCoach;
   int _nextTeamId = 1;
@@ -207,6 +232,7 @@ class _TeamsPageState extends State<TeamsPage> {
     _playerPositionController.dispose();
     _coachNameController.dispose();
     _coachProfileController.dispose();
+    _coachPositionController.dispose();
     super.dispose();
   }
 
@@ -311,6 +337,8 @@ class _TeamsPageState extends State<TeamsPage> {
   void _clearCoachForm() {
     _coachNameController.clear();
     _coachProfileController.clear();
+    _coachPositionController.clear();
+    _coachBirthDate = null;
     _editingCoach = null;
   }
 
@@ -378,8 +406,20 @@ class _TeamsPageState extends State<TeamsPage> {
                 .reduce((a, b) => a > b ? a : b) +
             1;
     final profile = _coachProfileController.text.trim();
-    final coach = editingCoach?.copyWith(name: name, profile: profile) ??
-        TeamCoach(id: nextId, name: name, profile: profile);
+    final coach = editingCoach?.copyWith(
+          name: name,
+          profile: profile,
+          birthDate: _coachBirthDate,
+          clearBirthDate: _coachBirthDate == null,
+          position: _coachPositionController.text.trim(),
+        ) ??
+        TeamCoach(
+          id: nextId,
+          name: name,
+          profile: profile,
+          birthDate: _coachBirthDate,
+          position: _coachPositionController.text.trim(),
+        );
     _replaceTeam(team.copyWith(
       coaches: editingCoach == null
           ? <TeamCoach>[...team.coaches, coach]
@@ -405,6 +445,8 @@ class _TeamsPageState extends State<TeamsPage> {
       _editingCoach = coach;
       _coachNameController.text = coach.name;
       _coachProfileController.text = coach.profile;
+      _coachPositionController.text = coach.position;
+      _coachBirthDate = coach.birthDate;
     });
   }
 
@@ -630,6 +672,40 @@ class _TeamsPageState extends State<TeamsPage> {
                     labelText: 'Name', border: OutlineInputBorder())),
             const SizedBox(height: 12),
             TextField(
+              key: const ValueKey('team-coach-position-input'),
+              controller: _coachPositionController,
+              decoration: const InputDecoration(
+                labelText: 'Position',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Geburtsdatum',
+                border: OutlineInputBorder(),
+              ),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today),
+                title: Text(_coachBirthDate == null
+                    ? 'Nicht angegeben'
+                    : _formatDate(_coachBirthDate!)),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: _coachBirthDate ?? DateTime(1980),
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime.now(),
+                  );
+                  if (date != null && mounted) {
+                    setState(() => _coachBirthDate = date);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
               key: const ValueKey('team-coach-profile-input'),
               controller: _coachProfileController,
               minLines: 3,
@@ -666,7 +742,11 @@ class _TeamsPageState extends State<TeamsPage> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(coach.name),
-                  subtitle: coach.profile.isEmpty ? null : Text(coach.profile),
+                  subtitle: Text([
+                    if (coach.position.isNotEmpty) coach.position,
+                    if (coach.birthDate != null) _formatDate(coach.birthDate!),
+                    if (coach.profile.isNotEmpty) coach.profile,
+                  ].join(' • ')),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

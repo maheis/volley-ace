@@ -259,6 +259,10 @@ void main() {
       'Mara',
     );
     await tester.enterText(
+      find.byKey(const ValueKey('team-coach-position-input')),
+      'Cheftrainerin',
+    );
+    await tester.enterText(
       find.byKey(const ValueKey('team-coach-profile-input')),
       'Trainiert die Mittelblocker.',
     );
@@ -291,6 +295,7 @@ void main() {
     await tester.tap(find.text('Trainer'));
     await tester.pumpAndSettle();
     expect(find.text('Mara Mustermann'), findsOneWidget);
-    expect(find.text('Trainiert die Mittelblocker.'), findsOneWidget);
+    expect(find.textContaining('Trainiert die Mittelblocker.'), findsOneWidget);
+    expect(find.textContaining('Cheftrainerin'), findsOneWidget);
   });
 }
