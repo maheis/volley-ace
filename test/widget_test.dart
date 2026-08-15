@@ -50,6 +50,9 @@ void main() {
     expect(find.text('Aufschlag'), findsOneWidget);
     await tester.tap(find.text('Aufschlag'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Feld ins Querformat drehen'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Feld ins Hochformat drehen'), findsOneWidget);
     await tester.drag(board, const Offset(32, 24));
     await tester.pumpAndSettle();
     expect(find.text('Taktiktafel'), findsOneWidget);

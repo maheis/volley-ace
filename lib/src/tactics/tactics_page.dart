@@ -141,6 +141,7 @@ class _TacticsPageState extends State<TacticsPage> {
   Offset? _lastDragPosition;
   _BoardSelection? _selection;
   String? _activeTacticName;
+  bool _isRotated = false;
   bool _isLoaded = false;
 
   @override
@@ -181,6 +182,11 @@ class _TacticsPageState extends State<TacticsPage> {
               : const <_SavedTactic>[],
         );
       _activeTacticName = data?['activeTacticName'] as String?;
+      _isRotated = (data?['isRotated']) is bool
+          ? (data?['isRotated'] as bool)
+          : (data?['isLandscape']) is bool
+              ? (data?['isLandscape'] as bool)
+              : false;
       _isLoaded = true;
     });
   }
@@ -192,6 +198,7 @@ class _TacticsPageState extends State<TacticsPage> {
           'lines': _lines.map((line) => line.toJson()).toList(),
           'tactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
           'activeTacticName': _activeTacticName,
+          'isRotated': _isRotated,
         },
       );
 
@@ -306,10 +313,13 @@ class _TacticsPageState extends State<TacticsPage> {
     _persist();
   }
 
-  Offset _relativePosition(Offset position, Size size) => Offset(
-        (position.dx / size.width).clamp(0.0, 1.0),
-        (position.dy / size.height).clamp(0.0, 1.0),
-      );
+  Offset _relativePosition(Offset position, Size size) {
+    final normalized = Offset(
+      (position.dx / size.width).clamp(0.0, 1.0),
+      (position.dy / size.height).clamp(0.0, 1.0),
+    );
+    return _isRotated ? Offset(1 - normalized.dy, normalized.dx) : normalized;
+  }
 
   void _handleTap(TapUpDetails details, Size size) {
     final position = _relativePosition(details.localPosition, size);
@@ -520,6 +530,16 @@ class _TacticsPageState extends State<TacticsPage> {
             icon: const Icon(Icons.save),
           ),
           IconButton(
+            tooltip: _isRotated
+                ? 'Feld ins Hochformat drehen'
+                : 'Feld ins Querformat drehen',
+            onPressed: () {
+              setState(() => _isRotated = !_isRotated);
+              _persist();
+            },
+            icon: const Icon(Icons.screen_rotation),
+          ),
+          IconButton(
             tooltip: 'Rückgängig',
             onPressed: _points.isEmpty && _lines.isEmpty ? null : _undo,
             icon: const Icon(Icons.undo),
@@ -542,12 +562,18 @@ class _TacticsPageState extends State<TacticsPage> {
           : SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final boardHeight = (constraints.maxHeight - 94)
-                      .clamp(260.0, 760.0)
-                      .toDouble();
-                  final boardWidth = (boardHeight * 0.56)
-                      .clamp(220.0, constraints.maxWidth - 24)
-                      .toDouble();
+                  final availableHeight = constraints.maxHeight - 76;
+                  final availableWidth = constraints.maxWidth - 24;
+                  final boardHeight = _isRotated
+                      ? (availableWidth / 2 < availableHeight
+                          ? availableWidth / 2
+                          : availableHeight)
+                      : (availableHeight / 2 < availableWidth
+                              ? availableHeight / 2
+                              : availableWidth) *
+                          2;
+                  final boardWidth =
+                      _isRotated ? boardHeight * 2 : boardHeight / 2;
                   final size = Size(boardWidth, boardHeight);
                   return Column(
                     children: [
@@ -623,6 +649,7 @@ class _TacticsPageState extends State<TacticsPage> {
                                   activeLine: _activeLine,
                                   activeColor: _selectedColor,
                                   selection: _selection,
+                                  isRotated: _isRotated,
                                 ),
                               ),
                             ),
@@ -645,6 +672,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     required this.activeLine,
     required this.activeColor,
     required this.selection,
+    required this.isRotated,
   });
 
   final List<_BoardPoint> points;
@@ -652,6 +680,7 @@ class _VolleyballCourtPainter extends CustomPainter {
   final List<Offset>? activeLine;
   final Color activeColor;
   final _BoardSelection? selection;
+  final bool isRotated;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -662,37 +691,65 @@ class _VolleyballCourtPainter extends CustomPainter {
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
     canvas.drawRect(court, linePaint);
-    final netY = court.center.dy;
-    canvas.drawLine(
-        Offset(court.left, netY), Offset(court.right, netY), linePaint);
-    final threeMeter = court.height / 6;
-    canvas.drawLine(
-      Offset(court.left, netY - threeMeter),
-      Offset(court.right, netY - threeMeter),
-      linePaint,
-    );
-    canvas.drawLine(
-      Offset(court.left, netY + threeMeter),
-      Offset(court.right, netY + threeMeter),
-      linePaint,
-    );
+    if (isRotated) {
+      final netX = court.center.dx;
+      final threeMeter = court.width / 6;
+      canvas.drawLine(
+        Offset(netX, court.top),
+        Offset(netX, court.bottom),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(netX - threeMeter, court.top),
+        Offset(netX - threeMeter, court.bottom),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(netX + threeMeter, court.top),
+        Offset(netX + threeMeter, court.bottom),
+        linePaint,
+      );
+    } else {
+      final netY = court.center.dy;
+      final threeMeter = court.height / 6;
+      canvas.drawLine(
+        Offset(court.left, netY),
+        Offset(court.right, netY),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(court.left, netY - threeMeter),
+        Offset(court.right, netY - threeMeter),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(court.left, netY + threeMeter),
+        Offset(court.right, netY + threeMeter),
+        linePaint,
+      );
+    }
 
     for (var index = 0; index < lines.length; index++) {
       final line = lines[index];
       _drawLine(
         canvas,
         size,
-        line.points,
+        _rotatePoints(line.points),
         line.color,
         isSelected:
             selection?.kind == _SelectionKind.line && selection?.index == index,
       );
     }
-    if (activeLine != null) _drawLine(canvas, size, activeLine!, activeColor);
+    if (activeLine != null) {
+      _drawLine(canvas, size, _rotatePoints(activeLine!), activeColor);
+    }
     for (var index = 0; index < points.length; index++) {
       final point = points[index];
+      final boardPosition = _rotatePosition(point.position);
       final position = Offset(
-          point.position.dx * size.width, point.position.dy * size.height);
+        boardPosition.dx * size.width,
+        boardPosition.dy * size.height,
+      );
       final isSelected =
           selection?.kind == _SelectionKind.point && selection?.index == index;
       if (isSelected) {
@@ -757,6 +814,12 @@ class _VolleyballCourtPainter extends CustomPainter {
       );
     }
   }
+
+  Offset _rotatePosition(Offset position) =>
+      isRotated ? Offset(position.dy, 1 - position.dx) : position;
+
+  List<Offset> _rotatePoints(List<Offset> points) =>
+      points.map(_rotatePosition).toList();
 
   @override
   bool shouldRepaint(covariant _VolleyballCourtPainter oldDelegate) => true;
