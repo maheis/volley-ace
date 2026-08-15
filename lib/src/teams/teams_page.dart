@@ -57,19 +57,32 @@ class TeamPlayer {
 }
 
 class TeamCoach {
-  const TeamCoach({required this.id, required this.name});
+  const TeamCoach({
+    required this.id,
+    required this.name,
+    required this.profile,
+  });
 
   final int id;
   final String name;
+  final String profile;
 
-  TeamCoach copyWith({String? name}) =>
-      TeamCoach(id: id, name: name ?? this.name);
+  TeamCoach copyWith({String? name, String? profile}) => TeamCoach(
+        id: id,
+        name: name ?? this.name,
+        profile: profile ?? this.profile,
+      );
 
-  Map<String, dynamic> toJson() => <String, dynamic>{'id': id, 'name': name};
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'name': name,
+        'profile': profile,
+      };
 
   static TeamCoach fromJson(Map<String, dynamic> data) => TeamCoach(
         id: data['id'] is num ? (data['id'] as num).toInt() : 0,
         name: data['name'] is String ? data['name'] as String : '',
+        profile: data['profile'] is String ? data['profile'] as String : '',
       );
 }
 
@@ -171,6 +184,7 @@ class _TeamsPageState extends State<TeamsPage> {
   final TextEditingController _playerPositionController =
       TextEditingController();
   final TextEditingController _coachNameController = TextEditingController();
+  final TextEditingController _coachProfileController = TextEditingController();
   int? _selectedTeamId;
   String? _activeSection;
   DateTime? _playerBirthDate;
@@ -192,6 +206,7 @@ class _TeamsPageState extends State<TeamsPage> {
     _playerNumberController.dispose();
     _playerPositionController.dispose();
     _coachNameController.dispose();
+    _coachProfileController.dispose();
     super.dispose();
   }
 
@@ -295,6 +310,7 @@ class _TeamsPageState extends State<TeamsPage> {
 
   void _clearCoachForm() {
     _coachNameController.clear();
+    _coachProfileController.clear();
     _editingCoach = null;
   }
 
@@ -361,8 +377,9 @@ class _TeamsPageState extends State<TeamsPage> {
                 .map((coach) => coach.id)
                 .reduce((a, b) => a > b ? a : b) +
             1;
-    final coach =
-        editingCoach?.copyWith(name: name) ?? TeamCoach(id: nextId, name: name);
+    final profile = _coachProfileController.text.trim();
+    final coach = editingCoach?.copyWith(name: name, profile: profile) ??
+        TeamCoach(id: nextId, name: name, profile: profile);
     _replaceTeam(team.copyWith(
       coaches: editingCoach == null
           ? <TeamCoach>[...team.coaches, coach]
@@ -387,6 +404,7 @@ class _TeamsPageState extends State<TeamsPage> {
     setState(() {
       _editingCoach = coach;
       _coachNameController.text = coach.name;
+      _coachProfileController.text = coach.profile;
     });
   }
 
@@ -611,6 +629,18 @@ class _TeamsPageState extends State<TeamsPage> {
                 decoration: const InputDecoration(
                     labelText: 'Name', border: OutlineInputBorder())),
             const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('team-coach-profile-input'),
+              controller: _coachProfileController,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                labelText: 'Trainerprofil',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
             FilledButton.icon(
                 key: const ValueKey('add-team-coach-button'),
                 onPressed: () => _saveCoach(team),
@@ -636,6 +666,7 @@ class _TeamsPageState extends State<TeamsPage> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(coach.name),
+                  subtitle: coach.profile.isEmpty ? null : Text(coach.profile),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

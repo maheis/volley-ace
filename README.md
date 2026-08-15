@@ -107,7 +107,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Achievements
   - [x] Trainer
     - [x] Name
-    - [ ] Trainerprofil
+    - [x] Trainerprofil
     - [ ] Trainerstatistik
     - [ ] Trainerbewertung
     - [ ] Achievements

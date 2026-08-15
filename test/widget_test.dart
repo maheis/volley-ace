@@ -224,6 +224,10 @@ void main() {
       find.byKey(const ValueKey('team-coach-name-input')),
       'Mara',
     );
+    await tester.enterText(
+      find.byKey(const ValueKey('team-coach-profile-input')),
+      'Trainiert die Mittelblocker.',
+    );
     await tester.tap(find.byKey(const ValueKey('add-team-coach-button')));
     await tester.pumpAndSettle();
     expect(find.text('Mara'), findsOneWidget);
@@ -255,5 +259,6 @@ void main() {
     await tester.tap(find.text('Trainer'));
     await tester.pumpAndSettle();
     expect(find.text('Mara Mustermann'), findsOneWidget);
+    expect(find.text('Trainiert die Mittelblocker.'), findsOneWidget);
   });
 }
