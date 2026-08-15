@@ -3,6 +3,15 @@ import 'package:sembast/sembast.dart';
 
 enum _Tool { point, line }
 
+enum _SelectionKind { point, line }
+
+class _BoardSelection {
+  const _BoardSelection({required this.kind, required this.index});
+
+  final _SelectionKind kind;
+  final int index;
+}
+
 class _BoardPoint {
   const _BoardPoint({required this.position, required this.color});
 
@@ -85,6 +94,7 @@ class _TacticsPageState extends State<TacticsPage> {
   int? _movingPointIndex;
   int? _movingLineIndex;
   Offset? _lastDragPosition;
+  _BoardSelection? _selection;
   bool _isLoaded = false;
 
   @override
@@ -133,9 +143,24 @@ class _TacticsPageState extends State<TacticsPage> {
       );
 
   void _handleTap(TapUpDetails details, Size size) {
-    if (_tool != _Tool.point) return;
     final position = _relativePosition(details.localPosition, size);
-    if (_findPointAt(position, size) != null) return;
+    final pointIndex = _findPointAt(position, size);
+    if (pointIndex != null) {
+      setState(() => _selection = _BoardSelection(
+            kind: _SelectionKind.point,
+            index: pointIndex,
+          ));
+      return;
+    }
+    final lineIndex = _findLineAt(position, size);
+    if (lineIndex != null) {
+      setState(() => _selection = _BoardSelection(
+            kind: _SelectionKind.line,
+            index: lineIndex,
+          ));
+      return;
+    }
+    if (_tool != _Tool.point) return;
     setState(() => _points.add(
           _BoardPoint(
             position: position,
@@ -152,6 +177,10 @@ class _TacticsPageState extends State<TacticsPage> {
       if (pointIndex == null) return;
       setState(() {
         _movingPointIndex = pointIndex;
+        _selection = _BoardSelection(
+          kind: _SelectionKind.point,
+          index: pointIndex,
+        );
         _lastDragPosition = position;
       });
       return;
@@ -161,6 +190,10 @@ class _TacticsPageState extends State<TacticsPage> {
       _lastDragPosition = position;
       if (lineIndex != null) {
         _movingLineIndex = lineIndex;
+        _selection = _BoardSelection(
+          kind: _SelectionKind.line,
+          index: lineIndex,
+        );
       } else {
         _activeLine = <Offset>[position];
       }
@@ -275,10 +308,28 @@ class _TacticsPageState extends State<TacticsPage> {
     _persist();
   }
 
+  void _deleteSelection() {
+    final selection = _selection;
+    if (selection == null) return;
+    setState(() {
+      if (selection.kind == _SelectionKind.point &&
+          selection.index < _points.length) {
+        _points.removeAt(selection.index);
+      }
+      if (selection.kind == _SelectionKind.line &&
+          selection.index < _lines.length) {
+        _lines.removeAt(selection.index);
+      }
+      _selection = null;
+    });
+    _persist();
+  }
+
   void _clear() {
     setState(() {
       _points.clear();
       _lines.clear();
+      _selection = null;
     });
     _persist();
   }
@@ -299,6 +350,12 @@ class _TacticsPageState extends State<TacticsPage> {
             onPressed: _points.isEmpty && _lines.isEmpty ? null : _clear,
             icon: const Icon(Icons.delete_outline),
           ),
+          if (_selection != null)
+            IconButton(
+              tooltip: 'Ausgewähltes Objekt löschen',
+              onPressed: _deleteSelection,
+              icon: const Icon(Icons.delete_forever),
+            ),
         ],
       ),
       body: !_isLoaded
@@ -386,6 +443,7 @@ class _TacticsPageState extends State<TacticsPage> {
                                   lines: _lines,
                                   activeLine: _activeLine,
                                   activeColor: _selectedColor,
+                                  selection: _selection,
                                 ),
                               ),
                             ),
@@ -407,12 +465,14 @@ class _VolleyballCourtPainter extends CustomPainter {
     required this.lines,
     required this.activeLine,
     required this.activeColor,
+    required this.selection,
   });
 
   final List<_BoardPoint> points;
   final List<_BoardLine> lines;
   final List<Offset>? activeLine;
   final Color activeColor;
+  final _BoardSelection? selection;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -438,13 +498,34 @@ class _VolleyballCourtPainter extends CustomPainter {
       linePaint,
     );
 
-    for (final line in lines) {
-      _drawLine(canvas, size, line.points, line.color);
+    for (var index = 0; index < lines.length; index++) {
+      final line = lines[index];
+      _drawLine(
+        canvas,
+        size,
+        line.points,
+        line.color,
+        isSelected:
+            selection?.kind == _SelectionKind.line && selection?.index == index,
+      );
     }
     if (activeLine != null) _drawLine(canvas, size, activeLine!, activeColor);
-    for (final point in points) {
+    for (var index = 0; index < points.length; index++) {
+      final point = points[index];
       final position = Offset(
           point.position.dx * size.width, point.position.dy * size.height);
+      final isSelected =
+          selection?.kind == _SelectionKind.point && selection?.index == index;
+      if (isSelected) {
+        canvas.drawCircle(
+          position,
+          17,
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3,
+        );
+      }
       canvas.drawCircle(position, 12, Paint()..color = point.color);
       canvas.drawCircle(
         position,
@@ -457,7 +538,13 @@ class _VolleyballCourtPainter extends CustomPainter {
     }
   }
 
-  void _drawLine(Canvas canvas, Size size, List<Offset> points, Color color) {
+  void _drawLine(
+    Canvas canvas,
+    Size size,
+    List<Offset> points,
+    Color color, {
+    bool isSelected = false,
+  }) {
     if (points.length < 2) return;
     final path = Path()
       ..moveTo(points.first.dx * size.width, points.first.dy * size.height);
@@ -472,6 +559,24 @@ class _VolleyballCourtPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke,
     );
+    if (isSelected) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 9
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke,
+      );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = color
+          ..strokeWidth = 5
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke,
+      );
+    }
   }
 
   @override

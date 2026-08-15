@@ -32,6 +32,11 @@ void main() {
     expect(board, findsOneWidget);
     await tester.tap(board);
     await tester.pumpAndSettle();
+    await tester.tap(board);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Ausgewähltes Objekt löschen'), findsOneWidget);
+    await tester.tap(find.byTooltip('Ausgewähltes Objekt löschen'));
+    await tester.pumpAndSettle();
     await tester.drag(board, const Offset(32, 24));
     await tester.pumpAndSettle();
     expect(find.text('Taktiktafel'), findsOneWidget);
