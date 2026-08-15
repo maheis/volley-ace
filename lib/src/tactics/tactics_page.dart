@@ -515,54 +515,60 @@ class _TacticsPageState extends State<TacticsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isAndroidLandscape =
+        Theme.of(context).platform == TargetPlatform.android &&
+            MediaQuery.orientationOf(context) == Orientation.landscape;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Taktiktafel'),
-        actions: [
-          IconButton(
-            tooltip: 'Taktik laden',
-            onPressed: _showTactics,
-            icon: const Icon(Icons.folder_open),
-          ),
-          IconButton(
-            tooltip: 'Taktik speichern',
-            onPressed: _saveTactic,
-            icon: const Icon(Icons.save),
-          ),
-          IconButton(
-            tooltip: _isRotated
-                ? 'Feld ins Hochformat drehen'
-                : 'Feld ins Querformat drehen',
-            onPressed: () {
-              setState(() => _isRotated = !_isRotated);
-              _persist();
-            },
-            icon: const Icon(Icons.screen_rotation),
-          ),
-          IconButton(
-            tooltip: 'Rückgängig',
-            onPressed: _points.isEmpty && _lines.isEmpty ? null : _undo,
-            icon: const Icon(Icons.undo),
-          ),
-          IconButton(
-            tooltip: 'Alles löschen',
-            onPressed: _points.isEmpty && _lines.isEmpty ? null : _clear,
-            icon: const Icon(Icons.delete_outline),
-          ),
-          if (_selection != null)
-            IconButton(
-              tooltip: 'Ausgewähltes Objekt löschen',
-              onPressed: _deleteSelection,
-              icon: const Icon(Icons.delete_forever),
+      appBar: isAndroidLandscape
+          ? null
+          : AppBar(
+              title: const Text('Taktiktafel'),
+              actions: [
+                IconButton(
+                  tooltip: 'Taktik laden',
+                  onPressed: _showTactics,
+                  icon: const Icon(Icons.folder_open),
+                ),
+                IconButton(
+                  tooltip: 'Taktik speichern',
+                  onPressed: _saveTactic,
+                  icon: const Icon(Icons.save),
+                ),
+                IconButton(
+                  tooltip: _isRotated
+                      ? 'Feld ins Hochformat drehen'
+                      : 'Feld ins Querformat drehen',
+                  onPressed: () {
+                    setState(() => _isRotated = !_isRotated);
+                    _persist();
+                  },
+                  icon: const Icon(Icons.screen_rotation),
+                ),
+                IconButton(
+                  tooltip: 'Rückgängig',
+                  onPressed: _points.isEmpty && _lines.isEmpty ? null : _undo,
+                  icon: const Icon(Icons.undo),
+                ),
+                IconButton(
+                  tooltip: 'Alles löschen',
+                  onPressed: _points.isEmpty && _lines.isEmpty ? null : _clear,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+                if (_selection != null)
+                  IconButton(
+                    tooltip: 'Ausgewähltes Objekt löschen',
+                    onPressed: _deleteSelection,
+                    icon: const Icon(Icons.delete_forever),
+                  ),
+              ],
             ),
-        ],
-      ),
       body: !_isLoaded
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final availableHeight = constraints.maxHeight - 76;
+                  final availableHeight =
+                      constraints.maxHeight - (isAndroidLandscape ? 0 : 76);
                   final availableWidth = constraints.maxWidth - 24;
                   final boardHeight = _isRotated
                       ? (availableWidth / 2 < availableHeight
@@ -577,58 +583,59 @@ class _TacticsPageState extends State<TacticsPage> {
                   final size = Size(boardWidth, boardHeight);
                   return Column(
                     children: [
-                      SizedBox(
-                        height: 76,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SegmentedButton<_Tool>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: _Tool.point,
-                                  icon: Icon(Icons.circle),
-                                  tooltip: 'Punkte platzieren',
-                                ),
-                                ButtonSegment(
-                                  value: _Tool.line,
-                                  icon: Icon(Icons.gesture),
-                                  tooltip: 'Linien zeichnen',
-                                ),
-                              ],
-                              selected: <_Tool>{_tool},
-                              onSelectionChanged: (selected) =>
-                                  setState(() => _tool = selected.first),
-                            ),
-                            const SizedBox(width: 12),
-                            for (final color in _colors)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2),
-                                child: IconButton(
-                                  tooltip: 'Farbe auswählen',
-                                  onPressed: () =>
-                                      setState(() => _selectedColor = color),
-                                  icon: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: color,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _selectedColor == color
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                            : Colors.transparent,
-                                        width: 3,
+                      if (!isAndroidLandscape)
+                        SizedBox(
+                          height: 76,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SegmentedButton<_Tool>(
+                                segments: const [
+                                  ButtonSegment(
+                                    value: _Tool.point,
+                                    icon: Icon(Icons.circle),
+                                    tooltip: 'Punkte platzieren',
+                                  ),
+                                  ButtonSegment(
+                                    value: _Tool.line,
+                                    icon: Icon(Icons.gesture),
+                                    tooltip: 'Linien zeichnen',
+                                  ),
+                                ],
+                                selected: <_Tool>{_tool},
+                                onSelectionChanged: (selected) =>
+                                    setState(() => _tool = selected.first),
+                              ),
+                              const SizedBox(width: 12),
+                              for (final color in _colors)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 2),
+                                  child: IconButton(
+                                    tooltip: 'Farbe auswählen',
+                                    onPressed: () =>
+                                        setState(() => _selectedColor = color),
+                                    icon: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _selectedColor == color
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                              : Colors.transparent,
+                                          width: 3,
+                                        ),
                                       ),
+                                      child:
+                                          const SizedBox(width: 20, height: 20),
                                     ),
-                                    child:
-                                        const SizedBox(width: 20, height: 20),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
                       Expanded(
                         child: Center(
                           child: Semantics(

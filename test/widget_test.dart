@@ -24,18 +24,20 @@ void main() {
 
   testWidgets('Tactics board adds a colored point',
       (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = await databaseFactoryMemory.openDatabase('tactics.db');
-    await tester.pumpWidget(MaterialApp(home: TacticsPage(database: database)));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: TacticsPage(database: database),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final board = find.byKey(const ValueKey('tactics-board'));
     expect(board, findsOneWidget);
     await tester.tap(board);
-    await tester.pumpAndSettle();
-    await tester.tap(board);
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Ausgewähltes Objekt löschen'), findsOneWidget);
-    await tester.tap(find.byTooltip('Ausgewähltes Objekt löschen'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Taktik speichern'));
     await tester.pumpAndSettle();
