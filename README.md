@@ -3,9 +3,9 @@
 Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 
 - Punktetafel - Ersetzt die klassische Punktetafel, mit Touchbedienung!
-- Punktewertung - Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
-- Teams - Spieler und Trainer verwalten, Teamstatistiken einsehen und Taktiken speichern.
 - Taktiktafel - Taktiken speichern und auf der Punktetafel anzeigen.
+- Teams - Spieler und Trainer verwalten, Teamstatistiken einsehen und Taktiken speichern.
+- Punktewertung - Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
 
 ![Vorstellungsgrafik](.notes/vorstellungsgrafik.png)
 
@@ -40,7 +40,20 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Uhr / Stop-Uhr
   - [x] Letzte Punkte pro Satz anzeigen
   - [ ] Auszeiten pro Team anzeigen
-  - [ ] Spielerwechsel pro Team anzeigen
+  - [ ] Rotation / Spielerwechsel
+    - [ ] Team A
+      - [ ] Team (optional)
+      - [ ] Spieler/Nummern
+      - [ ] Startaufstellung
+      - [ ] Ersatzspieler
+      - [ ] Spielerwechsel
+    - [ ] Team B
+      - [ ] Team (optional)
+      - [ ] Spieler/Nummern (Optional)
+      - [ ] Startaufstellung (Nr.)
+      - [ ] Ersatzspieler
+      - [ ] Spielerwechsel
+    - [ ] Aufschlagteam
 - [x] Taktiktafel
   - [x] Speichern von Taktiken
 - [x] Team
@@ -123,17 +136,18 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Fehler pro Art
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
       - [ ] Diagram über Punkte/Fehler im Zeitverlauf
-- [ ] Rotation
-  - [ ] Startaufstellung
-  - [ ] Aufschlagteam
 - [ ] Training
   - [ ] Team
   - [ ] Trainingsteilnahme
+    - [ ] Teilnahme
+    - [ ] Ausrede
+    - [ ] Unentschuldigt
   - [ ] Trainingsplan
   - [ ] Trainingsstatistik
   - [ ] Trainingsbewertung
+- [ ] Trainingspläne
 - [ ] Trainingsübungen
-- [ ] Soundboard
+
 
 ## ToDo
 
@@ -144,4 +158,5 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [-] sportschrift
 - [x] app name aktuell mit unterstich
 - [ ] import / export (teams, punktewertung)
+  - [ ] diff
 - [ ] farbe rosa in die app übernehmen?

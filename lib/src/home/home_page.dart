@@ -57,11 +57,11 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.analytics_outlined, color: scheme.tertiary),
-              title: const Text('Punktewertung'),
-              subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
+              leading: Icon(Icons.sports_volleyball, color: scheme.primary),
+              title: const Text('Taktiktafel'),
+              subtitle: const Text('Aufstellungen und Laufwege zeichnen.'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: onOpenMatchStats,
+              onTap: onOpenTactics,
             ),
           ),
           const SizedBox(height: 12),
@@ -77,11 +77,11 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.sports_volleyball, color: scheme.primary),
-              title: const Text('Taktiktafel'),
-              subtitle: const Text('Aufstellungen und Laufwege zeichnen.'),
+              leading: Icon(Icons.analytics_outlined, color: scheme.tertiary),
+              title: const Text('Punktewertung'),
+              subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: onOpenTactics,
+              onTap: onOpenMatchStats,
             ),
           ),
         ],
