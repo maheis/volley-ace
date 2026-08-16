@@ -690,51 +690,61 @@ class _TacticsPageState extends State<TacticsPage> {
                         ),
                       Expanded(
                         child: Center(
-                          child: Semantics(
-                            label: 'Volleyballfeld',
-                            child: MouseRegion(
-                              cursor: _isObjectHovered
-                                  ? SystemMouseCursors.click
-                                  : SystemMouseCursors.basic,
-                              onHover: (event) {
-                                final position = _relativePosition(
-                                  event.localPosition,
-                                  size,
-                                );
-                                final isHovered =
-                                    _findPointAt(position, size) != null ||
-                                        _findLineAt(position, size) != null;
-                                if (isHovered != _isObjectHovered) {
-                                  setState(() => _isObjectHovered = isHovered);
-                                }
-                              },
-                              onExit: (_) {
-                                if (_isObjectHovered) {
-                                  setState(() => _isObjectHovered = false);
-                                }
-                              },
-                              child: GestureDetector(
-                                key: const ValueKey('tactics-board'),
-                                onTapUp: (details) => _handleTap(details, size),
-                                onPanStart: (details) =>
-                                    _startDrag(details, size),
-                                onPanUpdate: (details) =>
-                                    _updateDrag(details, size),
-                                onPanEnd: _finishDrag,
-                                child: CustomPaint(
-                                  size: size,
-                                  painter: _VolleyballCourtPainter(
-                                    points: _points,
-                                    lines: _lines,
-                                    activeLine: _activeLine,
-                                    activeLineType: switch (_tool) {
-                                      _Tool.arrow => _LineType.arrow,
-                                      _Tool.straight => _LineType.straight,
-                                      _ => _LineType.freehand,
-                                    },
-                                    activeColor: _selectedColor,
-                                    selection: _selection,
-                                    isRotated: _isRotated,
+                          child: InteractiveViewer(
+                            key: const ValueKey('tactics-board-viewport'),
+                            minScale: 1,
+                            maxScale: 4,
+                            boundaryMargin: const EdgeInsets.all(240),
+                            constrained: false,
+                            clipBehavior: Clip.none,
+                            child: Semantics(
+                              label: 'Volleyballfeld',
+                              child: MouseRegion(
+                                cursor: _isObjectHovered
+                                    ? SystemMouseCursors.click
+                                    : SystemMouseCursors.basic,
+                                onHover: (event) {
+                                  final position = _relativePosition(
+                                    event.localPosition,
+                                    size,
+                                  );
+                                  final isHovered =
+                                      _findPointAt(position, size) != null ||
+                                          _findLineAt(position, size) != null;
+                                  if (isHovered != _isObjectHovered) {
+                                    setState(
+                                        () => _isObjectHovered = isHovered);
+                                  }
+                                },
+                                onExit: (_) {
+                                  if (_isObjectHovered) {
+                                    setState(() => _isObjectHovered = false);
+                                  }
+                                },
+                                child: GestureDetector(
+                                  key: const ValueKey('tactics-board'),
+                                  onTapUp: (details) =>
+                                      _handleTap(details, size),
+                                  onPanStart: (details) =>
+                                      _startDrag(details, size),
+                                  onPanUpdate: (details) =>
+                                      _updateDrag(details, size),
+                                  onPanEnd: _finishDrag,
+                                  child: CustomPaint(
+                                    size: size,
+                                    painter: _VolleyballCourtPainter(
+                                      points: _points,
+                                      lines: _lines,
+                                      activeLine: _activeLine,
+                                      activeLineType: switch (_tool) {
+                                        _Tool.arrow => _LineType.arrow,
+                                        _Tool.straight => _LineType.straight,
+                                        _ => _LineType.freehand,
+                                      },
+                                      activeColor: _selectedColor,
+                                      selection: _selection,
+                                      isRotated: _isRotated,
+                                    ),
                                   ),
                                 ),
                               ),
