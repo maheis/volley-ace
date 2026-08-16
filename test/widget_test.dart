@@ -55,7 +55,7 @@ void main() {
     await tester.tap(find.byTooltip('Feld ins Querformat drehen'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Feld ins Hochformat drehen'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.straight));
+    await tester.tap(find.byIcon(Icons.remove));
     await tester.pumpAndSettle();
     await tester.dragFrom(const Offset(200, 300), const Offset(80, 40));
     await tester.pumpAndSettle();
