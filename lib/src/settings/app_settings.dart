@@ -8,6 +8,8 @@ class AppSettings {
     'OpenDyslexic',
     'NotoSans',
     'CourierPrime',
+    'Ubuntu',
+    'Ubuntu Mono',
   ];
 
   static const AppSettings defaults = AppSettings(

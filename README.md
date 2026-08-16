@@ -60,7 +60,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Spielerprofil
     - [x] Spielerstatistik
     - [ ] Spielerbewertung
-    - [ ] Spielertraining
+    - [ ] Trainingsteilnahme
+    - [ ] Trainingsbewertungen
+    - [ ] Trainingsstände
     - [ ] Achievements
   - [x] Trainer
     - [x] Name
@@ -122,20 +124,16 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
       - [ ] Diagram über Punkte/Fehler im Zeitverlauf
 - [ ] Rotation
-  - [ ] Team
   - [ ] Startaufstellung
-  - [ ] Aufschlag
-  - [ ] 
-- [ ] Soundboard
-- [ ] Achievements
+  - [ ] Aufschlagteam
 - [ ] Training
+  - [ ] Team
+  - [ ] Trainingsteilnahme
   - [ ] Trainingsplan
   - [ ] Trainingsstatistik
   - [ ] Trainingsbewertung
 - [ ] Trainingsübungen
-- [ ] Trainingsteilnahme
-- [ ] Trainingsbewertungen
-- [ ] Trainingsstände
+- [ ] Soundboard
 
 ## ToDo
 
@@ -143,7 +141,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
 - [ ] icon (z.B. taskbar)
 - [x] settings deutsch
-- [ ] sportschrift
+- [-] sportschrift
 - [x] app name aktuell mit unterstich
 - [ ] import / export (teams, punktewertung)
 - [ ] farbe rosa in die app übernehmen?
