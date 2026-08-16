@@ -630,7 +630,8 @@ class _TacticsPageState extends State<TacticsPage> {
                 },
                 child: Actions(
                   actions: <Type, Action<Intent>>{
-                    _DeleteSelectionIntent: CallbackAction<_DeleteSelectionIntent>(
+                    _DeleteSelectionIntent:
+                        CallbackAction<_DeleteSelectionIntent>(
                       onInvoke: (intent) {
                         _handleDeleteSelectionIntent();
                         return null;
@@ -641,8 +642,8 @@ class _TacticsPageState extends State<TacticsPage> {
                     autofocus: true,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final availableHeight =
-                            constraints.maxHeight - (isAndroidLandscape ? 0 : 76);
+                        final availableHeight = constraints.maxHeight -
+                            (isAndroidLandscape ? 0 : 76);
                         final availableWidth = constraints.maxWidth - 24;
                         final boardHeight = _isRotated
                             ? (availableWidth / 1.6 < availableHeight
@@ -652,8 +653,9 @@ class _TacticsPageState extends State<TacticsPage> {
                                     ? availableHeight * 0.625
                                     : availableWidth) /
                                 0.625;
-                        final boardWidth =
-                            _isRotated ? boardHeight * 1.6 : boardHeight * 0.625;
+                        final boardWidth = _isRotated
+                            ? boardHeight * 1.6
+                            : boardHeight * 0.625;
                         _isRotated ? boardHeight * 2 : boardHeight / 2;
                         final size = Size(boardWidth, boardHeight);
                         return Column(
@@ -692,7 +694,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                         ],
                                         selected: <_Tool>{_tool},
                                         onSelectionChanged: (selected) =>
-                                            setState(() => _tool = selected.first),
+                                            setState(
+                                                () => _tool = selected.first),
                                       ),
                                       const SizedBox(width: 12),
                                       for (final color in _colors)
@@ -752,15 +755,19 @@ class _TacticsPageState extends State<TacticsPage> {
                                             size,
                                           );
                                           final isHovered =
-                                              _findPointAt(position, size) != null ||
-                                                  _findLineAt(position, size) != null;
+                                              _findPointAt(position, size) !=
+                                                      null ||
+                                                  _findLineAt(position, size) !=
+                                                      null;
                                           if (isHovered != _isObjectHovered) {
-                                            setState(() => _isObjectHovered = isHovered);
+                                            setState(() =>
+                                                _isObjectHovered = isHovered);
                                           }
                                         },
                                         onExit: (_) {
                                           if (_isObjectHovered) {
-                                            setState(() => _isObjectHovered = false);
+                                            setState(
+                                                () => _isObjectHovered = false);
                                           }
                                         },
                                         child: Listener(
@@ -782,7 +789,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                             _startDrag(
                                               DragStartDetails(
                                                 globalPosition: event.position,
-                                                localPosition: event.localPosition,
+                                                localPosition:
+                                                    event.localPosition,
                                                 kind: event.kind,
                                               ),
                                               size,
@@ -796,7 +804,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                             final downPosition =
                                                 _pointerDownPosition;
                                             if (downPosition != null &&
-                                                (event.localPosition - downPosition)
+                                                (event.localPosition -
+                                                            downPosition)
                                                         .distance >
                                                     8) {
                                               _rawPointerMoved = true;
@@ -806,7 +815,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                             _updateDrag(
                                               DragUpdateDetails(
                                                 globalPosition: event.position,
-                                                localPosition: event.localPosition,
+                                                localPosition:
+                                                    event.localPosition,
                                                 kind: event.kind,
                                               ),
                                               size,
@@ -839,7 +849,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                             if (_activePointerCount == 1 &&
                                                 !_multiTouchActive &&
                                                 !_rawPointerMoved &&
-                                                _lastRawPointerPosition != null) {
+                                                _lastRawPointerPosition !=
+                                                    null) {
                                               _handleTap(
                                                 TapUpDetails(
                                                   kind: event.kind,
@@ -866,11 +877,13 @@ class _TacticsPageState extends State<TacticsPage> {
                                               activeLine: _activeLine,
                                               activeLineType: switch (_tool) {
                                                 _Tool.arrow => _LineType.arrow,
-                                                _Tool.straight => _LineType.straight,
+                                                _Tool.straight =>
+                                                  _LineType.straight,
                                                 _ => _LineType.freehand,
                                               },
                                               activeColor: _selectedColor,
-                                              outerColor: Theme.of(context).cardColor,
+                                              outerColor:
+                                                  Theme.of(context).cardColor,
                                               selection: _selection,
                                               isRotated: _isRotated,
                                             ),
