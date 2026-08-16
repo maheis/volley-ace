@@ -229,9 +229,9 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('select-player-1')));
-    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('select-category-Ass')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('select-player-1')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
@@ -241,6 +241,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ass'), findsWidgets);
+  });
+
+  testWidgets('Point scoring can record opponent error without player', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('test5.db');
+    await tester
+        .pumpWidget(MaterialApp(home: MatchStatsPage(database: database)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('new-game-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Punktewertung'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('select-category-Gegner Fehler')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('select-player-1')), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Statistik'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gegner Fehler'), findsWidgets);
   });
 
   test('Match stores selected team players with match-specific numbers', () {

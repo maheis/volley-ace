@@ -59,14 +59,13 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
           Spielstand / Uhrzeit / Stopuhr
           - [ ] Auszeiten pro Team anzeigen
           - [ ] Spielerwechsel pro Team anzeigen
-    - [x] Wer
-          Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
     - [x] Wertung
           - Punkte
             Auswahl wie ein Punkt erreicht wurde.
             - Ass
             - Angriff
             - Block
+            - Gegnerfehler
           - Fehler
             Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag
@@ -78,6 +77,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Übertritt
             - Netz Berührung
             - Sonstiges
+    - [x] Wer
+          Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
     - [x] Statistik
       - [x] Spielstand
       - [x] Satzstand

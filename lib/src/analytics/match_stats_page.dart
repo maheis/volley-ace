@@ -79,7 +79,7 @@ class MatchEvent {
   });
 
   final int id;
-  final int playerId;
+  final int? playerId;
   final String playerName;
   final int playerNumber;
   final String kind;
@@ -107,7 +107,7 @@ class MatchEvent {
 
     return MatchEvent(
       id: id is num ? id.toInt() : 0,
-      playerId: playerId is num ? playerId.toInt() : 0,
+      playerId: playerId is num ? playerId.toInt() : null,
       playerName: playerName is String ? playerName : 'Unbekannt',
       playerNumber: playerNumber is num ? playerNumber.toInt() : 0,
       kind: kind is String ? kind : 'point',
@@ -356,7 +356,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Trainingsspiel',
   ];
 
-  static const List<String> _pointTypes = <String>['Ass', 'Angriff', 'Block'];
+  static const String _opponentErrorCategory = 'Gegner Fehler';
+  static const List<String> _pointTypes = <String>[
+    'Ass',
+    'Angriff',
+    'Block',
+    _opponentErrorCategory,
+  ];
   static const List<String> _errorTypes = <String>[
     'Aufschlag',
     'Ball ins Aus',
@@ -380,7 +386,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   int? _selectedMatchId;
   String? _activeSection;
   String? _pendingEventKind;
-  int? _pendingPlayerId;
+  String? _pendingCategory;
   bool _isLoaded = false;
   int _nextMatchId = 1;
 
@@ -465,7 +471,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _selectedMatchId = matchId;
       _activeSection = section;
       _pendingEventKind = null;
-      _pendingPlayerId = null;
+      _pendingCategory = null;
     });
   }
 
@@ -474,7 +480,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _selectedMatchId = null;
       _activeSection = null;
       _pendingEventKind = null;
-      _pendingPlayerId = null;
+      _pendingCategory = null;
     });
   }
 
@@ -673,34 +679,57 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void _startEventSelection(MatchGame match, {required bool isPoint}) {
     setState(() {
       _pendingEventKind = isPoint ? 'point' : 'error';
-      _pendingPlayerId = null;
-      _activeSection = 'player-selection';
-    });
-  }
-
-  void _selectPlayerForEvent(MatchGame match, MatchPlayer player) {
-    setState(() {
-      _pendingPlayerId = player.id;
+      _pendingCategory = null;
       _activeSection = 'category-selection';
     });
   }
 
+  void _selectPlayerForEvent(MatchGame match, MatchPlayer player) {
+    final category = _pendingCategory;
+    if (category == null) return;
+    _createEvent(match, playerId: player.id, category: category);
+  }
+
   void _selectCategoryForEvent(MatchGame match, String category) {
-    final playerId = _pendingPlayerId;
+    if (category == _opponentErrorCategory) {
+      _createEvent(
+        match,
+        playerId: null,
+        category: category,
+        playerName: 'Gegner',
+        playerNumber: 0,
+      );
+      return;
+    }
+
+    setState(() {
+      _pendingCategory = category;
+      _activeSection = 'player-selection';
+    });
+  }
+
+  void _createEvent(
+    MatchGame match, {
+    required int? playerId,
+    required String category,
+    String? playerName,
+    int? playerNumber,
+  }) {
     final player = match.players.cast<MatchPlayer?>().firstWhere(
           (entry) => entry?.id == playerId,
           orElse: () => null,
         );
-    if (player == null) return;
-    final displayName = _displayPlayerName(match, player);
+    final displayName = playerName ??
+        (player != null ? _displayPlayerName(match, player) : 'Unbekannt');
+    final displayNumber = playerNumber ?? player?.number ?? 0;
 
     final events = List<MatchEvent>.from(match.events)
       ..add(
         MatchEvent(
           id: match.events.length + 1,
-          playerId: player.id,
+          playerId: playerId,
           playerName: displayName,
-          playerNumber: player.number,
+          playerNumber: displayNumber,
           kind: _pendingEventKind ?? 'point',
           category: category,
           occurredAt: DateTime.now(),
@@ -709,7 +738,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _replaceMatch(match.copyWith(events: events));
     setState(() {
       _pendingEventKind = null;
-      _pendingPlayerId = null;
+      _pendingCategory = null;
       _activeSection = 'scoring';
     });
   }
@@ -1331,7 +1360,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         title: const Text('Spieler auswählen'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => _showMatchDetail(match.id, section: 'scoring'),
+          onPressed: () =>
+              setState(() => _activeSection = 'category-selection'),
         ),
       ),
       body: SafeArea(
