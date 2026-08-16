@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
-enum _Tool { point, line }
+enum _Tool { point, freehand, straight, arrow }
+
+enum _LineType { freehand, straight, arrow }
 
 enum _SelectionKind { point, line }
 
@@ -34,16 +36,22 @@ class _BoardPoint {
 }
 
 class _BoardLine {
-  const _BoardLine({required this.points, required this.color});
+  const _BoardLine({
+    required this.points,
+    required this.color,
+    this.type = _LineType.freehand,
+  });
 
   final List<Offset> points;
   final Color color;
+  final _LineType type;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'points': points
             .map((point) => <String, double>{'x': point.dx, 'y': point.dy})
             .toList(),
         'color': color.toARGB32(),
+        'type': type.name,
       };
 
   static _BoardLine fromJson(Map<String, dynamic> data) {
@@ -61,6 +69,14 @@ class _BoardLine {
               .toList()
           : const <Offset>[],
       color: Color((data['color'] as num?)?.toInt() ?? Colors.red.toARGB32()),
+      type: _lineTypeFromJson(data['type']),
+    );
+  }
+
+  static _LineType _lineTypeFromJson(Object? value) {
+    return _LineType.values.firstWhere(
+      (type) => type.name == value,
+      orElse: () => _LineType.freehand,
     );
   }
 }
@@ -373,7 +389,9 @@ class _TacticsPageState extends State<TacticsPage> {
           kind: _SelectionKind.line,
           index: lineIndex,
         );
-      } else {
+      } else if (_tool == _Tool.freehand ||
+          _tool == _Tool.straight ||
+          _tool == _Tool.arrow) {
         _activeLine = <Offset>[position];
       }
     });
@@ -400,6 +418,7 @@ class _TacticsPageState extends State<TacticsPage> {
         final line = _lines[lineIndex];
         _lines[lineIndex] = _BoardLine(
           color: line.color,
+          type: line.type,
           points: line.points
               .map(
                 (point) => Offset(
@@ -415,7 +434,15 @@ class _TacticsPageState extends State<TacticsPage> {
     }
     if (_activeLine == null) return;
     setState(() {
-      _activeLine!.add(position);
+      if (_tool == _Tool.freehand) {
+        _activeLine!.add(position);
+      } else {
+        if (_activeLine!.length == 1) {
+          _activeLine!.add(position);
+        } else {
+          _activeLine![1] = position;
+        }
+      }
     });
   }
 
@@ -423,7 +450,17 @@ class _TacticsPageState extends State<TacticsPage> {
     final line = _activeLine;
     setState(() {
       if (line != null && line.length > 1) {
-        _lines.add(_BoardLine(points: line, color: _selectedColor));
+        _lines.add(
+          _BoardLine(
+            points: line,
+            color: _selectedColor,
+            type: switch (_tool) {
+              _Tool.arrow => _LineType.arrow,
+              _Tool.straight => _LineType.straight,
+              _ => _LineType.freehand,
+            },
+          ),
+        );
       }
       _activeLine = null;
       _movingPointIndex = null;
@@ -476,7 +513,7 @@ class _TacticsPageState extends State<TacticsPage> {
 
   void _undo() {
     setState(() {
-      if (_tool == _Tool.line && _lines.isNotEmpty) {
+      if (_tool != _Tool.point && _lines.isNotEmpty) {
         _lines.removeLast();
       } else if (_points.isNotEmpty) {
         _points.removeLast();
@@ -586,54 +623,67 @@ class _TacticsPageState extends State<TacticsPage> {
                       if (!isAndroidLandscape)
                         SizedBox(
                           height: 76,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SegmentedButton<_Tool>(
-                                segments: const [
-                                  ButtonSegment(
-                                    value: _Tool.point,
-                                    icon: Icon(Icons.circle),
-                                    tooltip: 'Punkte platzieren',
-                                  ),
-                                  ButtonSegment(
-                                    value: _Tool.line,
-                                    icon: Icon(Icons.gesture),
-                                    tooltip: 'Linien zeichnen',
-                                  ),
-                                ],
-                                selected: <_Tool>{_tool},
-                                onSelectionChanged: (selected) =>
-                                    setState(() => _tool = selected.first),
-                              ),
-                              const SizedBox(width: 12),
-                              for (final color in _colors)
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 2),
-                                  child: IconButton(
-                                    tooltip: 'Farbe auswählen',
-                                    onPressed: () =>
-                                        setState(() => _selectedColor = color),
-                                    icon: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: color,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: _selectedColor == color
-                                              ? Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                              : Colors.transparent,
-                                          width: 3,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SegmentedButton<_Tool>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: _Tool.point,
+                                      icon: Icon(Icons.circle),
+                                      tooltip: 'Punkte platzieren',
+                                    ),
+                                    ButtonSegment(
+                                      value: _Tool.freehand,
+                                      icon: Icon(Icons.gesture),
+                                      tooltip: 'Freihandlinie zeichnen',
+                                    ),
+                                    ButtonSegment(
+                                      value: _Tool.straight,
+                                      icon: Icon(Icons.straight),
+                                      tooltip: 'Gerade Linie zeichnen',
+                                    ),
+                                    ButtonSegment(
+                                      value: _Tool.arrow,
+                                      icon: Icon(Icons.arrow_forward),
+                                      tooltip: 'Pfeil zeichnen',
+                                    ),
+                                  ],
+                                  selected: <_Tool>{_tool},
+                                  onSelectionChanged: (selected) =>
+                                      setState(() => _tool = selected.first),
+                                ),
+                                const SizedBox(width: 12),
+                                for (final color in _colors)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 2),
+                                    child: IconButton(
+                                      tooltip: 'Farbe auswählen',
+                                      onPressed: () => setState(
+                                          () => _selectedColor = color),
+                                      icon: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: _selectedColor == color
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                : Colors.transparent,
+                                            width: 3,
+                                          ),
                                         ),
+                                        child: const SizedBox(
+                                            width: 20, height: 20),
                                       ),
-                                      child:
-                                          const SizedBox(width: 20, height: 20),
                                     ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       Expanded(
@@ -654,6 +704,11 @@ class _TacticsPageState extends State<TacticsPage> {
                                   points: _points,
                                   lines: _lines,
                                   activeLine: _activeLine,
+                                  activeLineType: switch (_tool) {
+                                    _Tool.arrow => _LineType.arrow,
+                                    _Tool.straight => _LineType.straight,
+                                    _ => _LineType.freehand,
+                                  },
                                   activeColor: _selectedColor,
                                   selection: _selection,
                                   isRotated: _isRotated,
@@ -677,6 +732,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     required this.points,
     required this.lines,
     required this.activeLine,
+    required this.activeLineType,
     required this.activeColor,
     required this.selection,
     required this.isRotated,
@@ -685,6 +741,7 @@ class _VolleyballCourtPainter extends CustomPainter {
   final List<_BoardPoint> points;
   final List<_BoardLine> lines;
   final List<Offset>? activeLine;
+  final _LineType activeLineType;
   final Color activeColor;
   final _BoardSelection? selection;
   final bool isRotated;
@@ -743,12 +800,19 @@ class _VolleyballCourtPainter extends CustomPainter {
         size,
         _rotatePoints(line.points),
         line.color,
+        type: line.type,
         isSelected:
             selection?.kind == _SelectionKind.line && selection?.index == index,
       );
     }
     if (activeLine != null) {
-      _drawLine(canvas, size, _rotatePoints(activeLine!), activeColor);
+      _drawLine(
+        canvas,
+        size,
+        _rotatePoints(activeLine!),
+        activeColor,
+        type: activeLineType,
+      );
     }
     for (var index = 0; index < points.length; index++) {
       final point = points[index];
@@ -786,6 +850,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     Size size,
     List<Offset> points,
     Color color, {
+    _LineType type = _LineType.freehand,
     bool isSelected = false,
   }) {
     if (points.length < 2) return;
@@ -802,6 +867,42 @@ class _VolleyballCourtPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke,
     );
+    if (type == _LineType.arrow) {
+      final end = Offset(
+        points.last.dx * size.width,
+        points.last.dy * size.height,
+      );
+      final start = Offset(
+        points[points.length - 2].dx * size.width,
+        points[points.length - 2].dy * size.height,
+      );
+      final direction = end - start;
+      if (direction.distance > 0) {
+        final unit = direction / direction.distance;
+        final perpendicular = Offset(-unit.dy, unit.dx);
+        final arrowLength = 18.0;
+        final arrowWidth = 8.0;
+        final arrowPath = Path()
+          ..moveTo(end.dx, end.dy)
+          ..lineTo(
+            end.dx - unit.dx * arrowLength + perpendicular.dx * arrowWidth,
+            end.dy - unit.dy * arrowLength + perpendicular.dy * arrowWidth,
+          )
+          ..moveTo(end.dx, end.dy)
+          ..lineTo(
+            end.dx - unit.dx * arrowLength - perpendicular.dx * arrowWidth,
+            end.dy - unit.dy * arrowLength - perpendicular.dy * arrowWidth,
+          );
+        canvas.drawPath(
+          arrowPath,
+          Paint()
+            ..color = color
+            ..strokeWidth = 5
+            ..strokeCap = StrokeCap.round
+            ..style = PaintingStyle.stroke,
+        );
+      }
+    }
     if (isSelected) {
       canvas.drawPath(
         path,

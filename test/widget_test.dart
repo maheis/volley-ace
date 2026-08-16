@@ -55,6 +55,14 @@ void main() {
     await tester.tap(find.byTooltip('Feld ins Querformat drehen'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Feld ins Hochformat drehen'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.straight));
+    await tester.pumpAndSettle();
+    await tester.dragFrom(const Offset(200, 300), const Offset(80, 40));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_forward));
+    await tester.pumpAndSettle();
+    await tester.dragFrom(const Offset(240, 420), const Offset(-70, 30));
+    await tester.pumpAndSettle();
     await tester.drag(board, const Offset(32, 24));
     await tester.pumpAndSettle();
     expect(find.text('Taktiktafel'), findsOneWidget);
