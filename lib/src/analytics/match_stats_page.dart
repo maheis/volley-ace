@@ -440,6 +440,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return null;
   }
 
+  String _displayPlayerName(MatchGame match, MatchPlayer player) {
+    final teamPlayerId = player.teamPlayerId;
+    if (teamPlayerId == null || match.teamId == null) return player.name;
+    final team = _teams.cast<Team?>().firstWhere(
+          (entry) => entry?.id == match.teamId,
+          orElse: () => null,
+        );
+    final teamPlayer = team?.players.cast<TeamPlayer?>().firstWhere(
+          (entry) => entry?.id == teamPlayerId,
+          orElse: () => null,
+        );
+    return teamPlayer?.name ?? player.name;
+  }
+
   void _showMatchDetail(int matchId, {String? section}) {
     if (section == 'info') {
       final match = _matches.firstWhere((entry) => entry.id == matchId);
@@ -678,13 +692,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           orElse: () => null,
         );
     if (player == null) return;
+    final displayName = _displayPlayerName(match, player);
 
     final events = List<MatchEvent>.from(match.events)
       ..add(
         MatchEvent(
           id: match.events.length + 1,
           playerId: player.id,
-          playerName: player.name,
+          playerName: displayName,
           playerNumber: player.number,
           kind: _pendingEventKind ?? 'point',
           category: category,
@@ -1344,7 +1359,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                               const Icon(Icons.person, size: 32),
                               const SizedBox(height: 8),
                               Text(
-                                player.name,
+                                _displayPlayerName(match, player),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
