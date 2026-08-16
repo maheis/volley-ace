@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_memory.dart';
 
@@ -91,6 +92,40 @@ void main() {
     await tester.drag(board, const Offset(32, 24));
     await tester.pumpAndSettle();
     expect(find.text('Taktiktafel'), findsOneWidget);
+  });
+
+  testWidgets('Tactics board deletes the selected object with delete key', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = await databaseFactoryMemory.openDatabase('tactics-del.db');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: TacticsPage(database: database),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final board = find.byKey(const ValueKey('tactics-board'));
+    await tester.tap(board);
+    await tester.pumpAndSettle();
+    await tester.tap(board);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byTooltip('Ausgewähltes Objekt löschen'),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byTooltip('Ausgewähltes Objekt löschen'),
+      findsNothing,
+    );
   });
 
   testWidgets('Scoreboard awards and undoes a point with vertical swipes', (

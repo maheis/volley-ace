@@ -26,6 +26,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [ ] Trainer
 - [ ] Sprachsteuerung (insbesondere für die Punktetafel)
 - [x] Bildschirm aktiv lassen
+- [ ] Resposives Design
 
 ## Features
 
@@ -40,10 +41,39 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Letzte Punkte pro Satz anzeigen
   - [ ] Auszeiten pro Team anzeigen
   - [ ] Spielerwechsel pro Team anzeigen
+- [x] Taktiktafel
+  - [x] Speichern von Taktiken
+- [x] Team
+  - [x] Info
+    - [x] Teamname
+    - [ ] Teamlogo
+    - [ ] Teamfarben
+    - [ ] Teamprofil
+    - [ ] Teamstatistik
+    - [ ] Teambewertung
+    - [ ] Achievements
+  - [x] Spieler
+    - [x] Name
+    - [x] Trikotnummer
+    - [x] Geburtsdatum / Alter
+    - [x] Position
+    - [x] Spielerprofil
+    - [x] Spielerstatistik
+    - [ ] Spielerbewertung
+    - [ ] Spielertraining
+    - [ ] Achievements
+  - [x] Trainer
+    - [x] Name
+    - [x] Geburtsdatum / Alter
+    - [x] Position
+    - [x] Trainerprofil
+    - [x] Trainerstatistik
+    - [ ] Trainerbewertung
+    - [ ] Achievements
 - [x] Punktewertung
       Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
       Es soll eine persistente Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
-      Wählt man ein Spiel aus, kann man entwender Punktewertung erfassen oder die Statistik einsehen.
+      Wählt man ein Spiel aus, kann man entweder Punktewertung erfassen oder die Statistik einsehen.
   - [x] Spielinfos
         Abfragen beim Spielstart, um die Statistik zu speichern.
     - [x] Spielort
@@ -79,6 +109,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Sonstiges
     - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
+    - [ ] Verlauf
     - [x] Statistik
       - [x] Spielstand
       - [x] Satzstand
@@ -89,42 +120,22 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Punkte pro Art
         - [x] Fehler pro Art
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
-- [x] Team
-  - [x] Info
-    - [x] Teamname
-    - [ ] Teamlogo
-    - [ ] Teamfarben
-    - [ ] Teamprofil
-    - [ ] Teamstatistik
-    - [ ] Teambewertung
-    - [ ] Achievements
-  - [x] Spieler
-    - [x] Name
-    - [x] Trikotnummer
-    - [x] Geburtsdatum / Alter
-    - [x] Position
-    - [x] Spielerprofil
-    - [x] Spielerstatistik
-    - [ ] Spielerbewertung
-    - [ ] Spielertraining
-    - [ ] Achievements
-  - [x] Trainer
-    - [x] Name
-    - [x] Geburtsdatum / Alter
-    - [x] Position
-    - [x] Trainerprofil
-    - [x] Trainerstatistik
-    - [ ] Trainerbewertung
-    - [ ] Achievements
+      - [ ] Diagram über Punkte/Fehler im Zeitverlauf
 - [ ] Rotation
-- [x] Taktiktafel
-  - [x] Speichern von Taktiken
+  - [ ] Team
+  - [ ] Startaufstellung
+  - [ ] Aufschlag
+  - [ ] 
 - [ ] Soundboard
 - [ ] Achievements
+- [ ] Training
+  - [ ] Trainingsplan
+  - [ ] Trainingsstatistik
+  - [ ] Trainingsbewertung
 - [ ] Trainingsübungen
 - [ ] Trainingsteilnahme
 - [ ] Trainingsbewertungen
-- [ ] Trainingsstände (Archivments)
+- [ ] Trainingsstände
 
 ## ToDo
 
@@ -135,4 +146,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] sportschrift
 - [x] app name aktuell mit unterstich
 - [ ] import / export (teams, punktewertung)
-- [ ] farbe rosa in die app übernehmen
+- [ ] farbe rosa in die app übernehmen?

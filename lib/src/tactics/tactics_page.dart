@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
 
 enum _Tool { point, freehand, straight, arrow }
@@ -6,6 +7,10 @@ enum _Tool { point, freehand, straight, arrow }
 enum _LineType { freehand, straight, arrow }
 
 enum _SelectionKind { point, line }
+
+class _DeleteSelectionIntent extends Intent {
+  const _DeleteSelectionIntent();
+}
 
 class _BoardSelection {
   const _BoardSelection({required this.kind, required this.index});
@@ -277,6 +282,11 @@ class _TacticsPageState extends State<TacticsPage> {
       _activeTacticName = trimmedName;
     });
     await _persist();
+  }
+
+  void _handleDeleteSelectionIntent() {
+    if (_selection == null) return;
+    _deleteSelection();
   }
 
   Future<void> _showTactics() async {
@@ -611,252 +621,273 @@ class _TacticsPageState extends State<TacticsPage> {
       body: !_isLoaded
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final availableHeight =
-                      constraints.maxHeight - (isAndroidLandscape ? 0 : 76);
-                  final availableWidth = constraints.maxWidth - 24;
-                  final boardHeight = _isRotated
-                      ? (availableWidth / 1.6 < availableHeight
-                          ? availableWidth / 1.6
-                          : availableHeight)
-                      : (availableHeight * 0.625 < availableWidth
-                              ? availableHeight * 0.625
-                              : availableWidth) /
-                          0.625;
-                  final boardWidth =
-                      _isRotated ? boardHeight * 1.6 : boardHeight * 0.625;
-                  _isRotated ? boardHeight * 2 : boardHeight / 2;
-                  final size = Size(boardWidth, boardHeight);
-                  return Column(
-                    children: [
-                      if (!isAndroidLandscape)
-                        SizedBox(
-                          height: 76,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SegmentedButton<_Tool>(
-                                  showSelectedIcon: false,
-                                  segments: const [
-                                    ButtonSegment(
-                                      value: _Tool.point,
-                                      icon: Icon(Icons.circle),
-                                      tooltip: 'Punkte platzieren',
-                                    ),
-                                    ButtonSegment(
-                                      value: _Tool.freehand,
-                                      icon: Icon(Icons.gesture),
-                                      tooltip: 'Freihandlinie zeichnen',
-                                    ),
-                                    ButtonSegment(
-                                      value: _Tool.straight,
-                                      icon: Icon(Icons.remove),
-                                      tooltip: 'Gerade Linie zeichnen',
-                                    ),
-                                    ButtonSegment(
-                                      value: _Tool.arrow,
-                                      icon: Icon(Icons.arrow_forward),
-                                      tooltip: 'Pfeil zeichnen',
-                                    ),
-                                  ],
-                                  selected: <_Tool>{_tool},
-                                  onSelectionChanged: (selected) =>
-                                      setState(() => _tool = selected.first),
-                                ),
-                                const SizedBox(width: 12),
-                                for (final color in _colors)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 2),
-                                    child: IconButton(
-                                      tooltip: 'Farbe auswählen',
-                                      onPressed: () => setState(
-                                          () => _selectedColor = color),
-                                      icon: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: color,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: _selectedColor == color
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurface
-                                                : Colors.transparent,
-                                            width: 3,
+              child: Shortcuts(
+                shortcuts: const <ShortcutActivator, Intent>{
+                  SingleActivator(LogicalKeyboardKey.delete):
+                      _DeleteSelectionIntent(),
+                  SingleActivator(LogicalKeyboardKey.backspace):
+                      _DeleteSelectionIntent(),
+                },
+                child: Actions(
+                  actions: <Type, Action<Intent>>{
+                    _DeleteSelectionIntent: CallbackAction<_DeleteSelectionIntent>(
+                      onInvoke: (intent) {
+                        _handleDeleteSelectionIntent();
+                        return null;
+                      },
+                    ),
+                  },
+                  child: Focus(
+                    autofocus: true,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final availableHeight =
+                            constraints.maxHeight - (isAndroidLandscape ? 0 : 76);
+                        final availableWidth = constraints.maxWidth - 24;
+                        final boardHeight = _isRotated
+                            ? (availableWidth / 1.6 < availableHeight
+                                ? availableWidth / 1.6
+                                : availableHeight)
+                            : (availableHeight * 0.625 < availableWidth
+                                    ? availableHeight * 0.625
+                                    : availableWidth) /
+                                0.625;
+                        final boardWidth =
+                            _isRotated ? boardHeight * 1.6 : boardHeight * 0.625;
+                        _isRotated ? boardHeight * 2 : boardHeight / 2;
+                        final size = Size(boardWidth, boardHeight);
+                        return Column(
+                          children: [
+                            if (!isAndroidLandscape)
+                              SizedBox(
+                                height: 76,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SegmentedButton<_Tool>(
+                                        showSelectedIcon: false,
+                                        segments: const [
+                                          ButtonSegment(
+                                            value: _Tool.point,
+                                            icon: Icon(Icons.circle),
+                                            tooltip: 'Punkte platzieren',
+                                          ),
+                                          ButtonSegment(
+                                            value: _Tool.freehand,
+                                            icon: Icon(Icons.gesture),
+                                            tooltip: 'Freihandlinie zeichnen',
+                                          ),
+                                          ButtonSegment(
+                                            value: _Tool.straight,
+                                            icon: Icon(Icons.remove),
+                                            tooltip: 'Gerade Linie zeichnen',
+                                          ),
+                                          ButtonSegment(
+                                            value: _Tool.arrow,
+                                            icon: Icon(Icons.arrow_forward),
+                                            tooltip: 'Pfeil zeichnen',
+                                          ),
+                                        ],
+                                        selected: <_Tool>{_tool},
+                                        onSelectionChanged: (selected) =>
+                                            setState(() => _tool = selected.first),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      for (final color in _colors)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 2),
+                                          child: IconButton(
+                                            tooltip: 'Farbe auswählen',
+                                            onPressed: () => setState(
+                                                () => _selectedColor = color),
+                                            icon: DecoratedBox(
+                                              decoration: BoxDecoration(
+                                                color: color,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: _selectedColor == color
+                                                      ? Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                      : Colors.transparent,
+                                                  width: 3,
+                                                ),
+                                              ),
+                                              child: const SizedBox(
+                                                  width: 20, height: 20),
+                                            ),
                                           ),
                                         ),
-                                        child: const SizedBox(
-                                            width: 20, height: 20),
-                                      ),
-                                    ),
+                                    ],
                                   ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      Expanded(
-                        child: InteractiveViewer(
-                          key: const ValueKey('tactics-board-viewport'),
-                          minScale: 1,
-                          maxScale: 4,
-                          panEnabled: false,
-                          scaleEnabled: true,
-                          trackpadScrollCausesScale: true,
-                          boundaryMargin: const EdgeInsets.all(320),
-                          constrained: true,
-                          clipBehavior: Clip.hardEdge,
-                          child: Center(
-                            child: SizedBox(
-                              width: boardWidth,
-                              height: boardHeight,
-                              child: Semantics(
-                                label: 'Volleyballfeld',
-                                child: MouseRegion(
-                                  cursor: _isObjectHovered
-                                      ? SystemMouseCursors.click
-                                      : SystemMouseCursors.basic,
-                                  onHover: (event) {
-                                    final position = _relativePosition(
-                                      event.localPosition,
-                                      size,
-                                    );
-                                    final isHovered =
-                                        _findPointAt(position, size) != null ||
-                                            _findLineAt(position, size) != null;
-                                    if (isHovered != _isObjectHovered) {
-                                      setState(
-                                          () => _isObjectHovered = isHovered);
-                                    }
-                                  },
-                                  onExit: (_) {
-                                    if (_isObjectHovered) {
-                                      setState(() => _isObjectHovered = false);
-                                    }
-                                  },
-                                  child: Listener(
-                                    key: const ValueKey('tactics-board'),
-                                    onPointerDown: (event) {
-                                      _activePointerCount++;
-                                      if (_activePointerCount > 1) {
-                                        _multiTouchActive = true;
-                                        _activeLine = null;
-                                        _movingPointIndex = null;
-                                        _movingLineIndex = null;
-                                        return;
-                                      }
-                                      _rawPointerMoved = false;
-                                      _pointerDownPosition =
-                                          event.localPosition;
-                                      _lastRawPointerPosition =
-                                          event.localPosition;
-                                      _startDrag(
-                                        DragStartDetails(
-                                          globalPosition: event.position,
-                                          localPosition: event.localPosition,
-                                          kind: event.kind,
-                                        ),
-                                        size,
-                                      );
-                                    },
-                                    onPointerMove: (event) {
-                                      if (_activePointerCount != 1 ||
-                                          _multiTouchActive) {
-                                        return;
-                                      }
-                                      final downPosition = _pointerDownPosition;
-                                      if (downPosition != null &&
-                                          (event.localPosition - downPosition)
-                                                  .distance >
-                                              8) {
-                                        _rawPointerMoved = true;
-                                      }
-                                      _lastRawPointerPosition =
-                                          event.localPosition;
-                                      _updateDrag(
-                                        DragUpdateDetails(
-                                          globalPosition: event.position,
-                                          localPosition: event.localPosition,
-                                          kind: event.kind,
-                                        ),
-                                        size,
-                                      );
-                                    },
-                                    onPointerUp: (event) {
-                                      if (_activePointerCount == 1 &&
-                                          !_multiTouchActive) {
-                                        if (!_rawPointerMoved) {
-                                          _handleTap(
-                                            TapUpDetails(
-                                              kind: event.kind,
-                                              localPosition:
-                                                  event.localPosition,
-                                            ),
+                                ),
+                              ),
+                            Expanded(
+                              child: InteractiveViewer(
+                                key: const ValueKey('tactics-board-viewport'),
+                                minScale: 1,
+                                maxScale: 4,
+                                panEnabled: false,
+                                scaleEnabled: true,
+                                trackpadScrollCausesScale: true,
+                                boundaryMargin: const EdgeInsets.all(320),
+                                constrained: true,
+                                clipBehavior: Clip.hardEdge,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: boardWidth,
+                                    height: boardHeight,
+                                    child: Semantics(
+                                      label: 'Volleyballfeld',
+                                      child: MouseRegion(
+                                        cursor: _isObjectHovered
+                                            ? SystemMouseCursors.click
+                                            : SystemMouseCursors.basic,
+                                        onHover: (event) {
+                                          final position = _relativePosition(
+                                            event.localPosition,
                                             size,
                                           );
-                                        }
-                                        _finishDrag(DragEndDetails());
-                                      }
-                                      _activePointerCount =
-                                          (_activePointerCount - 1)
-                                              .clamp(0, 10);
-                                      if (_activePointerCount == 0) {
-                                        _multiTouchActive = false;
-                                        _pointerDownPosition = null;
-                                      }
-                                    },
-                                    onPointerCancel: (event) {
-                                      if (_activePointerCount == 1 &&
-                                          !_multiTouchActive &&
-                                          !_rawPointerMoved &&
-                                          _lastRawPointerPosition != null) {
-                                        _handleTap(
-                                          TapUpDetails(
-                                            kind: event.kind,
-                                            localPosition:
-                                                _lastRawPointerPosition!,
-                                          ),
-                                          size,
-                                        );
-                                      }
-                                      _activePointerCount =
-                                          (_activePointerCount - 1)
-                                              .clamp(0, 10);
-                                      if (_activePointerCount == 0) {
-                                        _multiTouchActive = false;
-                                        _pointerDownPosition = null;
-                                        _finishDrag(DragEndDetails());
-                                      }
-                                    },
-                                    child: CustomPaint(
-                                      size: size,
-                                      painter: _VolleyballCourtPainter(
-                                        points: _points,
-                                        lines: _lines,
-                                        activeLine: _activeLine,
-                                        activeLineType: switch (_tool) {
-                                          _Tool.arrow => _LineType.arrow,
-                                          _Tool.straight => _LineType.straight,
-                                          _ => _LineType.freehand,
+                                          final isHovered =
+                                              _findPointAt(position, size) != null ||
+                                                  _findLineAt(position, size) != null;
+                                          if (isHovered != _isObjectHovered) {
+                                            setState(() => _isObjectHovered = isHovered);
+                                          }
                                         },
-                                        activeColor: _selectedColor,
-                                        outerColor: Theme.of(context).cardColor,
-                                        selection: _selection,
-                                        isRotated: _isRotated,
+                                        onExit: (_) {
+                                          if (_isObjectHovered) {
+                                            setState(() => _isObjectHovered = false);
+                                          }
+                                        },
+                                        child: Listener(
+                                          key: const ValueKey('tactics-board'),
+                                          onPointerDown: (event) {
+                                            _activePointerCount++;
+                                            if (_activePointerCount > 1) {
+                                              _multiTouchActive = true;
+                                              _activeLine = null;
+                                              _movingPointIndex = null;
+                                              _movingLineIndex = null;
+                                              return;
+                                            }
+                                            _rawPointerMoved = false;
+                                            _pointerDownPosition =
+                                                event.localPosition;
+                                            _lastRawPointerPosition =
+                                                event.localPosition;
+                                            _startDrag(
+                                              DragStartDetails(
+                                                globalPosition: event.position,
+                                                localPosition: event.localPosition,
+                                                kind: event.kind,
+                                              ),
+                                              size,
+                                            );
+                                          },
+                                          onPointerMove: (event) {
+                                            if (_activePointerCount != 1 ||
+                                                _multiTouchActive) {
+                                              return;
+                                            }
+                                            final downPosition =
+                                                _pointerDownPosition;
+                                            if (downPosition != null &&
+                                                (event.localPosition - downPosition)
+                                                        .distance >
+                                                    8) {
+                                              _rawPointerMoved = true;
+                                            }
+                                            _lastRawPointerPosition =
+                                                event.localPosition;
+                                            _updateDrag(
+                                              DragUpdateDetails(
+                                                globalPosition: event.position,
+                                                localPosition: event.localPosition,
+                                                kind: event.kind,
+                                              ),
+                                              size,
+                                            );
+                                          },
+                                          onPointerUp: (event) {
+                                            if (_activePointerCount == 1 &&
+                                                !_multiTouchActive) {
+                                              if (!_rawPointerMoved) {
+                                                _handleTap(
+                                                  TapUpDetails(
+                                                    kind: event.kind,
+                                                    localPosition:
+                                                        event.localPosition,
+                                                  ),
+                                                  size,
+                                                );
+                                              }
+                                              _finishDrag(DragEndDetails());
+                                            }
+                                            _activePointerCount =
+                                                (_activePointerCount - 1)
+                                                    .clamp(0, 10);
+                                            if (_activePointerCount == 0) {
+                                              _multiTouchActive = false;
+                                              _pointerDownPosition = null;
+                                            }
+                                          },
+                                          onPointerCancel: (event) {
+                                            if (_activePointerCount == 1 &&
+                                                !_multiTouchActive &&
+                                                !_rawPointerMoved &&
+                                                _lastRawPointerPosition != null) {
+                                              _handleTap(
+                                                TapUpDetails(
+                                                  kind: event.kind,
+                                                  localPosition:
+                                                      _lastRawPointerPosition!,
+                                                ),
+                                                size,
+                                              );
+                                            }
+                                            _activePointerCount =
+                                                (_activePointerCount - 1)
+                                                    .clamp(0, 10);
+                                            if (_activePointerCount == 0) {
+                                              _multiTouchActive = false;
+                                              _pointerDownPosition = null;
+                                              _finishDrag(DragEndDetails());
+                                            }
+                                          },
+                                          child: CustomPaint(
+                                            size: size,
+                                            painter: _VolleyballCourtPainter(
+                                              points: _points,
+                                              lines: _lines,
+                                              activeLine: _activeLine,
+                                              activeLineType: switch (_tool) {
+                                                _Tool.arrow => _LineType.arrow,
+                                                _Tool.straight => _LineType.straight,
+                                                _ => _LineType.freehand,
+                                              },
+                                              activeColor: _selectedColor,
+                                              outerColor: Theme.of(context).cardColor,
+                                              selection: _selection,
+                                              isRotated: _isRotated,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
     );
