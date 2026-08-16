@@ -162,6 +162,7 @@ class _TacticsPageState extends State<TacticsPage> {
   int _activePointerCount = 0;
   bool _multiTouchActive = false;
   bool _rawPointerMoved = false;
+  Offset? _lastRawPointerPosition;
   bool _isLoaded = false;
 
   @override
@@ -746,6 +747,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                         return;
                                       }
                                       _rawPointerMoved = false;
+                                      _lastRawPointerPosition =
+                                          event.localPosition;
                                       _startDrag(
                                         DragStartDetails(
                                           globalPosition: event.position,
@@ -761,6 +764,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                         return;
                                       }
                                       _rawPointerMoved = true;
+                                      _lastRawPointerPosition =
+                                          event.localPosition;
                                       _updateDrag(
                                         DragUpdateDetails(
                                           globalPosition: event.position,
@@ -792,7 +797,20 @@ class _TacticsPageState extends State<TacticsPage> {
                                         _multiTouchActive = false;
                                       }
                                     },
-                                    onPointerCancel: (_) {
+                                    onPointerCancel: (event) {
+                                      if (_activePointerCount == 1 &&
+                                          !_multiTouchActive &&
+                                          !_rawPointerMoved &&
+                                          _lastRawPointerPosition != null) {
+                                        _handleTap(
+                                          TapUpDetails(
+                                            kind: event.kind,
+                                            localPosition:
+                                                _lastRawPointerPosition!,
+                                          ),
+                                          size,
+                                        );
+                                      }
                                       _activePointerCount =
                                           (_activePointerCount - 1)
                                               .clamp(0, 10);
