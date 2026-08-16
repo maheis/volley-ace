@@ -857,6 +857,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     }
     for (var index = 0; index < points.length; index++) {
       final point = points[index];
+      final pointRadius = (size.shortestSide / 16).clamp(16.0, 148.0);
       final boardPosition = _rotatePosition(point.position);
       final position = Offset(
         boardPosition.dx * size.width,
@@ -867,17 +868,17 @@ class _VolleyballCourtPainter extends CustomPainter {
       if (isSelected) {
         canvas.drawCircle(
           position,
-          17,
+          pointRadius + 5,
           Paint()
             ..color = Colors.white
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3,
         );
       }
-      canvas.drawCircle(position, 12, Paint()..color = point.color);
+      canvas.drawCircle(position, pointRadius, Paint()..color = point.color);
       canvas.drawCircle(
         position,
-        12,
+        pointRadius,
         Paint()
           ..color = Colors.black.withValues(alpha: 0.45)
           ..style = PaintingStyle.stroke
