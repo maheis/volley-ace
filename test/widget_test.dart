@@ -34,12 +34,12 @@ void main() {
 
     final migratedSettings = await repository.load();
 
-    expect(migratedSettings.fontFamily, 'NotoSans');
+    expect(migratedSettings.fontFamily, 'Ubuntu');
 
     final storedAfterMigration =
         await settingsStore.record('app').get(database);
-    expect(storedAfterMigration?['fontFamily'], 'NotoSans');
-    expect(storedAfterMigration?['fontFamilyMigratedToNotoSans'], true);
+    expect(storedAfterMigration?['fontFamily'], 'Ubuntu');
+    expect(storedAfterMigration?['fontFamilyMigratedToUbuntu'], true);
 
     await repository
         .save(migratedSettings.copyWith(fontFamily: 'CourierPrime'));

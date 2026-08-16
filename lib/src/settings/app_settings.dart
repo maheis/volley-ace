@@ -13,7 +13,7 @@ class AppSettings {
   ];
 
   static const AppSettings defaults = AppSettings(
-    fontFamily: 'NotoSans',
+    fontFamily: 'Ubuntu',
     textScaleFactor: 1.0,
   );
 

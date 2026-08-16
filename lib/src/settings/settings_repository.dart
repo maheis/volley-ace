@@ -6,7 +6,7 @@ class SettingsRepository {
   SettingsRepository(Database database) : _database = database;
 
   static const String _settingsRecordKey = 'app';
-  static const String _fontMigrationKey = 'fontFamilyMigratedToNotoSans';
+  static const String _fontMigrationKey = 'fontFamilyMigratedToUbuntu';
   static final StoreRef<String, Map<String, dynamic>> _store =
       StoreRef<String, Map<String, dynamic>>('settings');
 
