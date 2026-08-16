@@ -359,6 +359,9 @@ class _TacticsPageState extends State<TacticsPage> {
           ));
       return;
     }
+    if (_selection != null) {
+      setState(() => _selection = null);
+    }
     if (_tool != _Tool.point) return;
     setState(() => _points.add(
           _BoardPoint(
