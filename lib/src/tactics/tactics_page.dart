@@ -159,6 +159,9 @@ class _TacticsPageState extends State<TacticsPage> {
   String? _activeTacticName;
   bool _isRotated = false;
   bool _isObjectHovered = false;
+  int _activePointerCount = 0;
+  bool _multiTouchActive = false;
+  bool _rawPointerMoved = false;
   bool _isLoaded = false;
 
   @override
@@ -609,15 +612,16 @@ class _TacticsPageState extends State<TacticsPage> {
                       constraints.maxHeight - (isAndroidLandscape ? 0 : 76);
                   final availableWidth = constraints.maxWidth - 24;
                   final boardHeight = _isRotated
-                      ? (availableWidth / 2 < availableHeight
-                          ? availableWidth / 2
+                      ? (availableWidth / 1.6 < availableHeight
+                          ? availableWidth / 1.6
                           : availableHeight)
-                      : (availableHeight / 2 < availableWidth
-                              ? availableHeight / 2
-                              : availableWidth) *
-                          2;
+                      : (availableHeight * 0.625 < availableWidth
+                              ? availableHeight * 0.625
+                              : availableWidth) /
+                          0.625;
                   final boardWidth =
-                      _isRotated ? boardHeight * 2 : boardHeight / 2;
+                      _isRotated ? boardHeight * 1.6 : boardHeight * 0.625;
+                  _isRotated ? boardHeight * 2 : boardHeight / 2;
                   final size = Size(boardWidth, boardHeight);
                   return Column(
                     children: [
@@ -693,7 +697,7 @@ class _TacticsPageState extends State<TacticsPage> {
                           key: const ValueKey('tactics-board-viewport'),
                           minScale: 1,
                           maxScale: 4,
-                          panEnabled: true,
+                          panEnabled: false,
                           scaleEnabled: true,
                           trackpadScrollCausesScale: true,
                           boundaryMargin: const EdgeInsets.all(320),
@@ -727,15 +731,73 @@ class _TacticsPageState extends State<TacticsPage> {
                                       setState(() => _isObjectHovered = false);
                                     }
                                   },
-                                  child: GestureDetector(
+                                  child: Listener(
                                     key: const ValueKey('tactics-board'),
-                                    onTapUp: (details) =>
-                                        _handleTap(details, size),
-                                    onPanStart: (details) =>
-                                        _startDrag(details, size),
-                                    onPanUpdate: (details) =>
-                                        _updateDrag(details, size),
-                                    onPanEnd: _finishDrag,
+                                    onPointerDown: (event) {
+                                      _activePointerCount++;
+                                      if (_activePointerCount > 1) {
+                                        _multiTouchActive = true;
+                                        _activeLine = null;
+                                        _movingPointIndex = null;
+                                        _movingLineIndex = null;
+                                        return;
+                                      }
+                                      _rawPointerMoved = false;
+                                      _startDrag(
+                                        DragStartDetails(
+                                          globalPosition: event.position,
+                                          localPosition: event.localPosition,
+                                          kind: event.kind,
+                                        ),
+                                        size,
+                                      );
+                                    },
+                                    onPointerMove: (event) {
+                                      if (_activePointerCount != 1 ||
+                                          _multiTouchActive) {
+                                        return;
+                                      }
+                                      _rawPointerMoved = true;
+                                      _updateDrag(
+                                        DragUpdateDetails(
+                                          globalPosition: event.position,
+                                          localPosition: event.localPosition,
+                                          kind: event.kind,
+                                        ),
+                                        size,
+                                      );
+                                    },
+                                    onPointerUp: (event) {
+                                      if (_activePointerCount == 1 &&
+                                          !_multiTouchActive) {
+                                        if (!_rawPointerMoved) {
+                                          _handleTap(
+                                            TapUpDetails(
+                                              kind: event.kind,
+                                              localPosition:
+                                                  event.localPosition,
+                                            ),
+                                            size,
+                                          );
+                                        }
+                                        _finishDrag(DragEndDetails());
+                                      }
+                                      _activePointerCount =
+                                          (_activePointerCount - 1)
+                                              .clamp(0, 10);
+                                      if (_activePointerCount == 0) {
+                                        _multiTouchActive = false;
+                                      }
+                                    },
+                                    onPointerCancel: (_) {
+                                      _activePointerCount =
+                                          (_activePointerCount - 1)
+                                              .clamp(0, 10);
+                                      if (_activePointerCount == 0) {
+                                        _multiTouchActive = false;
+                                        _finishDrag(DragEndDetails());
+                                      }
+                                    },
                                     child: CustomPaint(
                                       size: size,
                                       painter: _VolleyballCourtPainter(
@@ -748,6 +810,7 @@ class _TacticsPageState extends State<TacticsPage> {
                                           _ => _LineType.freehand,
                                         },
                                         activeColor: _selectedColor,
+                                        outerColor: Theme.of(context).cardColor,
                                         selection: _selection,
                                         isRotated: _isRotated,
                                       ),
@@ -775,6 +838,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     required this.activeLine,
     required this.activeLineType,
     required this.activeColor,
+    required this.outerColor,
     required this.selection,
     required this.isRotated,
   });
@@ -784,12 +848,29 @@ class _VolleyballCourtPainter extends CustomPainter {
   final List<Offset>? activeLine;
   final _LineType activeLineType;
   final Color activeColor;
+  final Color outerColor;
   final _BoardSelection? selection;
   final bool isRotated;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final court = Rect.fromLTWH(10, 10, size.width - 20, size.height - 20);
+    final outer = Rect.fromLTWH(4, 4, size.width - 8, size.height - 8);
+    final horizontalMargin = isRotated ? 0.125 : 0.2;
+    final verticalMargin = isRotated ? 0.2 : 0.125;
+    final court = Rect.fromLTWH(
+      outer.left + outer.width * horizontalMargin,
+      outer.top + outer.height * verticalMargin,
+      outer.width * (1 - horizontalMargin * 2),
+      outer.height * (1 - verticalMargin * 2),
+    );
+    canvas.drawRect(outer, Paint()..color = outerColor);
+    canvas.drawRect(
+      outer,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
     canvas.drawRect(court, Paint()..color = const Color(0xFFD89A58));
     final linePaint = Paint()
       ..color = Colors.white
@@ -857,7 +938,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     }
     for (var index = 0; index < points.length; index++) {
       final point = points[index];
-      final pointRadius = (size.shortestSide / 16).clamp(16.0, 148.0);
+      final pointRadius = (size.shortestSide / 320 * 12).clamp(12.0, 24.0);
       final boardPosition = _rotatePosition(point.position);
       final position = Offset(
         boardPosition.dx * size.width,
@@ -868,7 +949,7 @@ class _VolleyballCourtPainter extends CustomPainter {
       if (isSelected) {
         canvas.drawCircle(
           position,
-          pointRadius + 5,
+          pointRadius + 3,
           Paint()
             ..color = Colors.white
             ..style = PaintingStyle.stroke
