@@ -162,6 +162,7 @@ class _TacticsPageState extends State<TacticsPage> {
   int _activePointerCount = 0;
   bool _multiTouchActive = false;
   bool _rawPointerMoved = false;
+  Offset? _pointerDownPosition;
   Offset? _lastRawPointerPosition;
   bool _isLoaded = false;
 
@@ -747,6 +748,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                         return;
                                       }
                                       _rawPointerMoved = false;
+                                      _pointerDownPosition =
+                                          event.localPosition;
                                       _lastRawPointerPosition =
                                           event.localPosition;
                                       _startDrag(
@@ -763,7 +766,13 @@ class _TacticsPageState extends State<TacticsPage> {
                                           _multiTouchActive) {
                                         return;
                                       }
-                                      _rawPointerMoved = true;
+                                      final downPosition = _pointerDownPosition;
+                                      if (downPosition != null &&
+                                          (event.localPosition - downPosition)
+                                                  .distance >
+                                              8) {
+                                        _rawPointerMoved = true;
+                                      }
                                       _lastRawPointerPosition =
                                           event.localPosition;
                                       _updateDrag(
@@ -795,6 +804,7 @@ class _TacticsPageState extends State<TacticsPage> {
                                               .clamp(0, 10);
                                       if (_activePointerCount == 0) {
                                         _multiTouchActive = false;
+                                        _pointerDownPosition = null;
                                       }
                                     },
                                     onPointerCancel: (event) {
@@ -816,6 +826,7 @@ class _TacticsPageState extends State<TacticsPage> {
                                               .clamp(0, 10);
                                       if (_activePointerCount == 0) {
                                         _multiTouchActive = false;
+                                        _pointerDownPosition = null;
                                         _finishDrag(DragEndDetails());
                                       }
                                     },
