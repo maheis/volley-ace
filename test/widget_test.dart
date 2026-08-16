@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_memory.dart';
 
 import 'package:volleyace/src/analytics/match_stats_page.dart';
+import 'package:volleyace/src/settings/settings_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
@@ -20,6 +22,29 @@ void main() {
     expect(find.text('Einstellungen'), findsOneWidget);
     expect(find.text('Schriftart'), findsOneWidget);
     expect(find.text('Speichern'), findsOneWidget);
+  });
+
+  test('Settings repository migrates the default font once', () async {
+    final database = await databaseFactoryMemory.openDatabase(
+      'settings-migration.db',
+    );
+    final repository = SettingsRepository(database);
+    final settingsStore = StoreRef<String, Map<String, dynamic>>('settings');
+
+    final migratedSettings = await repository.load();
+
+    expect(migratedSettings.fontFamily, 'NotoSans');
+
+    final storedAfterMigration =
+        await settingsStore.record('app').get(database);
+    expect(storedAfterMigration?['fontFamily'], 'NotoSans');
+    expect(storedAfterMigration?['fontFamilyMigratedToNotoSans'], true);
+
+    await repository
+        .save(migratedSettings.copyWith(fontFamily: 'CourierPrime'));
+
+    final settingsAfterManualChange = await repository.load();
+    expect(settingsAfterManualChange.fontFamily, 'CourierPrime');
   });
 
   testWidgets('Tactics board adds a colored point',

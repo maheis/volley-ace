@@ -11,7 +11,7 @@ class AppSettings {
   ];
 
   static const AppSettings defaults = AppSettings(
-    fontFamily: 'OpenDyslexic',
+    fontFamily: 'NotoSans',
     textScaleFactor: 1.0,
   );
 

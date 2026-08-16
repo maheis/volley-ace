@@ -6,6 +6,7 @@ class SettingsRepository {
   SettingsRepository(Database database) : _database = database;
 
   static const String _settingsRecordKey = 'app';
+  static const String _fontMigrationKey = 'fontFamilyMigratedToNotoSans';
   static final StoreRef<String, Map<String, dynamic>> _store =
       StoreRef<String, Map<String, dynamic>>('settings');
 
@@ -15,14 +16,25 @@ class SettingsRepository {
     final data = await _store.record(_settingsRecordKey).get(_database);
     final storedFont = data?['fontFamily'];
     final storedScale = data?['uiTextScaleFactor'];
+    final fontMigrationApplied = data?[_fontMigrationKey] == true;
 
-    final fontFamily = AppSettings.availableFonts.contains(storedFont)
-        ? storedFont as String
+    final fontFamily = fontMigrationApplied
+        ? AppSettings.availableFonts.contains(storedFont)
+            ? storedFont as String
+            : AppSettings.defaults.fontFamily
         : AppSettings.defaults.fontFamily;
 
     final scale = storedScale is num
         ? storedScale.toDouble()
         : AppSettings.defaults.textScaleFactor;
+
+    if (!fontMigrationApplied) {
+      await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
+        'fontFamily': fontFamily,
+        'uiTextScaleFactor': _clampScale(scale),
+        _fontMigrationKey: true,
+      });
+    }
 
     return AppSettings(
       fontFamily: fontFamily,
@@ -34,6 +46,7 @@ class SettingsRepository {
     await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
       'fontFamily': settings.fontFamily,
       'uiTextScaleFactor': _clampScale(settings.textScaleFactor),
+      _fontMigrationKey: true,
     });
   }
 
