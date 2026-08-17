@@ -5,6 +5,7 @@ import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_memory.dart';
 
 import 'package:volleyace/src/analytics/match_stats_page.dart';
+import 'package:volleyace/src/arcade/arcade_page.dart';
 import 'package:volleyace/src/settings/settings_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
@@ -46,6 +47,32 @@ void main() {
 
     final settingsAfterManualChange = await repository.load();
     expect(settingsAfterManualChange.fontFamily, 'CourierPrime');
+  });
+
+  testWidgets('Volley-Arcade court drag moves the player', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('arcade.db');
+    await tester.binding.setSurfaceSize(const Size(1024, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(home: ArcadePage(database: database)),
+    );
+    await tester.pump(const Duration(milliseconds: 150));
+
+    final state = tester.state(find.byType(ArcadePage)) as dynamic;
+    state.model.startGame();
+    await tester.pump(const Duration(milliseconds: 150));
+
+    final before = state.model.player.x as double;
+    await tester.drag(
+      find.byKey(const ValueKey('arcade-court-gesture')),
+      const Offset(140, 0),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+
+    expect(state.model.player.x as double, greaterThan(before));
   });
 
   testWidgets('Tactics board adds a colored point',

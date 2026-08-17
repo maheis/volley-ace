@@ -4,6 +4,7 @@ class HomePage extends StatelessWidget {
   const HomePage({
     super.key,
     required this.onOpenSettings,
+    required this.onOpenArcade,
     required this.onOpenScoreboard,
     required this.onOpenMatchStats,
     required this.onOpenTeams,
@@ -11,6 +12,7 @@ class HomePage extends StatelessWidget {
   });
 
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenArcade;
   final VoidCallback onOpenScoreboard;
   final VoidCallback onOpenMatchStats;
   final VoidCallback onOpenTeams;
@@ -82,6 +84,16 @@ class HomePage extends StatelessWidget {
               subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenMatchStats,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.sports_esports, color: scheme.secondary),
+              title: const Text('Volley-Arcade'),
+              subtitle: const Text('C-Prototyp neu in Dart aufbauen.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenArcade,
             ),
           ),
         ],
