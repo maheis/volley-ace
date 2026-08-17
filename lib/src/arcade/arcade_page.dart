@@ -179,8 +179,8 @@ class _ArcadePageState extends State<ArcadePage>
                                 color: const Color(0xFF0B241F),
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color:
-                                      const Color(0xFF88D6FF).withOpacity(0.35),
+                                  color: const Color(0xFF88D6FF)
+                                      .withValues(alpha: 0.35),
                                   width: 2,
                                 ),
                                 boxShadow: const [
@@ -256,7 +256,7 @@ class _ArcadePageState extends State<ArcadePage>
     if (model.scene == ArcadeScene.start) {
       return Positioned.fill(
         child: Container(
-          color: Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.55),
           child: Center(
             child: Card(
               margin: const EdgeInsets.all(24),
@@ -331,7 +331,7 @@ class _ArcadePageState extends State<ArcadePage>
     if (model.scene == ArcadeScene.paused) {
       return Positioned.fill(
         child: Container(
-          color: Colors.black.withOpacity(0.45),
+          color: Colors.black.withValues(alpha: 0.45),
           child: Center(
             child: Card(
               margin: const EdgeInsets.all(24),
@@ -361,7 +361,7 @@ class _ArcadePageState extends State<ArcadePage>
     if (model.scene == ArcadeScene.nameEntry) {
       return Positioned.fill(
         child: Container(
-          color: Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.55),
           child: Center(
             child: Card(
               margin: const EdgeInsets.all(24),
@@ -451,7 +451,7 @@ class _ArcadeCourtPainter extends CustomPainter {
     final paintSand = Paint()..color = const Color(0xFFD8B46A);
     final paintNet = Paint()..color = const Color(0xFFE0E0E0);
     final paintLine = Paint()
-      ..color = Colors.white.withOpacity(0.86)
+      ..color = Colors.white.withValues(alpha: 0.86)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
     final paintBall = Paint()..color = const Color(0xFFFFC56D);
