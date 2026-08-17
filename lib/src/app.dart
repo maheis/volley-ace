@@ -4,6 +4,7 @@ import 'package:sembast/sembast.dart';
 
 import 'home/home_page.dart';
 import 'analytics/match_stats_page.dart';
+import 'arcade/arcade_page.dart';
 import 'scoreboard/scoreboard_page.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_controller.dart';
@@ -52,6 +53,7 @@ class VolleyAceApp extends StatelessWidget {
           home: Builder(
             builder: (homeContext) => HomePage(
               onOpenSettings: () => _openSettings(homeContext, settings),
+              onOpenArcade: () => _openArcade(homeContext),
               onOpenScoreboard: () => _openScoreboard(homeContext),
               onOpenMatchStats: () => _openMatchStats(homeContext),
               onOpenTeams: () => _openTeams(homeContext),
@@ -76,6 +78,12 @@ class VolleyAceApp extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (_) => MatchStatsPage(database: database),
       ),
+    );
+  }
+
+  Future<void> _openArcade(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const ArcadePage()),
     );
   }
 

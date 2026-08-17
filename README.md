@@ -126,7 +126,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Netz Berührung
             - Sonstiges
     - [x] Wer
-          Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen. 
+          Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen.
     - [ ] Verlauf
     - [x] Statistik
       - [x] Spielstand
