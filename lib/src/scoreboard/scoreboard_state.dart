@@ -60,11 +60,15 @@ class ScoreboardState {
     required this.rightPoints,
     required this.leftSets,
     required this.rightSets,
+    required this.leftTimeouts,
+    required this.rightTimeouts,
     required this.leftColor,
     required this.rightColor,
     required this.stopwatchElapsed,
     required this.stopwatchRunning,
     required this.stopwatchStartedAt,
+    required this.timeoutSide,
+    required this.timeoutStartedAt,
     required this.completedSets,
   });
 
@@ -76,11 +80,15 @@ class ScoreboardState {
     rightPoints: 0,
     leftSets: 0,
     rightSets: 0,
+    leftTimeouts: 2,
+    rightTimeouts: 2,
     leftColor: defaultLeftColor,
     rightColor: defaultRightColor,
     stopwatchElapsed: Duration.zero,
     stopwatchRunning: false,
     stopwatchStartedAt: null,
+    timeoutSide: null,
+    timeoutStartedAt: null,
     completedSets: <SetResult>[],
   );
 
@@ -88,11 +96,15 @@ class ScoreboardState {
   final int rightPoints;
   final int leftSets;
   final int rightSets;
+  final int leftTimeouts;
+  final int rightTimeouts;
   final Color leftColor;
   final Color rightColor;
   final Duration stopwatchElapsed;
   final bool stopwatchRunning;
   final DateTime? stopwatchStartedAt;
+  final int? timeoutSide;
+  final DateTime? timeoutStartedAt;
   final List<SetResult> completedSets;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -100,11 +112,15 @@ class ScoreboardState {
         'rightPoints': rightPoints,
         'leftSets': leftSets,
         'rightSets': rightSets,
+        'leftTimeouts': leftTimeouts,
+        'rightTimeouts': rightTimeouts,
         'leftColor': leftColor.toARGB32(),
         'rightColor': rightColor.toARGB32(),
         'stopwatchElapsedMillis': stopwatchElapsed.inMilliseconds,
         'stopwatchRunning': stopwatchRunning,
         'stopwatchStartedAtMillis': stopwatchStartedAt?.millisecondsSinceEpoch,
+        'timeoutSide': timeoutSide,
+        'timeoutStartedAtMillis': timeoutStartedAt?.millisecondsSinceEpoch,
         'completedSets': completedSets.map((set) => set.toJson()).toList(),
       };
 
@@ -135,6 +151,8 @@ class ScoreboardState {
       rightPoints: readInt('rightPoints', 0),
       leftSets: readInt('leftSets', 0),
       rightSets: readInt('rightSets', 0),
+      leftTimeouts: readInt('leftTimeouts', 2),
+      rightTimeouts: readInt('rightTimeouts', 2),
       leftColor: readColor('leftColor', defaultLeftColor),
       rightColor: readColor('rightColor', defaultRightColor),
       stopwatchElapsed: Duration(
@@ -143,6 +161,14 @@ class ScoreboardState {
       stopwatchRunning: data['stopwatchRunning'] == true,
       stopwatchStartedAt: startedAtMillis is num
           ? DateTime.fromMillisecondsSinceEpoch(startedAtMillis.toInt())
+          : null,
+      timeoutSide: data['timeoutSide'] is num
+          ? (data['timeoutSide'] as num).toInt()
+          : null,
+      timeoutStartedAt: data['timeoutStartedAtMillis'] is num
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (data['timeoutStartedAtMillis'] as num).toInt(),
+            )
           : null,
       completedSets: completedSets,
     );

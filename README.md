@@ -39,8 +39,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
   - [x] Uhr / Stop-Uhr
   - [x] Letzte Punkte pro Satz anzeigen
-  - [ ] Auszeiten pro Team
-    - [ ] 30 Sekunden Timer
+  - [x] Auszeiten pro Team
+        30 Sekunden Timer
+        2 Stück pro Satz und Team
   - [ ] Rotation / Spielerwechsel (optional)
     - [ ] Team A
       - [ ] Team (optional)

@@ -23,24 +23,32 @@ class _ScoreSnapshot {
     required this.rightPoints,
     required this.leftSets,
     required this.rightSets,
+    required this.leftTimeouts,
+    required this.rightTimeouts,
     required this.leftColor,
     required this.rightColor,
     required this.completedSets,
     required this.stopwatchElapsed,
     required this.stopwatchRunning,
     required this.stopwatchStartedAt,
+    required this.timeoutSide,
+    required this.timeoutStartedAt,
   });
 
   final int leftPoints;
   final int rightPoints;
   final int leftSets;
   final int rightSets;
+  final int leftTimeouts;
+  final int rightTimeouts;
   final Color leftColor;
   final Color rightColor;
   final List<SetResult> completedSets;
   final Duration stopwatchElapsed;
   final bool stopwatchRunning;
   final DateTime? stopwatchStartedAt;
+  final int? timeoutSide;
+  final DateTime? timeoutStartedAt;
 }
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
@@ -51,6 +59,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   int _rightPoints = 0;
   int _leftSets = 0;
   int _rightSets = 0;
+  int _leftTimeouts = 2;
+  int _rightTimeouts = 2;
   Color _leftColor = _blue;
   Color _rightColor = _red;
   final List<_ScoreSnapshot> _history = <_ScoreSnapshot>[];
@@ -59,6 +69,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   bool _stopwatchRunning = false;
   Duration _stopwatchElapsed = Duration.zero;
   DateTime? _stopwatchStartedAt;
+  int? _timeoutSide;
+  DateTime? _timeoutStartedAt;
   List<SetResult> _completedSets = <SetResult>[];
   late final ScoreboardRepository _repository = ScoreboardRepository(
     widget.database,
@@ -83,6 +95,32 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     final mm = total.inMinutes.remainder(60).toString().padLeft(2, '0');
     final ss = total.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$mm:$ss';
+  }
+
+  bool get _timeoutRunning => _timeoutSide != null && _timeoutStartedAt != null;
+
+  Duration get _timeoutDuration {
+    if (_timeoutRunning && _timeoutStartedAt != null) {
+      final remaining =
+          const Duration(seconds: 30) - _now.difference(_timeoutStartedAt!);
+      return remaining.isNegative ? Duration.zero : remaining;
+    }
+    return Duration.zero;
+  }
+
+  String get _timeoutText {
+    final total = _timeoutDuration;
+    final mm = total.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final ss = total.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
+
+  void _syncTimeoutState() {
+    if (!_timeoutRunning || _timeoutStartedAt == null) return;
+    if (_now.difference(_timeoutStartedAt!) >= const Duration(seconds: 30)) {
+      _timeoutSide = null;
+      _timeoutStartedAt = null;
+    }
   }
 
   void _toggleStopwatch() {
@@ -133,7 +171,11 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     super.initState();
     WakelockPlus.enable();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
+      if (!mounted) return;
+      setState(() {
+        _now = DateTime.now();
+        _syncTimeoutState();
+      });
     });
     unawaited(_loadPersistedState());
   }
@@ -146,11 +188,15 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightPoints = state.rightPoints;
       _leftSets = state.leftSets;
       _rightSets = state.rightSets;
+      _leftTimeouts = state.leftTimeouts;
+      _rightTimeouts = state.rightTimeouts;
       _leftColor = state.leftColor;
       _rightColor = state.rightColor;
       _stopwatchElapsed = state.stopwatchElapsed;
       _stopwatchRunning = state.stopwatchRunning;
       _stopwatchStartedAt = state.stopwatchStartedAt;
+      _timeoutSide = state.timeoutSide;
+      _timeoutStartedAt = state.timeoutStartedAt;
       _completedSets = state.completedSets;
       _isLoaded = true;
     });
@@ -164,11 +210,15 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           rightPoints: _rightPoints,
           leftSets: _leftSets,
           rightSets: _rightSets,
+          leftTimeouts: _leftTimeouts,
+          rightTimeouts: _rightTimeouts,
           leftColor: _leftColor,
           rightColor: _rightColor,
           stopwatchElapsed: _stopwatchElapsed,
           stopwatchRunning: _stopwatchRunning,
           stopwatchStartedAt: _stopwatchStartedAt,
+          timeoutSide: _timeoutSide,
+          timeoutStartedAt: _timeoutStartedAt,
           completedSets: _completedSets,
         ),
       ),
@@ -187,12 +237,16 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         rightPoints: _rightPoints,
         leftSets: _leftSets,
         rightSets: _rightSets,
+        leftTimeouts: _leftTimeouts,
+        rightTimeouts: _rightTimeouts,
         leftColor: _leftColor,
         rightColor: _rightColor,
         completedSets: List<SetResult>.from(_completedSets),
         stopwatchElapsed: _stopwatchElapsed,
         stopwatchRunning: _stopwatchRunning,
         stopwatchStartedAt: _stopwatchStartedAt,
+        timeoutSide: _timeoutSide,
+        timeoutStartedAt: _timeoutStartedAt,
       );
 
   void _addPoint({required bool left}) {
@@ -262,6 +316,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       }
       _leftPoints = 0;
       _rightPoints = 0;
+      _resetTimeoutsForNewSet();
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
@@ -280,14 +335,99 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightPoints = previous.rightPoints;
       _leftSets = previous.leftSets;
       _rightSets = previous.rightSets;
+      _leftTimeouts = previous.leftTimeouts;
+      _rightTimeouts = previous.rightTimeouts;
       _leftColor = previous.leftColor;
       _rightColor = previous.rightColor;
       _completedSets = previous.completedSets;
       _stopwatchElapsed = previous.stopwatchElapsed;
       _stopwatchRunning = previous.stopwatchRunning;
       _stopwatchStartedAt = previous.stopwatchStartedAt;
+      _timeoutSide = previous.timeoutSide;
+      _timeoutStartedAt = previous.timeoutStartedAt;
     });
     _persist();
+  }
+
+  void _startTimeout({required bool left}) {
+    if (_timeoutRunning) return;
+
+    final remaining = left ? _leftTimeouts : _rightTimeouts;
+    if (remaining <= 0) return;
+
+    setState(() {
+      if (left) {
+        _leftTimeouts--;
+        _timeoutSide = 0;
+      } else {
+        _rightTimeouts--;
+        _timeoutSide = 1;
+      }
+      _timeoutStartedAt = _now;
+    });
+    _persist();
+  }
+
+  void _toggleTimeout({required bool left}) {
+    final side = left ? 0 : 1;
+
+    if (_timeoutRunning) {
+      if (_timeoutSide == side) {
+        setState(() {
+          _timeoutSide = null;
+          _timeoutStartedAt = null;
+        });
+        _persist();
+      }
+      return;
+    }
+
+    _startTimeout(left: left);
+  }
+
+  Future<void> _undoTimeout({required bool left}) async {
+    final side = left ? 0 : 1;
+    if (!_timeoutRunning || _timeoutSide != side) return;
+
+    final shouldUndo = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Auszeit zurücknehmen?'),
+        content: const Text(
+          'Die laufende Auszeit wird beendet und der Timeout-Strich wird zurückgegeben.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Rückgängig machen'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldUndo != true || !mounted) return;
+
+    setState(() {
+      if (left) {
+        _leftTimeouts = math.min(2, _leftTimeouts + 1);
+      } else {
+        _rightTimeouts = math.min(2, _rightTimeouts + 1);
+      }
+      _timeoutSide = null;
+      _timeoutStartedAt = null;
+    });
+    _persist();
+  }
+
+  void _resetTimeoutsForNewSet() {
+    _leftTimeouts = 2;
+    _rightTimeouts = 2;
+    _timeoutSide = null;
+    _timeoutStartedAt = null;
   }
 
   void _finishSetIfNeeded() {
@@ -308,6 +448,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftSets++;
       _leftPoints = 0;
       _rightPoints = 0;
+      _resetTimeoutsForNewSet();
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
@@ -325,6 +466,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightSets++;
       _leftPoints = 0;
       _rightPoints = 0;
+      _resetTimeoutsForNewSet();
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
@@ -375,12 +517,15 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightPoints = 0;
       _leftSets = 0;
       _rightSets = 0;
+      _resetTimeoutsForNewSet();
       _leftColor = _blue;
       _rightColor = _red;
       _history.clear();
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
+      _timeoutSide = null;
+      _timeoutStartedAt = null;
       _completedSets = <SetResult>[];
     });
     _persist();
@@ -489,67 +634,133 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                     ),
                   ),
                   SizedBox(width: gap),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        label: 'Uhrzeit $_clockText',
-                        child: Text(
-                          _clockText,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: (56 * scale).clamp(24, 84),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: gap),
-                      _SetWins(
-                        leftSets: _leftSets,
-                        rightSets: _rightSets,
-                        leftColor: _leftColor,
-                        rightColor: _rightColor,
-                        tileWidth: 110 * scale,
-                        tileHeight: 220 * scale,
-                        fontSize: 150 * scale,
-                        gap: gap,
-                        borderRadius: 12 * scale,
-                        onLeftSwipeDown: () => _addSet(left: true),
-                        onRightSwipeDown: () => _addSet(left: false),
-                        onSwipeUp: _undoSet,
-                        onHorizontalSwipe: _swapSides,
-                      ),
-                      SizedBox(height: gap),
-                      GestureDetector(
-                        onTap: _toggleStopwatch,
-                        onLongPress: _resetStopwatch,
-                        child: Semantics(
-                          label:
-                              'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _stopwatchRunning
-                                    ? Icons.pause_circle_filled
-                                    : Icons.play_circle_fill,
-                                color: Colors.white,
-                                size: (56 * scale).clamp(24, 74),
-                              ),
-                              SizedBox(width: gap * 0.6),
-                              Text(
-                                _stopwatchText,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: (56 * scale).clamp(24, 74),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Semantics(
+                                  label: 'Uhrzeit $_clockText',
+                                  child: Text(
+                                    _clockText,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: (56 * scale).clamp(24, 84),
+                                    ),
+                                  ),
                                 ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: gap),
+                          _SetWins(
+                            leftSets: _leftSets,
+                            rightSets: _rightSets,
+                            leftColor: _leftColor,
+                            rightColor: _rightColor,
+                            tileWidth: 110 * scale,
+                            tileHeight: 220 * scale,
+                            fontSize: 150 * scale,
+                            gap: gap,
+                            borderRadius: 12 * scale,
+                            onLeftSwipeDown: () => _addSet(left: true),
+                            onRightSwipeDown: () => _addSet(left: false),
+                            onSwipeUp: _undoSet,
+                            onHorizontalSwipe: _swapSides,
+                          ),
+                          SizedBox(height: gap),
+                          GestureDetector(
+                            onTap: _toggleStopwatch,
+                            onLongPress: _resetStopwatch,
+                            child: Semantics(
+                              label:
+                                  'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _stopwatchRunning
+                                        ? Icons.pause_circle_filled
+                                        : Icons.play_circle_fill,
+                                    color: Colors.white,
+                                    size: (56 * scale).clamp(24, 74),
+                                  ),
+                                  SizedBox(width: gap * 0.6),
+                                  Text(
+                                    _stopwatchText,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: (56 * scale).clamp(24, 74),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: gap),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: gap,
+                            runSpacing: gap,
+                            children: [
+                              _TimeoutButton(
+                                key: const ValueKey('blue-timeout-button'),
+                                teamKeyPrefix: 'blue',
+                                color: _leftColor,
+                                remaining: _leftTimeouts,
+                                active: _timeoutRunning && _timeoutSide == 0,
+                                countdown: _timeoutText,
+                                tileWidth: 110 * scale,
+                                tileHeight: 74 * scale,
+                                fontSize: 44 * scale,
+                                borderRadius: 12 * scale,
+                                onPressed: _timeoutRunning
+                                  ? (_timeoutSide == 0
+                                    ? () => _toggleTimeout(left: true)
+                                    : null)
+                                  : (_leftTimeouts > 0
+                                    ? () => _toggleTimeout(left: true)
+                                    : null),
+                                onLongPress: _timeoutRunning && _timeoutSide == 0
+                                  ? () => _undoTimeout(left: true)
+                                  : null,
+                              ),
+                              _TimeoutButton(
+                                key: const ValueKey('red-timeout-button'),
+                                teamKeyPrefix: 'red',
+                                color: _rightColor,
+                                remaining: _rightTimeouts,
+                                active: _timeoutRunning && _timeoutSide == 1,
+                                countdown: _timeoutText,
+                                tileWidth: 110 * scale,
+                                tileHeight: 74 * scale,
+                                fontSize: 44 * scale,
+                                borderRadius: 12 * scale,
+                                onPressed: _timeoutRunning
+                                  ? (_timeoutSide == 1
+                                    ? () => _toggleTimeout(left: false)
+                                    : null)
+                                  : (_rightTimeouts > 0
+                                    ? () => _toggleTimeout(left: false)
+                                    : null),
+                                onLongPress: _timeoutRunning && _timeoutSide == 1
+                                  ? () => _undoTimeout(left: false)
+                                  : null,
                               ),
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   SizedBox(width: gap),
                   Expanded(
@@ -904,6 +1115,115 @@ class _SetHistoryTable extends StatelessWidget {
                 ],
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimeoutButton extends StatelessWidget {
+  const _TimeoutButton({
+    super.key,
+    required this.teamKeyPrefix,
+    required this.color,
+    required this.remaining,
+    required this.active,
+    required this.countdown,
+    required this.tileWidth,
+    required this.tileHeight,
+    required this.fontSize,
+    required this.borderRadius,
+    required this.onPressed,
+    this.onLongPress,
+  });
+
+  final String teamKeyPrefix;
+  final Color color;
+  final int remaining;
+  final bool active;
+  final String countdown;
+  final double tileWidth;
+  final double tileHeight;
+  final double fontSize;
+  final double borderRadius;
+  final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
+
+  String get _usedText => '${2 - remaining}';
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = active ? Colors.white : Colors.white70;
+    final enabled = active || remaining > 0;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onPressed,
+      onLongPress: onLongPress,
+      child: Semantics(
+        label: active
+            ? 'Auszeit läuft, noch $countdown'
+            : 'Auszeiten genommen: $_usedText von 2',
+        child: Container(
+          width: tileWidth,
+          height: tileHeight,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color:
+                  active ? Colors.white.withOpacity(0.8) : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: Opacity(
+            opacity: enabled ? 1 : 0.45,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 8,
+                  top: 6,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      if (active) ...[
+                        SizedBox(width: 4),
+                        Text(
+                          countdown,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.92),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _usedText,
+                      key: ValueKey('$teamKeyPrefix-timeout-count'),
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: fontSize * 0.76,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
-import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_memory.dart';
 
 import 'package:volleyace/src/analytics/match_stats_page.dart';
@@ -237,6 +236,67 @@ void main() {
       find.descendant(of: blueSet, matching: find.text('0')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Scoreboard starts a 30 second timeout and counts it down', (
+    WidgetTester tester,
+  ) async {
+    final database =
+        await databaseFactoryMemory.openDatabase('test-timeout.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
+
+    final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
+    expect(blueTimeout, findsOneWidget);
+
+    await tester.tap(blueTimeout);
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('blue-timeout-count')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: blueTimeout,
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(blueTimeout);
+    await tester.pump();
+
+    expect(find.textContaining('00:30'), findsNothing);
+
+    await tester.tap(blueTimeout);
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: blueTimeout,
+        matching: find.text('2'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(blueTimeout);
+    await tester.pump();
+
+    expect(find.textContaining('00:30'), findsNothing);
+
+    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
+    await tester.fling(blueSet, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Satz beenden'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('blue-timeout-count')), findsOneWidget);
+    expect(
+        find.descendant(
+          of: blueTimeout,
+          matching: find.byKey(const ValueKey('blue-timeout-count')),
+        ),
+        findsOneWidget);
   });
 
   testWidgets(
