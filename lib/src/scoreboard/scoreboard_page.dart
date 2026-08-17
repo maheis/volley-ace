@@ -373,11 +373,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
     if (_timeoutRunning) {
       if (_timeoutSide == side) {
-        setState(() {
-          _timeoutSide = null;
-          _timeoutStartedAt = null;
-        });
-        _persist();
+        unawaited(_showActiveTimeoutDialog(left: left));
       }
       return;
     }
@@ -385,37 +381,39 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     _startTimeout(left: left);
   }
 
-  Future<void> _undoTimeout({required bool left}) async {
+  Future<void> _showActiveTimeoutDialog({required bool left}) async {
     final side = left ? 0 : 1;
     if (!_timeoutRunning || _timeoutSide != side) return;
 
-    final shouldUndo = await showDialog<bool>(
+    final takeBackTimeout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Auszeit zurücknehmen?'),
+        title: const Text('Auszeit beenden?'),
         content: const Text(
-          'Die laufende Auszeit wird beendet und der Timeout-Strich wird zurückgegeben.',
+          'Du kannst die laufende Auszeit nur beenden oder sie vollständig zurücknehmen.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Abbrechen'),
+            child: const Text('Beenden'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Rückgängig machen'),
+            child: const Text('Zurücknehmen'),
           ),
         ],
       ),
     );
 
-    if (shouldUndo != true || !mounted) return;
+    if (!mounted || takeBackTimeout == null) return;
 
     setState(() {
-      if (left) {
-        _leftTimeouts = math.min(2, _leftTimeouts + 1);
-      } else {
-        _rightTimeouts = math.min(2, _rightTimeouts + 1);
+      if (takeBackTimeout) {
+        if (left) {
+          _leftTimeouts = math.min(2, _leftTimeouts + 1);
+        } else {
+          _rightTimeouts = math.min(2, _rightTimeouts + 1);
+        }
       }
       _timeoutSide = null;
       _timeoutStartedAt = null;
@@ -723,15 +721,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                                 tileHeight: 74 * scale,
                                 fontSize: 44 * scale,
                                 borderRadius: 12 * scale,
-                                onPressed: _timeoutRunning
-                                  ? (_timeoutSide == 0
-                                    ? () => _toggleTimeout(left: true)
-                                    : null)
+                                onPressed: _timeoutRunning && _timeoutSide == 0
+                                  ? () => _showActiveTimeoutDialog(left: true)
                                   : (_leftTimeouts > 0
                                     ? () => _toggleTimeout(left: true)
                                     : null),
                                 onLongPress: _timeoutRunning && _timeoutSide == 0
-                                  ? () => _undoTimeout(left: true)
+                                  ? () => _showActiveTimeoutDialog(left: true)
                                   : null,
                               ),
                               _TimeoutButton(
@@ -745,15 +741,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                                 tileHeight: 74 * scale,
                                 fontSize: 44 * scale,
                                 borderRadius: 12 * scale,
-                                onPressed: _timeoutRunning
-                                  ? (_timeoutSide == 1
-                                    ? () => _toggleTimeout(left: false)
-                                    : null)
+                                onPressed: _timeoutRunning && _timeoutSide == 1
+                                  ? () => _showActiveTimeoutDialog(left: false)
                                   : (_rightTimeouts > 0
                                     ? () => _toggleTimeout(left: false)
                                     : null),
                                 onLongPress: _timeoutRunning && _timeoutSide == 1
-                                  ? () => _undoTimeout(left: false)
+                                  ? () => _showActiveTimeoutDialog(left: false)
                                   : null,
                               ),
                             ],

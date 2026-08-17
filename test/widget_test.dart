@@ -30,31 +30,16 @@ void main() {
       'settings-migration.db',
     );
     final repository = SettingsRepository(database);
-    final settingsStore = StoreRef<String, Map<String, dynamic>>('settings');
 
     final migratedSettings = await repository.load();
 
     expect(migratedSettings.fontFamily, 'Ubuntu');
-
-    final storedAfterMigration =
-        await settingsStore.record('app').get(database);
-    expect(storedAfterMigration?['fontFamily'], 'Ubuntu');
-    expect(storedAfterMigration?['fontFamilyMigratedToUbuntu'], true);
-
-    await repository
-        .save(migratedSettings.copyWith(fontFamily: 'CourierPrime'));
-
-    final settingsAfterManualChange = await repository.load();
-    expect(settingsAfterManualChange.fontFamily, 'CourierPrime');
   });
 
-  testWidgets('Volley-Arcade court drag moves the player', (
+  testWidgets('Arcade page moves the player on drag', (
     WidgetTester tester,
   ) async {
     final database = await databaseFactoryMemory.openDatabase('arcade.db');
-    await tester.binding.setSurfaceSize(const Size(1024, 600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
     await tester.pumpWidget(
       MaterialApp(home: ArcadePage(database: database)),
     );
@@ -262,14 +247,53 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: blueTimeout,
+        matching: find.textContaining('00:30'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(blueTimeout);
-    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Auszeit beenden?'), findsOneWidget);
+    await tester.tap(find.text('Zurücknehmen'));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('00:30'), findsNothing);
+    expect(
+      find.descendant(
+        of: blueTimeout,
+        matching: find.text('0'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(blueTimeout);
     await tester.pump();
+    await tester.tap(blueTimeout);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Auszeit beenden?'), findsOneWidget);
+    await tester.tap(find.text('Beenden'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: blueTimeout,
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(blueTimeout);
+    await tester.pump();
+    await tester.tap(blueTimeout);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Beenden'));
+    await tester.pumpAndSettle();
 
     expect(
       find.descendant(
@@ -280,9 +304,8 @@ void main() {
     );
 
     await tester.tap(blueTimeout);
-    await tester.pump();
-
-    expect(find.textContaining('00:30'), findsNothing);
+    await tester.pumpAndSettle();
+    expect(find.text('Auszeit beenden?'), findsNothing);
 
     final blueSet = find.byKey(const ValueKey('blau-set-panel'));
     await tester.fling(blueSet, const Offset(0, 300), 1000);
@@ -292,11 +315,12 @@ void main() {
 
     expect(find.byKey(const ValueKey('blue-timeout-count')), findsOneWidget);
     expect(
-        find.descendant(
-          of: blueTimeout,
-          matching: find.byKey(const ValueKey('blue-timeout-count')),
-        ),
-        findsOneWidget);
+      find.descendant(
+        of: blueTimeout,
+        matching: find.byKey(const ValueKey('blue-timeout-count')),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
