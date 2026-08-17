@@ -70,6 +70,7 @@ class _ArcadePageState extends State<ArcadePage>
         animation: model,
         builder: (context, _) {
           return Scaffold(
+            backgroundColor: const Color(0xFF10362E),
             appBar: AppBar(
               title: const Text('Volley-Arcade'),
               actions: [
@@ -93,128 +94,153 @@ class _ArcadePageState extends State<ArcadePage>
                 model.setViewport(
                     Size(constraints.maxWidth, constraints.maxHeight));
 
-                return Stack(
-                  children: [
-                    Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              _StatCard(
-                                  label: 'Spieler',
-                                  value: '${model.playerPoints}'),
-                              _StatCard(
-                                  label: 'CPU', value: '${model.cpuPoints}'),
-                              _StatCard(
-                                  label: 'Sätze',
-                                  value:
-                                      '${model.playerSets} : ${model.cpuSets}'),
-                              _StatCard(
-                                  label: 'Highscore',
-                                  value: '${model.highscoreSets}'),
-                            ],
-                          ),
+                return DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF123A31), Color(0xFF0B221D)],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            _StatCard(
+                                label: 'Spieler',
+                                value: '${model.playerPoints}'),
+                            _StatCard(
+                                label: 'CPU', value: '${model.cpuPoints}'),
+                            _StatCard(
+                                label: 'Sätze',
+                                value:
+                                    '${model.playerSets} : ${model.cpuSets}'),
+                            _StatCard(
+                                label: 'Highscore',
+                                value: '${model.highscoreSets}'),
+                          ],
                         ),
-                        Padding(
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Leicht'),
+                              selected: model.startDifficulty ==
+                                  ArcadeDifficulty.easy,
+                              onSelected: (_) =>
+                                  model.setDifficulty(ArcadeDifficulty.easy),
+                            ),
+                            const SizedBox(width: 8),
+                            ChoiceChip(
+                              label: const Text('Normal'),
+                              selected: model.startDifficulty ==
+                                  ArcadeDifficulty.normal,
+                              onSelected: (_) =>
+                                  model.setDifficulty(ArcadeDifficulty.normal),
+                            ),
+                            const SizedBox(width: 8),
+                            ChoiceChip(
+                              label: const Text('Schwer'),
+                              selected: model.startDifficulty ==
+                                  ArcadeDifficulty.hard,
+                              onSelected: (_) =>
+                                  model.setDifficulty(ArcadeDifficulty.hard),
+                            ),
+                            const Spacer(),
+                            Text(model.status,
+                                style: theme.textTheme.labelLarge),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              ChoiceChip(
-                                label: const Text('Leicht'),
-                                selected: model.startDifficulty ==
-                                    ArcadeDifficulty.easy,
-                                onSelected: (_) =>
-                                    model.setDifficulty(ArcadeDifficulty.easy),
+                          child: GestureDetector(
+                            key: const ValueKey('arcade-court-gesture'),
+                            behavior: HitTestBehavior.opaque,
+                            onTapUp: (_) => model.onHitButton(),
+                            onPanStart: (details) => _movePlayerFromTouch(
+                              details.localPosition.dx,
+                              constraints.maxWidth - 32,
+                            ),
+                            onPanUpdate: (details) => _movePlayerFromTouch(
+                              details.localPosition.dx,
+                              constraints.maxWidth - 32,
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0B241F),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color:
+                                      const Color(0xFF88D6FF).withOpacity(0.35),
+                                  width: 2,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x66000000),
+                                    blurRadius: 24,
+                                    offset: Offset(0, 10),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              ChoiceChip(
-                                label: const Text('Normal'),
-                                selected: model.startDifficulty ==
-                                    ArcadeDifficulty.normal,
-                                onSelected: (_) => model
-                                    .setDifficulty(ArcadeDifficulty.normal),
-                              ),
-                              const SizedBox(width: 8),
-                              ChoiceChip(
-                                label: const Text('Schwer'),
-                                selected: model.startDifficulty ==
-                                    ArcadeDifficulty.hard,
-                                onSelected: (_) =>
-                                    model.setDifficulty(ArcadeDifficulty.hard),
-                              ),
-                              const Spacer(),
-                              Text(model.status,
-                                  style: theme.textTheme.labelLarge),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: GestureDetector(
-                              key: const ValueKey('arcade-court-gesture'),
-                              behavior: HitTestBehavior.opaque,
-                              onTapUp: (_) => model.onHitButton(),
-                              onPanStart: (details) => _movePlayerFromTouch(
-                                details.localPosition.dx,
-                                constraints.maxWidth - 32,
-                              ),
-                              onPanUpdate: (details) => _movePlayerFromTouch(
-                                details.localPosition.dx,
-                                constraints.maxWidth - 32,
-                              ),
-                              child: Card(
-                                clipBehavior: Clip.antiAlias,
-                                child: Stack(
-                                  children: [
-                                    Positioned.fill(
-                                      child: CustomPaint(
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Stack(
+                                    children: [
+                                      CustomPaint(
                                         painter:
                                             _ArcadeCourtPainter(model: model),
+                                        size: Size.infinite,
                                       ),
-                                    ),
-                                    _buildOverlay(context),
-                                  ],
+                                      _buildOverlay(context),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: model.scene == ArcadeScene.playing
-                                      ? model.pauseOrResume
-                                      : model.startGame,
-                                  icon: Icon(model.scene == ArcadeScene.playing
-                                      ? Icons.pause
-                                      : Icons.play_arrow),
-                                  label: Text(model.scene == ArcadeScene.playing
-                                      ? 'Pause'
-                                      : 'Start'),
-                                ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: model.scene == ArcadeScene.playing
+                                    ? model.pauseOrResume
+                                    : model.startGame,
+                                icon: Icon(model.scene == ArcadeScene.playing
+                                    ? Icons.pause
+                                    : Icons.play_arrow),
+                                label: Text(model.scene == ArcadeScene.playing
+                                    ? 'Pause'
+                                    : 'Start'),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: FilledButton.icon(
-                                  onPressed: model.onHitButton,
-                                  icon: const Icon(Icons.sports_volleyball),
-                                  label: const Text('Schlag'),
-                                ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: model.onHitButton,
+                                icon: const Icon(Icons.sports_volleyball),
+                                label: const Text('Schlag'),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -260,8 +286,9 @@ class _ArcadePageState extends State<ArcadePage>
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: model.toggleTwoPlayer,
-                          icon: Icon(
-                              model.startTwoPlayer ? Icons.people : Icons.person),
+                          icon: Icon(model.startTwoPlayer
+                              ? Icons.people
+                              : Icons.person),
                           label: Text(model.startTwoPlayer
                               ? '2-Spieler-Modus'
                               : 'Singleplayer'),
@@ -272,7 +299,8 @@ class _ArcadePageState extends State<ArcadePage>
                           icon: Icon(model.audioMuted
                               ? Icons.volume_off
                               : Icons.volume_up),
-                          label: Text(model.audioMuted ? 'Sound aus' : 'Sound an'),
+                          label:
+                              Text(model.audioMuted ? 'Sound aus' : 'Sound an'),
                         ),
                         const SizedBox(height: 16),
                         if (!model.startTwoPlayer) ...[
@@ -420,7 +448,6 @@ class _ArcadeCourtPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paintCourt = Paint()..color = const Color(0xFF154734);
     final paintSand = Paint()..color = const Color(0xFFD8B46A);
     final paintNet = Paint()..color = const Color(0xFFE0E0E0);
     final paintLine = Paint()
@@ -431,8 +458,6 @@ class _ArcadeCourtPainter extends CustomPainter {
     final paintPlayer = Paint()..color = const Color(0xFF88D6FF);
     final paintCpu = Paint()..color = const Color(0xFFFF7A7A);
     final handColor = Paint()..color = const Color(0xFFFFBC6E);
-
-    canvas.drawRect(Offset.zero & size, paintCourt);
 
     final court = Rect.fromLTWH(20, 20, size.width - 40, size.height - 40);
     canvas.drawRRect(
