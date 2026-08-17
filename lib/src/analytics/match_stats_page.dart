@@ -968,7 +968,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             const SizedBox(height: 12),
             DropdownButtonFormField<int?>(
               key: const ValueKey('match-team-select'),
-              value: match.teamId,
+              initialValue: match.teamId,
               decoration: const InputDecoration(
                 labelText: 'Eigenes Team',
                 border: OutlineInputBorder(),
@@ -1024,7 +1024,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: match.matchType,
+              initialValue: match.matchType,
               decoration: const InputDecoration(
                 labelText: 'Spieltyp',
                 border: OutlineInputBorder(),
