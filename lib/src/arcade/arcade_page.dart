@@ -155,20 +155,31 @@ class _ArcadePageState extends State<ArcadePage>
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Card(
-                              clipBehavior: Clip.antiAlias,
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter:
-                                          _ArcadeCourtPainter(model: model),
+                            child: GestureDetector(
+                              key: const ValueKey('arcade-court-gesture'),
+                              behavior: HitTestBehavior.opaque,
+                              onTapUp: (_) => model.onHitButton(),
+                              onPanStart: (details) => _movePlayerFromTouch(
+                                details.localPosition.dx,
+                                constraints.maxWidth - 32,
+                              ),
+                              onPanUpdate: (details) => _movePlayerFromTouch(
+                                details.localPosition.dx,
+                                constraints.maxWidth - 32,
+                              ),
+                              child: Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter:
+                                            _ArcadeCourtPainter(model: model),
+                                      ),
                                     ),
-                                  ),
-                                  Positioned.fill(
-                                    child: _buildOverlay(context),
-                                  ),
-                                ],
+                                    _buildOverlay(context),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -227,58 +238,59 @@ class _ArcadePageState extends State<ArcadePage>
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Volley-Arcade',
-                          style: theme.textTheme.headlineMedium,
-                          textAlign: TextAlign.center),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Der SDL2-Kern ist als Dart-Modell portiert: Menü, Start/Spiel/Pause, Aufschlag, CPU, Highscore und Name-Entry.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: model.startGame,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Spiel starten'),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: model.toggleTwoPlayer,
-                        icon: Icon(
-                            model.startTwoPlayer ? Icons.people : Icons.person),
-                        label: Text(model.startTwoPlayer
-                            ? '2-Spieler-Modus'
-                            : 'Singleplayer'),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: model.toggleAudio,
-                        icon: Icon(model.audioMuted
-                            ? Icons.volume_off
-                            : Icons.volume_up),
-                        label:
-                            Text(model.audioMuted ? 'Sound aus' : 'Sound an'),
-                      ),
-                      const SizedBox(height: 16),
-                      if (!model.startTwoPlayer) ...[
-                        Text('Highscores',
-                            style: theme.textTheme.titleMedium,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Volley-Arcade',
+                            style: theme.textTheme.headlineMedium,
                             textAlign: TextAlign.center),
                         const SizedBox(height: 8),
-                        for (var i = 0; i < model.highscores.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              '${i + 1}. ${model.highscores[i].name}  S${model.highscores[i].setsFor}:${model.highscores[i].setsAgainst}  P${model.highscores[i].pointsFor}:${model.highscores[i].pointsAgainst}',
-                              style: theme.textTheme.bodySmall,
+                        const Text(
+                          'Der SDL2-Kern ist als Dart-Modell portiert: Menü, Start/Spiel/Pause, Aufschlag, CPU, Highscore und Name-Entry.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: model.startGame,
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('Spiel starten'),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: model.toggleTwoPlayer,
+                          icon: Icon(
+                              model.startTwoPlayer ? Icons.people : Icons.person),
+                          label: Text(model.startTwoPlayer
+                              ? '2-Spieler-Modus'
+                              : 'Singleplayer'),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: model.toggleAudio,
+                          icon: Icon(model.audioMuted
+                              ? Icons.volume_off
+                              : Icons.volume_up),
+                          label: Text(model.audioMuted ? 'Sound aus' : 'Sound an'),
+                        ),
+                        const SizedBox(height: 16),
+                        if (!model.startTwoPlayer) ...[
+                          Text('Highscores',
+                              style: theme.textTheme.titleMedium,
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 8),
+                          for (var i = 0; i < model.highscores.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                '${i + 1}. ${model.highscores[i].name}  S${model.highscores[i].setsFor}:${model.highscores[i].setsAgainst}  P${model.highscores[i].pointsFor}:${model.highscores[i].pointsAgainst}',
+                                style: theme.textTheme.bodySmall,
+                              ),
                             ),
-                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -367,6 +379,12 @@ class _ArcadePageState extends State<ArcadePage>
     }
 
     return const SizedBox.shrink();
+  }
+
+  void _movePlayerFromTouch(double localX, double cardWidth) {
+    if (cardWidth <= 0) return;
+    final worldX = (localX / cardWidth) * windowWidth;
+    model.movePlayerTo(worldX);
   }
 }
 

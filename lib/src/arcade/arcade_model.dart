@@ -585,6 +585,18 @@ class ArcadeModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void movePlayerTo(double worldX) {
+    if (scene != ArcadeScene.playing) return;
+
+    final clamped = _clamp(
+      worldX - playerW / 2,
+      courtMinX,
+      netX - playerW - 6.0,
+    );
+    player = player.copyWith(x: clamped);
+    notifyListeners();
+  }
+
   void onHitButton() {
     if (scene != ArcadeScene.playing || viewport == Size.zero) return;
     final playerFloor = floorY - playerH;
