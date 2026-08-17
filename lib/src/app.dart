@@ -83,7 +83,9 @@ class VolleyAceApp extends StatelessWidget {
 
   Future<void> _openArcade(BuildContext context) async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const ArcadePage()),
+      MaterialPageRoute<void>(
+        builder: (_) => ArcadePage(database: database),
+      ),
     );
   }
 
