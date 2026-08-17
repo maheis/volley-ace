@@ -41,18 +41,18 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Letzte Punkte pro Satz anzeigen
   - [ ] Auszeiten pro Team
     - [ ] 30 Sekunden Timer
-  - [ ] Rotation / Spielerwechsel
+  - [ ] Rotation / Spielerwechsel (optional)
     - [ ] Team A
       - [ ] Team (optional)
       - [ ] Spieler/Nummern
-      - [ ] Startaufstellung
-      - [ ] Ersatzspieler
+        - [ ] Startaufstellung (Positionsnummer)
+        - [ ] Ersatzspieler
       - [ ] Spielerwechsel
     - [ ] Team B
       - [ ] Team (optional)
       - [ ] Spieler/Nummern (Optional)
-      - [ ] Startaufstellung (Nr.)
-      - [ ] Ersatzspieler
+        - [ ] Startaufstellung (Positionsnummer)
+        - [ ] Ersatzspieler
       - [ ] Spielerwechsel
     - [ ] Aufschlagteam
 - [x] Taktiktafel
@@ -133,17 +133,19 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [x] Satzstand
       - [x] Punkte pro Art
       - [x] Fehler pro Art
+      - [ ] Diagram über Punkte/Fehler im Zeitverlauf
       - [x] Spieler
         - [x] Punkte / Fehler pro Spieler
         - [x] Punkte pro Art
         - [x] Fehler pro Art
+        - [ ] Diagram über Punkte/Fehler im Zeitverlauf
+        - [ ] Aufklappbare Details pro Spieler
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
-      - [ ] Diagram über Punkte/Fehler im Zeitverlauf
 - [ ] Training
   - [ ] Team
   - [ ] Trainingsteilnahme
     - [ ] Teilnahme
-    - [ ] Ausrede
+    - [ ] Entschuldigt
     - [ ] Unentschuldigt
   - [ ] Trainingsplan
   - [ ] Trainingsstatistik
