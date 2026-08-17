@@ -49,16 +49,6 @@ class HomePage extends StatelessWidget {
         children: [
           Card(
             child: ListTile(
-              leading: Icon(Icons.sports_esports, color: scheme.secondary),
-              title: const Text('Volley-Arcade'),
-              subtitle: const Text('C-Prototyp neu in Dart aufbauen.'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onOpenArcade,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
               leading: Icon(Icons.scoreboard, color: scheme.primary),
               title: const Text('Punktetafel'),
               subtitle: const Text('Volleyball-Spielstand erfassen.'),
@@ -94,6 +84,16 @@ class HomePage extends StatelessWidget {
               subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenMatchStats,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.sports_esports, color: scheme.secondary),
+              title: const Text('Volley-Arcade'),
+              subtitle: const Text('C-Prototyp neu in Dart aufbauen.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenArcade,
             ),
           ),
         ],
