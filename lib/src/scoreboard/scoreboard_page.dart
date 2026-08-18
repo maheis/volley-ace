@@ -553,7 +553,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
             ? const Center(child: CircularProgressIndicator())
             : LayoutBuilder(
                 builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 650;
+                  final isLandscapeViewport =
+                      constraints.maxWidth >= constraints.maxHeight;
                   const padding = 8.0;
                   final availableWidth = math
                       .max(
@@ -561,11 +562,11 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                         math.min(1100, constraints.maxWidth - padding * 2),
                       )
                       .toDouble();
-                  final boardRatio = isWide ? 2.2 : 0.92;
+                  final boardRatio = isLandscapeViewport ? 2.2 : 0.72;
                   var boardWidth = availableWidth;
                   var boardHeight = boardWidth / boardRatio;
 
-                  if (isWide && constraints.hasBoundedHeight) {
+                  if (isLandscapeViewport && constraints.hasBoundedHeight) {
                     final availableHeight = math
                         .max(
                           0.0,
@@ -580,7 +581,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
                   return Center(
                     child: SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics: isLandscapeViewport
+                          ? const NeverScrollableScrollPhysics()
+                          : const ClampingScrollPhysics(),
                       padding: const EdgeInsets.all(padding),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -700,6 +703,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                   ),
                 ),
                 SizedBox(height: gap * 0.8),
+                SizedBox(height: isLandscape ? 0 : gap * 1.1),
                 Wrap(
                   alignment: WrapAlignment.center,
                   spacing: gap * 0.8,
