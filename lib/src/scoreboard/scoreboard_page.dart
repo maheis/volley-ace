@@ -554,7 +554,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 650;
-                  const padding = 12.0;
+                  const padding = 8.0;
                   final availableWidth = math
                       .max(
                         0.0,
@@ -635,154 +635,146 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                       onSwipeUp: () => _undoPoint(left: true),
                     ),
                   ),
-                  SizedBox(width: gap),
+                  SizedBox(width: gap * 0.2),
                   Expanded(
                     flex: isLandscape ? 10 : 1,
-                    child: SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints:
-                            BoxConstraints(minHeight: constraints.maxHeight),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Semantics(
-                                    label: 'Uhrzeit $_clockText',
-                                    child: Text(
-                                      _clockText,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: (56 * scale).clamp(24, 84),
-                                      ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: gap * 0.35),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Semantics(
+                                  label: 'Uhrzeit $_clockText',
+                                  child: Text(
+                                    _clockText,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: (56 * scale).clamp(24, 84),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: gap),
-                            SizedBox(
-                              width: double.infinity,
-                              child: Align(
-                                alignment: Alignment.center,
-                                child: _SetWins(
-                                  leftSets: _leftSets,
-                                  rightSets: _rightSets,
-                                  leftColor: _leftColor,
-                                  rightColor: _rightColor,
-                                  tileWidth: 128 * scale,
-                                  tileHeight: 128 * scale,
-                                  fontSize: 150 * scale,
-                                  gap: gap,
-                                  borderRadius: 12 * scale,
-                                  onLeftSwipeDown: () => _addSet(left: true),
-                                  onRightSwipeDown: () => _addSet(left: false),
-                                  onSwipeUp: _undoSet,
-                                  onHorizontalSwipe: _swapSides,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: gap),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: GestureDetector(
-                                onTap: _toggleStopwatch,
-                                onLongPress: _resetStopwatch,
-                                child: Semantics(
-                                  label:
-                                      'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        _stopwatchRunning
-                                            ? Icons.pause_circle_filled
-                                            : Icons.play_circle_fill,
-                                        color: Colors.white,
-                                        size: (56 * scale).clamp(24, 74),
-                                      ),
-                                      SizedBox(width: gap * 0.6),
-                                      Text(
-                                        _stopwatchText,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: (56 * scale).clamp(24, 74),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: gap),
-                            Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: gap,
-                              runSpacing: gap,
-                              children: [
-                                _TimeoutButton(
-                                  key: const ValueKey('blue-timeout-button'),
-                                  teamKeyPrefix: 'blue',
-                                  color: _leftColor,
-                                  remaining: _leftTimeouts,
-                                  active: _timeoutRunning && _timeoutSide == 0,
-                                  countdown: _timeoutText,
-                                  tileWidth: 110 * scale,
-                                  tileHeight: timeoutTileHeight,
-                                  fontSize: 44 * scale,
-                                  borderRadius: 12 * scale,
-                                  onPressed: _timeoutRunning &&
-                                          _timeoutSide == 0
-                                      ? () =>
-                                          _showActiveTimeoutDialog(left: true)
-                                      : (_leftTimeouts > 0
-                                          ? () => _toggleTimeout(left: true)
-                                          : null),
-                                  onLongPress: _timeoutRunning &&
-                                          _timeoutSide == 0
-                                      ? () =>
-                                          _showActiveTimeoutDialog(left: true)
-                                      : null,
-                                ),
-                                _TimeoutButton(
-                                  key: const ValueKey('red-timeout-button'),
-                                  teamKeyPrefix: 'red',
-                                  color: _rightColor,
-                                  remaining: _rightTimeouts,
-                                  active: _timeoutRunning && _timeoutSide == 1,
-                                  countdown: _timeoutText,
-                                  tileWidth: 110 * scale,
-                                  tileHeight: timeoutTileHeight,
-                                  fontSize: 44 * scale,
-                                  borderRadius: 12 * scale,
-                                  onPressed: _timeoutRunning &&
-                                          _timeoutSide == 1
-                                      ? () =>
-                                          _showActiveTimeoutDialog(left: false)
-                                      : (_rightTimeouts > 0
-                                          ? () => _toggleTimeout(left: false)
-                                          : null),
-                                  onLongPress: _timeoutRunning &&
-                                          _timeoutSide == 1
-                                      ? () =>
-                                          _showActiveTimeoutDialog(left: false)
-                                      : null,
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: gap * 0.8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: _SetWins(
+                                leftSets: _leftSets,
+                                rightSets: _rightSets,
+                                leftColor: _leftColor,
+                                rightColor: _rightColor,
+                                tileWidth: 120 * scale,
+                                tileHeight: 120 * scale,
+                                fontSize: 150 * scale,
+                                gap: gap * 0.8,
+                                borderRadius: 12 * scale,
+                                onLeftSwipeDown: () => _addSet(left: true),
+                                onRightSwipeDown: () => _addSet(left: false),
+                                onSwipeUp: _undoSet,
+                                onHorizontalSwipe: _swapSides,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: gap * 0.8),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: GestureDetector(
+                              onTap: _toggleStopwatch,
+                              onLongPress: _resetStopwatch,
+                              child: Semantics(
+                                label:
+                                    'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _stopwatchRunning
+                                          ? Icons.pause_circle_filled
+                                          : Icons.play_circle_fill,
+                                      color: Colors.white,
+                                      size: (56 * scale).clamp(24, 74),
+                                    ),
+                                    SizedBox(width: gap * 0.5),
+                                    Text(
+                                      _stopwatchText,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: (56 * scale).clamp(24, 74),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: gap * 0.8),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: gap * 0.8,
+                            runSpacing: gap * 0.8,
+                            children: [
+                              _TimeoutButton(
+                                key: const ValueKey('blue-timeout-button'),
+                                teamKeyPrefix: 'blue',
+                                color: _leftColor,
+                                remaining: _leftTimeouts,
+                                active: _timeoutRunning && _timeoutSide == 0,
+                                countdown: _timeoutText,
+                                tileWidth: 110 * scale,
+                                tileHeight: timeoutTileHeight,
+                                fontSize: 44 * scale,
+                                borderRadius: 12 * scale,
+                                onPressed: _timeoutRunning && _timeoutSide == 0
+                                    ? () => _showActiveTimeoutDialog(left: true)
+                                    : (_leftTimeouts > 0
+                                        ? () => _toggleTimeout(left: true)
+                                        : null),
+                                onLongPress: _timeoutRunning &&
+                                        _timeoutSide == 0
+                                    ? () => _showActiveTimeoutDialog(left: true)
+                                    : null,
+                              ),
+                              _TimeoutButton(
+                                key: const ValueKey('red-timeout-button'),
+                                teamKeyPrefix: 'red',
+                                color: _rightColor,
+                                remaining: _rightTimeouts,
+                                active: _timeoutRunning && _timeoutSide == 1,
+                                countdown: _timeoutText,
+                                tileWidth: 110 * scale,
+                                tileHeight: timeoutTileHeight,
+                                fontSize: 44 * scale,
+                                borderRadius: 12 * scale,
+                                onPressed: _timeoutRunning && _timeoutSide == 1
+                                    ? () =>
+                                        _showActiveTimeoutDialog(left: false)
+                                    : (_rightTimeouts > 0
+                                        ? () => _toggleTimeout(left: false)
+                                        : null),
+                                onLongPress: _timeoutRunning &&
+                                        _timeoutSide == 1
+                                    ? () =>
+                                        _showActiveTimeoutDialog(left: false)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  SizedBox(width: gap),
+                  SizedBox(width: gap * 0.2),
                   Expanded(
                     flex: isLandscape ? 11 : 1,
                     child: _ScorePanel(
@@ -1225,7 +1217,7 @@ class _TimeoutButton extends StatelessWidget {
                         color: Colors.white.withOpacity(0.9),
                       ),
                       if (active) ...[
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           countdown,
                           style: TextStyle(
