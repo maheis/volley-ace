@@ -556,6 +556,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _leftColor = _blue;
       _rightColor = _red;
       _history.clear();
+      _historyEntries = <ScoreboardHistoryEntry>[];
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
@@ -571,6 +572,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       MaterialPageRoute<void>(
         builder: (context) => _SetHistoryPage(
           entries: List<ScoreboardHistoryEntry>.unmodifiable(_historyEntries),
+          sets: List<SetResult>.unmodifiable(_completedSets),
         ),
       ),
     );
@@ -1211,10 +1213,142 @@ class _ScoreHistoryTable extends StatelessWidget {
   }
 }
 
+class _SetPointsTable extends StatelessWidget {
+  const _SetPointsTable({required this.sets});
+
+  final List<SetResult> sets;
+
+  String _formatTimestamp(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day.$month. $hour:$minute';
+  }
+
+  String _winnerLabel(SetResult set) {
+    if (set.winnerColor == ScoreboardState.defaultLeftColor) {
+      return 'blau';
+    }
+    if (set.winnerColor == ScoreboardState.defaultRightColor) {
+      return 'rot';
+    }
+    return 'Team';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const headerStyle = TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.bold,
+    );
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SingleChildScrollView(
+        child: Table(
+          columnWidths: const {
+            0: IntrinsicColumnWidth(),
+            1: IntrinsicColumnWidth(),
+            2: IntrinsicColumnWidth(),
+            3: IntrinsicColumnWidth(),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            const TableRow(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Satz', style: headerStyle),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Gewinner', style: headerStyle),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Ergebnis', style: headerStyle),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Uhrzeit', style: headerStyle),
+                ),
+              ],
+            ),
+            for (var i = 0; i < sets.length; i++)
+              TableRow(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      _winnerLabel(sets[i]),
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      '${sets[i].leftPoints}:${sets[i].rightPoints}',
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      _formatTimestamp(sets[i].wonAt),
+                      style: TextStyle(
+                        color: sets[i].winnerColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SetHistoryPage extends StatelessWidget {
-  const _SetHistoryPage({required this.entries});
+  const _SetHistoryPage({required this.entries, required this.sets});
 
   final List<ScoreboardHistoryEntry> entries;
+  final List<SetResult> sets;
 
   @override
   Widget build(BuildContext context) {
@@ -1223,14 +1357,37 @@ class _SetHistoryPage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: entries.isEmpty
+          child: entries.isEmpty && sets.isEmpty
               ? const Center(
                   child: Text('Noch keine Verlaufseinträge vorhanden.'),
                 )
               : SingleChildScrollView(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: _ScoreHistoryTable(entries: entries),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Verlauf',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _ScoreHistoryTable(entries: entries),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Satzpunkte',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _SetPointsTable(sets: sets),
+                    ],
                   ),
                 ),
         ),

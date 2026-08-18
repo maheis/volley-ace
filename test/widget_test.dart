@@ -178,7 +178,8 @@ void main() {
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     final persisted = await ScoreboardRepository(database).load();
     expect(persisted.leftPoints, 1);
@@ -497,14 +498,49 @@ void main() {
     await tester.fling(blueScore, const Offset(0, 300), 1000);
     await tester.pumpAndSettle();
 
+    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
+    await tester.fling(blueSet, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Satz beenden'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const ValueKey('history-appbar-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Punkthistorie'), findsOneWidget);
+    expect(find.text('Verlauf'), findsOneWidget);
+    expect(find.text('Satzpunkte'), findsOneWidget);
     expect(find.text('Zeit'), findsOneWidget);
-    expect(find.text('Stoppuhr'), findsOneWidget);
     expect(find.text('Aktion'), findsOneWidget);
     expect(find.text('Punkt blau'), findsOneWidget);
+    expect(find.text('Satz beendet blau'), findsOneWidget);
+    expect(find.text('1:0'), findsOneWidget);
+  });
+
+  testWidgets('Scoreboard clears history on reset', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('reset.db');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: ScoreboardPage(database: database),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
+    await tester.fling(blueScore, const Offset(0, 300), 1000);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('Reset'));
+    await tester.pump();
+    await tester.tap(find.text('Zurücksetzen'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final persisted = await ScoreboardRepository(database).load();
+    expect(persisted.historyEntries, isEmpty);
+    expect(persisted.completedSets, isEmpty);
   });
 
   testWidgets(

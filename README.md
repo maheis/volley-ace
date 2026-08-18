@@ -38,7 +38,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - Nach links/rechts wischen: Seiten, Farben und Spielstände tauschen
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
   - [x] Uhr / Stop-Uhr
-    - [x] Stop-Uhr automatisch starten wenn erster Punkt vergeben wird
+    - [x] Stop-Uhr automatisch starten wenn erster Punkt vergeben wird (damit sie zumindest verzögert startet...)
   - [x] Letzte Punkte pro Satz anzeigen
   - [x] Auszeiten pro Team
         30 Sekunden Timer
@@ -53,7 +53,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [ ] Spieler/Nummern
       - [ ] Aufschlagteam
       - [ ] Spielklasse auswählen (U12, U13, U14, U15, U16, U18, U20, Damen, Herren, Mixed, Freizeit)
-            Rotation/Position muss je nach Spielklasse unterschiedlich sein! U12-U14: 3 Spieler, U15-U20: 6 Spieler, Damen/Herren: 6 Spieler, Mixed: 6 Spieler, Freizeit: 6 Spieler
+            Rotation/Position muss je nach Spielklasse unterschiedlich sein!
+            U12-U13: 3 Spieler, U14-U15: 4 Spieler, Rest: 6 Spieler
+            U12-U15: Rotation nach 2 Aufschlägen und bei Aufschlagwechsel, Rest: Rotation nach Aufschlagwechsel
     - [ ]  
       - [ ] Startaufstellung (Positionsnummern)
       - [ ] Ersatzspieler
