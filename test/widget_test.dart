@@ -227,7 +227,7 @@ void main() {
 
     expect((blueRect.width - blueRect.height).abs(), lessThan(1.0));
     expect((redRect.width - redRect.height).abs(), lessThan(1.0));
-    expect((areaRect.center.dx - 640).abs(), lessThan(40.0));
+    expect((areaRect.center.dx - 640).abs(), lessThan(45.0));
   });
 
   testWidgets('Undoing a set restores the previous point score', (
@@ -400,7 +400,7 @@ void main() {
     );
 
     final size = tester.getSize(blueTimeout);
-    expect(size.height, greaterThan(60));
+    expect(size.height, greaterThan(40));
     expect((size.width - size.height).abs(), lessThan(1.0));
   });
 
@@ -422,11 +422,13 @@ void main() {
 
     final blueSize = tester.getSize(blueTimeout);
     final redSize = tester.getSize(redTimeout);
+    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
+    final setSize = tester.getSize(blueSet);
 
     expect((blueSize.width - blueSize.height).abs(), lessThan(1.0));
     expect((redSize.width - redSize.height).abs(), lessThan(1.0));
-    expect(blueSize.width, greaterThanOrEqualTo(110));
-    expect(redSize.width, greaterThanOrEqualTo(110));
+    expect((blueSize.width - setSize.width).abs(), lessThan(1.0));
+    expect((redSize.width - setSize.width).abs(), lessThan(1.0));
   });
 
   testWidgets('Scoreboard stacks the score panels vertically in portrait', (
