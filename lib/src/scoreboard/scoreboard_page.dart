@@ -556,28 +556,14 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                   final isLandscapeViewport =
                       constraints.maxWidth >= constraints.maxHeight;
                   const padding = 8.0;
-                  final availableWidth = math
-                      .max(
-                        0.0,
-                        math.min(1100, constraints.maxWidth - padding * 2),
-                      )
-                      .toDouble();
-                  final boardRatio = isLandscapeViewport ? 2.2 : 0.72;
-                  var boardWidth = availableWidth;
-                  var boardHeight = boardWidth / boardRatio;
-
-                  if (isLandscapeViewport && constraints.hasBoundedHeight) {
-                    final availableHeight = math
-                        .max(
-                          0.0,
-                          constraints.maxHeight - padding * 2,
-                        )
-                        .toDouble();
-                    if (boardHeight > availableHeight) {
-                      boardHeight = availableHeight;
-                      boardWidth = boardHeight * boardRatio;
-                    }
-                  }
+                  final boardWidth = math.max(
+                    0.0,
+                    constraints.maxWidth - padding * 2,
+                  );
+                  final boardHeight = math.max(
+                    0.0,
+                    constraints.maxHeight - padding * 2,
+                  );
 
                   return Center(
                     child: SingleChildScrollView(
@@ -610,149 +596,145 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   Widget _buildBoard(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isLandscape =
-            MediaQuery.orientationOf(context) == Orientation.landscape;
+        final isLandscape = constraints.maxWidth >= constraints.maxHeight;
         final scale = math
             .min(
               constraints.maxWidth / 1100,
               constraints.maxHeight / 500,
             )
             .clamp(0.35, 1.0);
-        final gap = (isLandscape ? 6 : 10) * scale;
-        final timeoutTileHeight = 74 * scale * (isLandscape ? 1.3 : 1.0);
+        final cardScale = isLandscape ? scale * 1.25 : scale;
+        const timeoutTileSize = 112.0;
 
         Widget buildCenterPanel() {
-          return Padding(
-            padding: EdgeInsets.symmetric(horizontal: gap * 0.35),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Semantics(
-                        label: 'Uhrzeit $_clockText',
-                        child: Text(
-                          _clockText,
+          final centerContent = Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: isLandscape
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _clockText,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: (56 * cardScale).clamp(24, 84),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _SetWins(
+                leftSets: _leftSets,
+                rightSets: _rightSets,
+                leftColor: _leftColor,
+                rightColor: _rightColor,
+                tileWidth: 120 * cardScale,
+                tileHeight: 120 * cardScale,
+                fontSize: 150 * cardScale,
+                gap: 8,
+                borderRadius: 12 * cardScale,
+                onLeftSwipeDown: () => _addSet(left: true),
+                onRightSwipeDown: () => _addSet(left: false),
+                onSwipeUp: _undoSet,
+                onHorizontalSwipe: _swapSides,
+              ),
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: GestureDetector(
+                  onTap: _toggleStopwatch,
+                  onLongPress: _resetStopwatch,
+                  child: Semantics(
+                    label:
+                        'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _stopwatchRunning
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_fill,
+                          color: Colors.white,
+                          size: (56 * cardScale).clamp(24, 74),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _stopwatchText,
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
-                            fontSize: (56 * scale).clamp(24, 84),
+                            fontSize: (56 * cardScale).clamp(24, 74),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: gap * 0.8),
-                SizedBox(
-                  width: double.infinity,
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: _SetWins(
-                      leftSets: _leftSets,
-                      rightSets: _rightSets,
-                      leftColor: _leftColor,
-                      rightColor: _rightColor,
-                      tileWidth: 120 * scale,
-                      tileHeight: 120 * scale,
-                      fontSize: 150 * scale,
-                      gap: gap * 0.8,
-                      borderRadius: 12 * scale,
-                      onLeftSwipeDown: () => _addSet(left: true),
-                      onRightSwipeDown: () => _addSet(left: false),
-                      onSwipeUp: _undoSet,
-                      onHorizontalSwipe: _swapSides,
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(height: gap * 0.8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: GestureDetector(
-                    onTap: _toggleStopwatch,
-                    onLongPress: _resetStopwatch,
-                    child: Semantics(
-                      label:
-                          'Stoppuhr $_stopwatchText, ${_stopwatchRunning ? 'läuft' : 'gestoppt'}. Tippen zum ${_stopwatchRunning ? 'stoppen' : 'starten'}, lange drücken zum Zurücksetzen.',
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _stopwatchRunning
-                                ? Icons.pause_circle_filled
-                                : Icons.play_circle_fill,
-                            color: Colors.white,
-                            size: (56 * scale).clamp(24, 74),
-                          ),
-                          SizedBox(width: gap * 0.5),
-                          Text(
-                            _stopwatchText,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: (56 * scale).clamp(24, 74),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _TimeoutButton(
+                    key: const ValueKey('blue-timeout-button'),
+                    teamKeyPrefix: 'blue',
+                    color: _leftColor,
+                    remaining: _leftTimeouts,
+                    active: _timeoutRunning && _timeoutSide == 0,
+                    countdown: _timeoutText,
+                    tileWidth: timeoutTileSize,
+                    tileHeight: timeoutTileSize,
+                    fontSize: 44,
+                    borderRadius: 12,
+                    onPressed: _timeoutRunning && _timeoutSide == 0
+                        ? () => _showActiveTimeoutDialog(left: true)
+                        : (_leftTimeouts > 0
+                            ? () => _toggleTimeout(left: true)
+                            : null),
+                    onLongPress: _timeoutRunning && _timeoutSide == 0
+                        ? () => _showActiveTimeoutDialog(left: true)
+                        : null,
                   ),
-                ),
-                SizedBox(height: gap * 0.8),
-                SizedBox(height: isLandscape ? 0 : gap * 1.1),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: gap * 0.8,
-                  runSpacing: gap * 0.8,
-                  children: [
-                    _TimeoutButton(
-                      key: const ValueKey('blue-timeout-button'),
-                      teamKeyPrefix: 'blue',
-                      color: _leftColor,
-                      remaining: _leftTimeouts,
-                      active: _timeoutRunning && _timeoutSide == 0,
-                      countdown: _timeoutText,
-                      tileWidth: 110 * scale,
-                      tileHeight: timeoutTileHeight,
-                      fontSize: 44 * scale,
-                      borderRadius: 12 * scale,
-                      onPressed: _timeoutRunning && _timeoutSide == 0
-                          ? () => _showActiveTimeoutDialog(left: true)
-                          : (_leftTimeouts > 0
-                              ? () => _toggleTimeout(left: true)
-                              : null),
-                      onLongPress: _timeoutRunning && _timeoutSide == 0
-                          ? () => _showActiveTimeoutDialog(left: true)
-                          : null,
-                    ),
-                    _TimeoutButton(
-                      key: const ValueKey('red-timeout-button'),
-                      teamKeyPrefix: 'red',
-                      color: _rightColor,
-                      remaining: _rightTimeouts,
-                      active: _timeoutRunning && _timeoutSide == 1,
-                      countdown: _timeoutText,
-                      tileWidth: 110 * scale,
-                      tileHeight: timeoutTileHeight,
-                      fontSize: 44 * scale,
-                      borderRadius: 12 * scale,
-                      onPressed: _timeoutRunning && _timeoutSide == 1
-                          ? () => _showActiveTimeoutDialog(left: false)
-                          : (_rightTimeouts > 0
-                              ? () => _toggleTimeout(left: false)
-                              : null),
-                      onLongPress: _timeoutRunning && _timeoutSide == 1
-                          ? () => _showActiveTimeoutDialog(left: false)
-                          : null,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  _TimeoutButton(
+                    key: const ValueKey('red-timeout-button'),
+                    teamKeyPrefix: 'red',
+                    color: _rightColor,
+                    remaining: _rightTimeouts,
+                    active: _timeoutRunning && _timeoutSide == 1,
+                    countdown: _timeoutText,
+                    tileWidth: timeoutTileSize,
+                    tileHeight: timeoutTileSize,
+                    fontSize: 44,
+                    borderRadius: 12,
+                    onPressed: _timeoutRunning && _timeoutSide == 1
+                        ? () => _showActiveTimeoutDialog(left: false)
+                        : (_rightTimeouts > 0
+                            ? () => _toggleTimeout(left: false)
+                            : null),
+                    onLongPress: _timeoutRunning && _timeoutSide == 1
+                        ? () => _showActiveTimeoutDialog(left: false)
+                        : null,
+                  ),
+                ],
+              ),
+            ],
+          );
+
+          if (isLandscape) {
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: centerContent,
+            );
+          }
+
+          return SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: centerContent,
           );
         }
 
@@ -763,31 +745,29 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                 child: Row(
                   children: [
                     Expanded(
-                      flex: 11,
+                      flex: 1,
                       child: _ScorePanel(
                         score: _leftPoints,
                         color: _leftColor,
                         label: 'blau',
-                        fontSize: 300 * scale,
-                        borderRadius: 12 * scale,
+                        fontSize: 300 * cardScale,
+                        borderRadius: 12 * cardScale,
                         onSwipeDown: () => _addPoint(left: true),
                         onSwipeUp: () => _undoPoint(left: true),
                       ),
                     ),
-                    SizedBox(width: gap * 0.2),
                     Expanded(
-                      flex: 10,
+                      flex: 1,
                       child: buildCenterPanel(),
                     ),
-                    SizedBox(width: gap * 0.2),
                     Expanded(
-                      flex: 11,
+                      flex: 1,
                       child: _ScorePanel(
                         score: _rightPoints,
                         color: _rightColor,
                         label: 'rot',
-                        fontSize: 300 * scale,
-                        borderRadius: 12 * scale,
+                        fontSize: 300 * cardScale,
+                        borderRadius: 12 * cardScale,
                         onSwipeDown: () => _addPoint(left: false),
                         onSwipeUp: () => _undoPoint(left: false),
                       ),
@@ -795,7 +775,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                   ],
                 ),
               ),
-              SizedBox(height: gap),
             ],
           );
         }
@@ -806,31 +785,26 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
               child: Column(
                 children: [
                   Expanded(
-                    flex: 11,
                     child: _ScorePanel(
                       score: _leftPoints,
                       color: _leftColor,
                       label: 'blau',
-                      fontSize: 300 * scale,
-                      borderRadius: 12 * scale,
+                      fontSize: 300 * cardScale,
+                      borderRadius: 12 * cardScale,
                       onSwipeDown: () => _addPoint(left: true),
                       onSwipeUp: () => _undoPoint(left: true),
                     ),
                   ),
-                  SizedBox(height: gap * 0.2),
                   Expanded(
-                    flex: 10,
                     child: buildCenterPanel(),
                   ),
-                  SizedBox(height: gap * 0.2),
                   Expanded(
-                    flex: 11,
                     child: _ScorePanel(
                       score: _rightPoints,
                       color: _rightColor,
                       label: 'rot',
-                      fontSize: 300 * scale,
-                      borderRadius: 12 * scale,
+                      fontSize: 300 * cardScale,
+                      borderRadius: 12 * cardScale,
                       onSwipeDown: () => _addPoint(left: false),
                       onSwipeUp: () => _undoPoint(left: false),
                     ),
@@ -838,7 +812,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                 ],
               ),
             ),
-            SizedBox(height: gap),
           ],
         );
       },

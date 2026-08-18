@@ -401,6 +401,58 @@ void main() {
 
     final size = tester.getSize(blueTimeout);
     expect(size.height, greaterThan(60));
+    expect((size.width - size.height).abs(), lessThan(1.0));
+  });
+
+  testWidgets('Scoreboard timeout buttons stay fixed-size squares', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final database =
+        await databaseFactoryMemory.openDatabase('timeout-square.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
+
+    final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
+    final redTimeout = find.byKey(const ValueKey('red-timeout-button'));
+
+    final blueSize = tester.getSize(blueTimeout);
+    final redSize = tester.getSize(redTimeout);
+
+    expect((blueSize.width - blueSize.height).abs(), lessThan(1.0));
+    expect((redSize.width - redSize.height).abs(), lessThan(1.0));
+    expect(blueSize.width, greaterThanOrEqualTo(110));
+    expect(redSize.width, greaterThanOrEqualTo(110));
+  });
+
+  testWidgets('Scoreboard stacks the score panels vertically in portrait', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final database = await databaseFactoryMemory.openDatabase('portrait.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
+
+    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
+    final redScore = find.byKey(const ValueKey('rot-score-panel'));
+    final setArea = find.byKey(const ValueKey('set-score-area'));
+
+    final blueRect = tester.getRect(blueScore);
+    final redRect = tester.getRect(redScore);
+    final setRect = tester.getRect(setArea);
+
+    expect(blueRect.center.dy, lessThan(setRect.top));
+    expect(setRect.bottom, lessThan(redRect.center.dy));
+    expect(blueRect.width, greaterThan(blueRect.height * 0.8));
+    expect(redRect.width, greaterThan(redRect.height * 0.8));
   });
 
   testWidgets(
