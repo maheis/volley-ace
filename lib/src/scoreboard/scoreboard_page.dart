@@ -827,50 +827,62 @@ class _ScorePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanEnd: (details) {
-        final velocity = details.velocity.pixelsPerSecond;
-        if (velocity.dy > 180) {
-          onSwipeDown();
-        } else if (velocity.dy < -180) {
-          onSwipeUp();
-        }
-      },
-      child: Semantics(
-        label: '$label: $score Punkte',
-        child: Container(
-          key: ValueKey('$label-score-panel'),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
-          alignment: Alignment.center,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 240),
-            switchInCurve: Curves.easeOutBack,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) {
-              return ScaleTransition(scale: animation, child: child);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final squareSize =
+            math.min(constraints.maxWidth, constraints.maxHeight);
+        return Center(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanEnd: (details) {
+              final velocity = details.velocity.pixelsPerSecond;
+              if (velocity.dy > 180) {
+                onSwipeDown();
+              } else if (velocity.dy < -180) {
+                onSwipeUp();
+              }
             },
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '$score',
-                key: ValueKey('$score-$color'),
-                maxLines: 1,
-                softWrap: false,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
+            child: Semantics(
+              label: '$label: $score Punkte',
+              child: SizedBox(
+                width: squareSize,
+                height: squareSize,
+                child: Container(
+                  key: ValueKey('$label-score-panel'),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(borderRadius),
+                  ),
+                  alignment: Alignment.center,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 240),
+                    switchInCurve: Curves.easeOutBack,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, animation) {
+                      return ScaleTransition(scale: animation, child: child);
+                    },
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$score',
+                        key: ValueKey('$score-$color'),
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -908,8 +920,6 @@ class _SetWins extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
     return GestureDetector(
       key: const ValueKey('set-score-area'),
       behavior: HitTestBehavior.opaque,
