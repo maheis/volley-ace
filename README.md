@@ -43,19 +43,22 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         30 Sekunden Timer
         2 Stück pro Satz und Team
   - [ ] Rotation / Spielerwechsel (optional)
-    - [ ] Team A
-      - [ ] Team (optional)
-      - [ ] Spieler/Nummern
-        - [ ] Startaufstellung (Positionsnummer)
-        - [ ] Ersatzspieler
+    - [ ] Spielinfos
+      - [ ] Team A
+        - [ ] Team (optional)
+        - [ ] Spieler/Nummern
+      - [ ] Team B
+        - [ ] Team (optional)
+        - [ ] Spieler/Nummern
+      - [ ] Aufschlagteam
+      - [ ] Spielklasse auswählen (U12, U13, U14, U15, U16, U18, U20, Damen, Herren, Mixed, Freizeit)
+            Rotation/Position muss je nach Spielklasse unterschiedlich sein! U12-U14: 3 Spieler, U15-U20: 6 Spieler, Damen/Herren: 6 Spieler, Mixed: 6 Spieler, Freizeit: 6 Spieler
+    - [ ]  
+      - [ ] Startaufstellung (Positionsnummern)
+      - [ ] Ersatzspieler
       - [ ] Spielerwechsel
-    - [ ] Team B
-      - [ ] Team (optional)
-      - [ ] Spieler/Nummern (Optional)
-        - [ ] Startaufstellung (Positionsnummer)
-        - [ ] Ersatzspieler
-      - [ ] Spielerwechsel
-    - [ ] Aufschlagteam
+    - [ ] Anzeige in einem Spielfeld auf den jeweiligen Positionen 1-6
+          Bei Punktvergabe soll Rotation berücksichtigt werden, manuell soll aber auch eine Rotation ausgelöst werden können (falls ein Team außerhalb der Punkte-Rotation rotieren möchte)
 - [x] Taktiktafel
   - [x] Speichern von Taktiken
 - [x] Team
