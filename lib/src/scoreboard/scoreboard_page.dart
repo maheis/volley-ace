@@ -523,6 +523,18 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     _persist();
   }
 
+  void _openHistoryPage() {
+    if (_completedSets.isEmpty) return;
+
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => _SetHistoryPage(
+          sets: List<SetResult>.unmodifiable(_completedSets),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAndroidLandscape =
@@ -535,6 +547,12 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           : AppBar(
               title: const Text('Punktetafel'),
               actions: [
+                IconButton(
+                  key: const ValueKey('history-appbar-button'),
+                  tooltip: 'Punkthistorie',
+                  onPressed: _completedSets.isEmpty ? null : _openHistoryPage,
+                  icon: const Icon(Icons.history),
+                ),
                 IconButton(
                   tooltip: 'Reset',
                   onPressed: _reset,
@@ -573,10 +591,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                             height: boardHeight,
                             child: _buildBoard(context),
                           ),
-                          if (_completedSets.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            _SetHistoryTable(sets: _completedSets),
-                          ],
                         ],
                       ),
                     ),
@@ -1168,6 +1182,34 @@ class _SetHistoryTable extends StatelessWidget {
                 ],
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SetHistoryPage extends StatelessWidget {
+  const _SetHistoryPage({required this.sets});
+
+  final List<SetResult> sets;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Punkthistorie')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: sets.isEmpty
+              ? const Center(
+                  child: Text('Noch keine Satzhistorie vorhanden.'),
+                )
+              : SingleChildScrollView(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: _SetHistoryTable(sets: sets),
+                  ),
+                ),
         ),
       ),
     );

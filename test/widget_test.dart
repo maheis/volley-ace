@@ -457,6 +457,35 @@ void main() {
     expect(redRect.width, greaterThan(redRect.height * 0.8));
   });
 
+  testWidgets('Scoreboard opens set history on a separate page', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final database = await databaseFactoryMemory.openDatabase('history.db');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: ScoreboardPage(database: database),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
+    await tester.fling(blueSet, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Satz beenden'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('history-appbar-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Punkthistorie'), findsOneWidget);
+    expect(find.text('Datum/Uhrzeit'), findsOneWidget);
+    expect(find.text('1'), findsWidgets);
+  });
+
   testWidgets(
       'Match statistics page allows creating a match and recording a point', (
     WidgetTester tester,
