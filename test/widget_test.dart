@@ -6,6 +6,7 @@ import 'package:sembast/sembast_memory.dart';
 import 'package:volleyace/src/analytics/match_stats_page.dart';
 import 'package:volleyace/src/arcade/arcade_page.dart';
 import 'package:volleyace/src/settings/settings_repository.dart';
+import 'package:volleyace/src/scoreboard/scoreboard_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
@@ -164,6 +165,26 @@ void main() {
       find.descendant(of: blueScore, matching: find.text('0')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Scoreboard starts stopwatch automatically on first point', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('stopwatch.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
+
+    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
+    await tester.fling(blueScore, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+
+    final persisted = await ScoreboardRepository(database).load();
+    expect(persisted.leftPoints, 1);
+    expect(persisted.stopwatchRunning, isTrue);
+    expect(persisted.stopwatchStartedAt, isNotNull);
+    expect(persisted.stopwatchElapsed, Duration.zero);
   });
 
   testWidgets('Scoreboard swaps sides with a horizontal swipe', (
