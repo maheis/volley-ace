@@ -31,7 +31,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 ## Features
 
 - [x] Punktetafel
-  - Zwei farbige Satzpunkt-Anzeigen (blau/rot)
+  - Zwei farbige Satzpunkt-Anzeigen (blau/rot
   - Gewonnene Sätze in der Mitte
   - Nach unten wischen: Punkt vergeben
   - Nach oben wischen: letzten Punkt zurücknehmen

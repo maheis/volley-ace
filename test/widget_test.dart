@@ -182,6 +182,32 @@ void main() {
     expect(find.byKey(const ValueKey('rot-set-panel')), findsOneWidget);
   });
 
+  testWidgets('Scoreboard keeps set points centered and square', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final database =
+        await databaseFactoryMemory.openDatabase('test2-layout.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
+
+    final setArea = find.byKey(const ValueKey('set-score-area'));
+    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
+    final redSet = find.byKey(const ValueKey('rot-set-panel'));
+
+    final blueRect = tester.getRect(blueSet);
+    final redRect = tester.getRect(redSet);
+    final areaRect = tester.getRect(setArea);
+
+    expect((blueRect.width - blueRect.height).abs(), lessThan(1.0));
+    expect((redRect.width - redRect.height).abs(), lessThan(1.0));
+    expect((areaRect.center.dx - 640).abs(), lessThan(40.0));
+  });
+
   testWidgets('Undoing a set restores the previous point score', (
     WidgetTester tester,
   ) async {
@@ -321,6 +347,38 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Scoreboard timeout buttons are taller in landscape', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final database = await databaseFactoryMemory.openDatabase('landscape.db');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoreboardPage(database: database)),
+    );
+    await tester.pumpAndSettle();
+
+    final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
+    expect(blueTimeout, findsOneWidget);
+
+    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
+    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
+    expect(blueScore, findsOneWidget);
+    expect(blueSet, findsOneWidget);
+
+    final scoreSize = tester.getSize(blueScore);
+    final setSize = tester.getSize(blueSet);
+    expect(scoreSize.width, greaterThan(setSize.width));
+    expect(
+      tester.getTopLeft(blueSet).dx - tester.getTopRight(blueScore).dx,
+      lessThan(36),
+    );
+
+    final size = tester.getSize(blueTimeout);
+    expect(size.height, greaterThan(60));
   });
 
   testWidgets(
