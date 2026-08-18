@@ -72,6 +72,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   int? _timeoutSide;
   DateTime? _timeoutStartedAt;
   List<SetResult> _completedSets = <SetResult>[];
+  List<ScoreboardHistoryEntry> _historyEntries = <ScoreboardHistoryEntry>[];
   late final ScoreboardRepository _repository = ScoreboardRepository(
     widget.database,
   );
@@ -192,7 +193,22 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _timeoutSide = state.timeoutSide;
       _timeoutStartedAt = state.timeoutStartedAt;
       _completedSets = state.completedSets;
+      _historyEntries = state.historyEntries;
       _isLoaded = true;
+    });
+  }
+
+  void _recordHistory(String action, {Color? color}) {
+    setState(() {
+      _historyEntries = List<ScoreboardHistoryEntry>.from(_historyEntries)
+        ..add(
+          ScoreboardHistoryEntry(
+            action: action,
+            occurredAt: _now,
+            stopwatchAt: _stopwatchDuration,
+            color: color,
+          ),
+        );
     });
   }
 
@@ -214,6 +230,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           timeoutSide: _timeoutSide,
           timeoutStartedAt: _timeoutStartedAt,
           completedSets: _completedSets,
+          historyEntries: _historyEntries,
         ),
       ),
     );
@@ -253,6 +270,10 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       }
       _finishSetIfNeeded();
     });
+    _recordHistory(
+      left ? 'Punkt blau' : 'Punkt rot',
+      color: left ? _leftColor : _rightColor,
+    );
     _persist();
   }
 
@@ -266,6 +287,10 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       if (left && _leftPoints > 0) _leftPoints--;
       if (!left && _rightPoints > 0) _rightPoints--;
     });
+    _recordHistory(
+      left ? 'Punkt zurückgenommen blau' : 'Punkt zurückgenommen rot',
+      color: left ? _leftColor : _rightColor,
+    );
     _persist();
   }
 
@@ -315,6 +340,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
     });
+    _recordHistory(left ? 'Satz beendet blau' : 'Satz beendet rot',
+        color: left ? _leftColor : _rightColor);
     _persist();
   }
 
@@ -359,6 +386,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       }
       _timeoutStartedAt = _now;
     });
+    _recordHistory(left ? 'Auszeit gestartet blau' : 'Auszeit gestartet rot',
+        color: left ? _leftColor : _rightColor);
     _persist();
   }
 
@@ -412,6 +441,14 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _timeoutSide = null;
       _timeoutStartedAt = null;
     });
+    _recordHistory(
+      takeBackTimeout
+          ? (left
+              ? 'Auszeit zurückgenommen blau'
+              : 'Auszeit zurückgenommen rot')
+          : (left ? 'Auszeit beendet blau' : 'Auszeit beendet rot'),
+      color: left ? _leftColor : _rightColor,
+    );
     _persist();
   }
 
@@ -524,12 +561,10 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   }
 
   void _openHistoryPage() {
-    if (_completedSets.isEmpty) return;
-
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => _SetHistoryPage(
-          sets: List<SetResult>.unmodifiable(_completedSets),
+          entries: List<ScoreboardHistoryEntry>.unmodifiable(_historyEntries),
         ),
       ),
     );
@@ -550,7 +585,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                 IconButton(
                   key: const ValueKey('history-appbar-button'),
                   tooltip: 'Punkthistorie',
-                  onPressed: _completedSets.isEmpty ? null : _openHistoryPage,
+                  onPressed: _openHistoryPage,
                   icon: const Icon(Icons.history),
                 ),
                 IconButton(
@@ -1061,10 +1096,10 @@ class _SetNumber extends StatelessWidget {
   }
 }
 
-class _SetHistoryTable extends StatelessWidget {
-  const _SetHistoryTable({required this.sets});
+class _ScoreHistoryTable extends StatelessWidget {
+  const _ScoreHistoryTable({required this.entries});
 
-  final List<SetResult> sets;
+  final List<ScoreboardHistoryEntry> entries;
 
   String _formatTimestamp(DateTime value) {
     final day = value.day.toString().padLeft(2, '0');
@@ -1100,7 +1135,6 @@ class _SetHistoryTable extends StatelessWidget {
             0: IntrinsicColumnWidth(),
             1: IntrinsicColumnWidth(),
             2: IntrinsicColumnWidth(),
-            3: IntrinsicColumnWidth(),
           },
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
           children: [
@@ -1108,23 +1142,19 @@ class _SetHistoryTable extends StatelessWidget {
               children: [
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  child: Text('Satz', style: headerStyle),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  child: Text('Datum/Uhrzeit', style: headerStyle),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  child: Text('Ergebnis', style: headerStyle),
+                  child: Text('Zeit', style: headerStyle),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                   child: Text('Stoppuhr', style: headerStyle),
                 ),
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                  child: Text('Aktion', style: headerStyle),
+                ),
               ],
             ),
-            for (var i = 0; i < sets.length; i++)
+            for (var i = 0; i < entries.length; i++)
               TableRow(
                 children: [
                   Padding(
@@ -1133,9 +1163,9 @@ class _SetHistoryTable extends StatelessWidget {
                       horizontal: 8,
                     ),
                     child: Text(
-                      '${i + 1}',
+                      _formatTimestamp(entries[i].occurredAt),
                       style: TextStyle(
-                        color: sets[i].winnerColor,
+                        color: entries[i].color ?? Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1146,9 +1176,9 @@ class _SetHistoryTable extends StatelessWidget {
                       horizontal: 8,
                     ),
                     child: Text(
-                      _formatTimestamp(sets[i].wonAt),
+                      _formatDuration(entries[i].stopwatchAt),
                       style: TextStyle(
-                        color: sets[i].winnerColor,
+                        color: entries[i].color ?? Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1159,22 +1189,9 @@ class _SetHistoryTable extends StatelessWidget {
                       horizontal: 8,
                     ),
                     child: Text(
-                      '${sets[i].leftPoints}:${sets[i].rightPoints}',
+                      entries[i].action,
                       style: TextStyle(
-                        color: sets[i].winnerColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 4,
-                      horizontal: 8,
-                    ),
-                    child: Text(
-                      _formatDuration(sets[i].stopwatchAt),
-                      style: TextStyle(
-                        color: sets[i].winnerColor,
+                        color: entries[i].color ?? Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1189,9 +1206,9 @@ class _SetHistoryTable extends StatelessWidget {
 }
 
 class _SetHistoryPage extends StatelessWidget {
-  const _SetHistoryPage({required this.sets});
+  const _SetHistoryPage({required this.entries});
 
-  final List<SetResult> sets;
+  final List<ScoreboardHistoryEntry> entries;
 
   @override
   Widget build(BuildContext context) {
@@ -1200,14 +1217,14 @@ class _SetHistoryPage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: sets.isEmpty
+          child: entries.isEmpty
               ? const Center(
-                  child: Text('Noch keine Satzhistorie vorhanden.'),
+                  child: Text('Noch keine Verlaufseinträge vorhanden.'),
                 )
               : SingleChildScrollView(
                   child: Align(
                     alignment: Alignment.topCenter,
-                    child: _SetHistoryTable(sets: sets),
+                    child: _ScoreHistoryTable(entries: entries),
                   ),
                 ),
         ),

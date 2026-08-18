@@ -1,6 +1,49 @@
 import 'package:flutter/material.dart';
 
 @immutable
+class ScoreboardHistoryEntry {
+  const ScoreboardHistoryEntry({
+    required this.action,
+    required this.occurredAt,
+    required this.stopwatchAt,
+    required this.color,
+  });
+
+  final String action;
+  final DateTime occurredAt;
+  final Duration stopwatchAt;
+  final Color? color;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'action': action,
+        'occurredAtMillis': occurredAt.millisecondsSinceEpoch,
+        'stopwatchAtMillis': stopwatchAt.inMilliseconds,
+        'color': color?.toARGB32(),
+      };
+
+  static ScoreboardHistoryEntry? fromJson(dynamic raw) {
+    if (raw is! Map) return null;
+
+    final data = Map<String, dynamic>.from(raw);
+    final action = data['action'];
+    final occurredAtMillis = data['occurredAtMillis'];
+    if (action is! String || occurredAtMillis is! num) return null;
+
+    final stopwatchAtMillis = data['stopwatchAtMillis'];
+    final colorValue = data['color'];
+
+    return ScoreboardHistoryEntry(
+      action: action,
+      occurredAt: DateTime.fromMillisecondsSinceEpoch(occurredAtMillis.toInt()),
+      stopwatchAt: Duration(
+        milliseconds: stopwatchAtMillis is num ? stopwatchAtMillis.toInt() : 0,
+      ),
+      color: colorValue is num ? Color(colorValue.toInt()) : null,
+    );
+  }
+}
+
+@immutable
 class SetResult {
   const SetResult({
     required this.leftPoints,
@@ -70,6 +113,7 @@ class ScoreboardState {
     required this.timeoutSide,
     required this.timeoutStartedAt,
     required this.completedSets,
+    required this.historyEntries,
   });
 
   static const Color defaultLeftColor = Color(0xff1976d2);
@@ -90,6 +134,7 @@ class ScoreboardState {
     timeoutSide: null,
     timeoutStartedAt: null,
     completedSets: <SetResult>[],
+    historyEntries: <ScoreboardHistoryEntry>[],
   );
 
   final int leftPoints;
@@ -106,6 +151,7 @@ class ScoreboardState {
   final int? timeoutSide;
   final DateTime? timeoutStartedAt;
   final List<SetResult> completedSets;
+  final List<ScoreboardHistoryEntry> historyEntries;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'leftPoints': leftPoints,
@@ -122,6 +168,8 @@ class ScoreboardState {
         'timeoutSide': timeoutSide,
         'timeoutStartedAtMillis': timeoutStartedAt?.millisecondsSinceEpoch,
         'completedSets': completedSets.map((set) => set.toJson()).toList(),
+        'historyEntries':
+            historyEntries.map((entry) => entry.toJson()).toList(),
       };
 
   static ScoreboardState fromJson(Map<String, dynamic>? data) {
@@ -145,6 +193,13 @@ class ScoreboardState {
             .whereType<SetResult>()
             .toList()
         : <SetResult>[];
+    final rawHistoryEntries = data['historyEntries'];
+    final historyEntries = rawHistoryEntries is List
+        ? rawHistoryEntries
+            .map(ScoreboardHistoryEntry.fromJson)
+            .whereType<ScoreboardHistoryEntry>()
+            .toList()
+        : <ScoreboardHistoryEntry>[];
 
     return ScoreboardState(
       leftPoints: readInt('leftPoints', 0),
@@ -171,6 +226,7 @@ class ScoreboardState {
             )
           : null,
       completedSets: completedSets,
+      historyEntries: historyEntries,
     );
   }
 }

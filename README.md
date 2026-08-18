@@ -129,6 +129,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Übertritt
             - Netz Berührung
             - Sonstiges
+      - [ ] Auszeit (wichtig für den Verlauf)
     - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen.
     - [ ] Verlauf
@@ -169,3 +170,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] import / export (teams, punktewertung, taktiktafel)
   - [ ] diff / import-date vs. änderungsdatum
 - [ ] farbe rosa in die app übernehmen?
+- [ ] stopuhr automatisch starten wenn erster punkt vergeben wird

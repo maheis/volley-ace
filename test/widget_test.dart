@@ -472,18 +472,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final blueSet = find.byKey(const ValueKey('blau-set-panel'));
-    await tester.fling(blueSet, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Satz beenden'));
+    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
+    await tester.fling(blueScore, const Offset(0, 300), 1000);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('history-appbar-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Punkthistorie'), findsOneWidget);
-    expect(find.text('Datum/Uhrzeit'), findsOneWidget);
-    expect(find.text('1'), findsWidgets);
+    expect(find.text('Zeit'), findsOneWidget);
+    expect(find.text('Stoppuhr'), findsOneWidget);
+    expect(find.text('Aktion'), findsOneWidget);
+    expect(find.text('Punkt blau'), findsOneWidget);
   });
 
   testWidgets(
