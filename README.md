@@ -38,6 +38,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - Nach links/rechts wischen: Seiten, Farben und Spielstände tauschen
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
   - [x] Uhr / Stop-Uhr
+    - [ ] Stop-Uhr automatisch starten wenn erster Punkt vergeben wird
   - [x] Letzte Punkte pro Satz anzeigen
   - [x] Auszeiten pro Team
         30 Sekunden Timer
@@ -170,4 +171,3 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] import / export (teams, punktewertung, taktiktafel)
   - [ ] diff / import-date vs. änderungsdatum
 - [ ] farbe rosa in die app übernehmen?
-- [ ] stopuhr automatisch starten wenn erster punkt vergeben wird
