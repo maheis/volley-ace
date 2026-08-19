@@ -56,7 +56,7 @@ class _ScoreSnapshot {
 }
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
-  static const Color _blue = Color(0xff1976d2);
+  static const Color _blue = Color(0xFF3690E8);
   static const Color _red = Color(0xFFE85450);
 
   int _leftPoints = 0;

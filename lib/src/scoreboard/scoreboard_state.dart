@@ -158,7 +158,7 @@ class ScoreboardState {
     required this.historyEntries,
   });
 
-  static const Color defaultLeftColor = Color(0xff1976d2);
+  static const Color defaultLeftColor = Color(0xFF3690E8);
   static const Color defaultRightColor = Color(0xFFE85450);
 
   static const ScoreboardState initial = ScoreboardState(
