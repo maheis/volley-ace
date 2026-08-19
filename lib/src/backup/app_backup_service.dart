@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../analytics/match_stats_page.dart';
 import '../teams/teams_page.dart';
@@ -88,6 +89,20 @@ class AppBackupService {
     }
   }
 
+  static Future<void> _shareJson(
+    String suggestedName,
+    String jsonText,
+    String subject,
+  ) async {
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}/$suggestedName');
+    await file.writeAsString(jsonText);
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: subject,
+    );
+  }
+
   static Future<void> exportBackup(
       BuildContext context, Database database) async {
     final payload = await _readBackup(database);
@@ -114,6 +129,17 @@ class AppBackupService {
     );
   }
 
+  static Future<void> shareTeam(BuildContext context, Team team) async {
+    final jsonText = encodeBackup(buildTeamBackup(team));
+    final suggestedName =
+        'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().millisecondsSinceEpoch}.json';
+    await _shareJson(
+      suggestedName,
+      jsonText,
+      'VolleyAce Team-Backup',
+    );
+  }
+
   static Future<void> exportMatch(BuildContext context, MatchGame match) async {
     final jsonText = encodeBackup(buildMatchBackup(match));
     final suggestedName =
@@ -123,6 +149,17 @@ class AppBackupService {
       'Spiel exportieren',
       suggestedName,
       jsonText,
+    );
+  }
+
+  static Future<void> shareMatch(BuildContext context, MatchGame match) async {
+    final jsonText = encodeBackup(buildMatchBackup(match));
+    final suggestedName =
+        'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.json';
+    await _shareJson(
+      suggestedName,
+      jsonText,
+      'VolleyAce Spiel-Backup',
     );
   }
 

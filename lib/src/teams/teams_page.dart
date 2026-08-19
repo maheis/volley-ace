@@ -598,6 +598,12 @@ class _TeamsPageState extends State<TeamsPage> {
                           onPressed: () =>
                               AppBackupService.exportTeam(context, team),
                         ),
+                        IconButton(
+                          tooltip: 'Team teilen',
+                          icon: const Icon(Icons.share_outlined),
+                          onPressed: () =>
+                              AppBackupService.shareTeam(context, team),
+                        ),
                         const Icon(Icons.chevron_right),
                       ],
                     ),

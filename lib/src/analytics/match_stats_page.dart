@@ -968,6 +968,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                           onPressed: () =>
                               AppBackupService.exportMatch(context, match),
                         ),
+                        IconButton(
+                          tooltip: 'Spiel teilen',
+                          icon: const Icon(Icons.share_outlined),
+                          onPressed: () =>
+                              AppBackupService.shareMatch(context, match),
+                        ),
                         const Icon(Icons.chevron_right),
                       ],
                     ),
