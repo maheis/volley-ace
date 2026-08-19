@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
+import '../backup/app_backup_service.dart';
+
 class TeamPlayer {
   const TeamPlayer({
     required this.id,
@@ -279,6 +281,18 @@ class _TeamsPageState extends State<TeamsPage> {
     });
   }
 
+  Future<void> _exportBackup() async {
+    await AppBackupService.exportBackup(context, widget.database);
+  }
+
+  Future<void> _importBackup() async {
+    final imported =
+        await AppBackupService.importBackup(context, widget.database);
+    if (imported && mounted) {
+      await _load();
+    }
+  }
+
   Future<void> _persist() => _repository.save(_teams);
 
   Team? get _selectedTeam {
@@ -531,7 +545,21 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 
   Widget _buildTeamList() => Scaffold(
-        appBar: AppBar(title: const Text('Teams')),
+        appBar: AppBar(
+          title: const Text('Teams'),
+          actions: [
+            IconButton(
+              tooltip: 'Export',
+              icon: const Icon(Icons.download_outlined),
+              onPressed: _exportBackup,
+            ),
+            IconButton(
+              tooltip: 'Import',
+              icon: const Icon(Icons.upload_outlined),
+              onPressed: _importBackup,
+            ),
+          ],
+        ),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [

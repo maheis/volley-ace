@@ -171,7 +171,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] settings deutsch
 - [-] sportschrift
 - [x] app name aktuell mit unterstich
-- [ ] import / export (teams, punktewertung, taktiktafel)
+- [x] import / export (teams, punktewertung, taktiktafel)
   - [ ] diff / import-date vs. änderungsdatum
 - [ ] farbe rosa in die app übernehmen?
 - [ ] varlaufdarstellung wie einen versionsgraphen

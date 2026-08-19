@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
+import '../backup/app_backup_service.dart';
 import '../teams/teams_page.dart';
 
 class MatchPlayer {
@@ -440,6 +441,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     await _repository.save(MatchStatsState(matches: matches));
   }
 
+  Future<void> _exportBackup() async {
+    await AppBackupService.exportBackup(context, widget.database);
+  }
+
+  Future<void> _importBackup() async {
+    final imported =
+        await AppBackupService.importBackup(context, widget.database);
+    if (imported && mounted) {
+      await _load();
+    }
+  }
+
   MatchGame? get _selectedMatch {
     for (final match in _matches) {
       if (match.id == _selectedMatchId) return match;
@@ -840,7 +853,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Punktewertung')),
+      appBar: AppBar(
+        title: const Text('Punktewertung'),
+        actions: [
+          IconButton(
+            tooltip: 'Export',
+            icon: const Icon(Icons.download_outlined),
+            onPressed: _exportBackup,
+          ),
+          IconButton(
+            tooltip: 'Import',
+            icon: const Icon(Icons.upload_outlined),
+            onPressed: _importBackup,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
