@@ -133,7 +133,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Übertritt
             - Netz Berührung
             - Sonstiges
-      - [ ] Auszeit (wichtig für den Verlauf)
+      - [ ] Auszeit (wichtig für den Verlauf / Impact)
     - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen.
     - [x] Verlauf
