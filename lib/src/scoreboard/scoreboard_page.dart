@@ -57,7 +57,7 @@ class _ScoreSnapshot {
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
   static const Color _blue = Color(0xff1976d2);
-  static const Color _red = Color(0xffe53935);
+  static const Color _red = Color(0xFFE85450);
 
   int _leftPoints = 0;
   int _rightPoints = 0;
@@ -475,7 +475,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                                                 .pop(true),
                                         style: FilledButton.styleFrom(
                                           backgroundColor:
-                                              const Color(0xFF82D5C8),
+                                              const Color(0xFFE85450),
                                         ),
                                         child: const Text('Löschen'),
                                       ),

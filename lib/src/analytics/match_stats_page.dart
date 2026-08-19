@@ -1440,7 +1440,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-error-button'),
                   onPressed: () => _startEventSelection(match, isPoint: false),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: const Color(0xFFE85450),
                     foregroundColor: Colors.white,
                     textStyle: TextStyle(
                       fontFamily:
@@ -2022,7 +2022,8 @@ class _TrendChartCard extends StatelessWidget {
                   label: 'Punkte',
                 ),
                 const SizedBox(width: 12),
-                const _TrendLegendDot(color: Colors.redAccent, label: 'Fehler'),
+                const _TrendLegendDot(
+                    color: Color(0xFFE85450), label: 'Fehler'),
                 const SizedBox(width: 12),
                 const _TrendLegendLine(
                   color: Color(0xFF82D5C8),
@@ -2211,7 +2212,7 @@ class _TrendChartPainter extends CustomPainter {
 
     paintTimeoutMarkers(timeoutMarkers);
     paintSeries(pointSeries, Colors.greenAccent);
-    paintSeries(errorSeries, Colors.redAccent);
+    paintSeries(errorSeries, const Color(0xFFE85450));
 
     const labelStyle = TextStyle(
       color: Colors.white70,
@@ -2387,7 +2388,7 @@ class _MatchHistoryTable extends StatelessWidget {
                     style: TextStyle(
                       color: entries[i].kind == 'point'
                           ? Colors.greenAccent
-                          : Colors.redAccent,
+                          : const Color(0xFFE85450),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2614,7 +2615,7 @@ class _SetsOverview extends StatelessWidget {
                           ? null
                           : sets[index].us > sets[index].opponent
                               ? Colors.green.withValues(alpha: 0.2)
-                              : Colors.red.withValues(alpha: 0.2),
+                              : const Color(0xFFE85450).withValues(alpha: 0.2),
                     ),
                 ],
               ),

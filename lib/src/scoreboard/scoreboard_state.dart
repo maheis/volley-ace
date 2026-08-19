@@ -159,7 +159,7 @@ class ScoreboardState {
   });
 
   static const Color defaultLeftColor = Color(0xff1976d2);
-  static const Color defaultRightColor = Color(0xffe53935);
+  static const Color defaultRightColor = Color(0xFFE85450);
 
   static const ScoreboardState initial = ScoreboardState(
     leftPoints: 0,

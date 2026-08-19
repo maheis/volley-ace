@@ -41,7 +41,10 @@ class _BoardPoint {
           (data['x'] as num?)?.toDouble() ?? 0.5,
           (data['y'] as num?)?.toDouble() ?? 0.5,
         ),
-        color: Color((data['color'] as num?)?.toInt() ?? Colors.red.toARGB32()),
+        color: Color(
+          (data['color'] as num?)?.toInt() ??
+              const Color(0xFFE85450).toARGB32(),
+        ),
       );
 }
 
@@ -78,7 +81,9 @@ class _BoardLine {
               )
               .toList()
           : const <Offset>[],
-      color: Color((data['color'] as num?)?.toInt() ?? Colors.red.toARGB32()),
+      color: Color(
+        (data['color'] as num?)?.toInt() ?? const Color(0xFFE85450).toARGB32(),
+      ),
       type: _lineTypeFromJson(data['type']),
     );
   }
@@ -149,7 +154,7 @@ class _TacticsPageState extends State<TacticsPage> {
   static final StoreRef<String, Map<String, dynamic>> _store =
       StoreRef<String, Map<String, dynamic>>('tactics');
   static const _colors = <Color>[
-    Colors.red,
+    Color(0xFFE85450),
     Colors.blue,
     Colors.yellow,
     Colors.green,
@@ -159,7 +164,7 @@ class _TacticsPageState extends State<TacticsPage> {
   final List<_BoardPoint> _points = <_BoardPoint>[];
   final List<_BoardLine> _lines = <_BoardLine>[];
   final List<_SavedTactic> _savedTactics = <_SavedTactic>[];
-  Color _selectedColor = Colors.red;
+  Color _selectedColor = const Color(0xFFE85450);
   _Tool _tool = _Tool.point;
   List<Offset>? _activeLine;
   int? _movingPointIndex;
