@@ -322,6 +322,8 @@ class MatchStatsState {
   }
 }
 
+const String _timeoutKind = 'timeout';
+
 class MatchStatsRepository {
   MatchStatsRepository(Database database) : _database = database;
 
@@ -359,6 +361,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   ];
 
   static const String _opponentErrorCategory = 'Gegner Fehler';
+  static const String _timeoutKind = 'timeout';
   static const List<String> _pointTypes = <String>[
     'Ass',
     'Angriff',
@@ -700,6 +703,47 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     });
   }
 
+  Future<void> _recordTimeout(MatchGame match) async {
+    final side = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Auszeit nehmen'),
+        content:
+            const Text('Für welches Team soll die Auszeit notiert werden?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('Team'),
+            child: const Text('Team'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('Gegner'),
+            child: const Text('Gegner'),
+          ),
+        ],
+      ),
+    );
+
+    if (side == null || !mounted) return;
+
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
+        MatchEvent(
+          id: match.events.length + 1,
+          playerId: null,
+          playerName: side,
+          playerNumber: 0,
+          kind: _timeoutKind,
+          category: side,
+          occurredAt: DateTime.now(),
+        ),
+      );
+    _replaceMatch(match.copyWith(events: events));
+  }
+
   void _selectPlayerForEvent(MatchGame match, MatchPlayer player) {
     final category = _pendingCategory;
     if (category == null) return;
@@ -775,6 +819,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return summary;
   }
 
+  List<DateTime> _timeoutMarkers(MatchGame match) {
+    return match.events
+        .where((event) => event.kind == _timeoutKind)
+        .map((event) => event.occurredAt)
+        .toList();
+  }
+
   // Replays events chronologically: 'point' scores for us, 'error' scores for
   // the opponent, sets end at 25 with two points lead (same rule as the
   // scoreboard).
@@ -788,7 +839,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     for (final event in sortedEvents) {
       if (event.kind == 'point') {
         us++;
-      } else {
+      } else if (event.kind == 'error') {
         opponent++;
       }
       final usWon = us >= 25 && us - opponent >= 2;
@@ -1397,6 +1448,30 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ),
               ),
               const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 92,
+                child: FilledButton.icon(
+                  key: const ValueKey('record-timeout-button'),
+                  onPressed: () => _recordTimeout(match),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF82D5C8),
+                    foregroundColor: Colors.black,
+                    textStyle: TextStyle(
+                      fontFamily:
+                          Theme.of(context).textTheme.labelLarge?.fontFamily,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.schedule, size: 32),
+                  label: const Text('Auszeit'),
+                ),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: _SetsTile(sets: scoreSets)),
@@ -1550,6 +1625,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             _TrendChartCard(
               title: 'Zeitverlauf gesamt',
               samples: _trendSamples(match),
+              timeoutMarkers: _timeoutMarkers(match),
               height: 220,
             ),
             const SizedBox(height: 12),
@@ -1584,6 +1660,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 _TrendChartCard(
                   title: player.name,
                   samples: _trendSamples(match, playerId: player.id),
+                  timeoutMarkers: _timeoutMarkers(match),
                   height: 180,
                 ),
                 const SizedBox(height: 12),
@@ -1621,7 +1698,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     for (final event in events) {
       if (event.kind == 'point') {
         points++;
-      } else {
+      } else if (event.kind == 'error') {
         errors++;
       }
       samples.add(
@@ -1906,11 +1983,13 @@ class _TrendChartCard extends StatelessWidget {
   const _TrendChartCard({
     required this.title,
     required this.samples,
+    required this.timeoutMarkers,
     required this.height,
   });
 
   final String title;
   final List<_TrendSample> samples;
+  final List<DateTime> timeoutMarkers;
   final double height;
 
   @override
@@ -1935,6 +2014,11 @@ class _TrendChartCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 const _TrendLegendDot(color: Colors.redAccent, label: 'Fehler'),
+                const SizedBox(width: 12),
+                const _TrendLegendLine(
+                  color: Color(0xFF82D5C8),
+                  label: 'Auszeit',
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -1944,7 +2028,10 @@ class _TrendChartCard extends StatelessWidget {
               child: samples.isEmpty
                   ? const Center(child: Text('Noch keine Diagrammdaten.'))
                   : CustomPaint(
-                      painter: _TrendChartPainter(samples: samples),
+                      painter: _TrendChartPainter(
+                        samples: samples,
+                        timeoutMarkers: timeoutMarkers,
+                      ),
                       child: const SizedBox.expand(),
                     ),
             ),
@@ -1978,10 +2065,30 @@ class _TrendLegendDot extends StatelessWidget {
   }
 }
 
+class _TrendLegendLine extends StatelessWidget {
+  const _TrendLegendLine({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 2, height: 12, color: color),
+        const SizedBox(width: 6),
+        Text(label),
+      ],
+    );
+  }
+}
+
 class _TrendChartPainter extends CustomPainter {
-  _TrendChartPainter({required this.samples});
+  _TrendChartPainter({required this.samples, required this.timeoutMarkers});
 
   final List<_TrendSample> samples;
+  final List<DateTime> timeoutMarkers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2067,6 +2174,21 @@ class _TrendChartPainter extends CustomPainter {
       }
     }
 
+    void paintTimeoutMarkers(List<DateTime> markers) {
+      if (markers.isEmpty) return;
+      final markerPaint = Paint()
+        ..color = const Color(0xFF82D5C8).withValues(alpha: 0.95)
+        ..strokeWidth = 2;
+      for (final time in markers) {
+        final x = xFor(time);
+        canvas.drawLine(
+          Offset(x, chartRect.top),
+          Offset(x, chartRect.bottom),
+          markerPaint,
+        );
+      }
+    }
+
     final pointSeries = samples
         .map((sample) => Offset(xFor(sample.time), yFor(sample.points)))
         .toList();
@@ -2074,6 +2196,7 @@ class _TrendChartPainter extends CustomPainter {
         .map((sample) => Offset(xFor(sample.time), yFor(sample.errors)))
         .toList();
 
+    paintTimeoutMarkers(timeoutMarkers);
     paintSeries(pointSeries, Colors.greenAccent);
     paintSeries(errorSeries, Colors.redAccent);
 
@@ -2097,7 +2220,8 @@ class _TrendChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
-    return oldDelegate.samples != samples;
+    return oldDelegate.samples != samples ||
+        oldDelegate.timeoutMarkers != timeoutMarkers;
   }
 }
 
@@ -2143,6 +2267,7 @@ class _MatchHistoryTable extends StatelessWidget {
   }
 
   String _kindLabel(MatchEvent entry) {
+    if (entry.kind == _timeoutKind) return 'Auszeit';
     return entry.kind == 'point' ? 'Punkt' : 'Fehler';
   }
 
