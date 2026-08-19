@@ -629,6 +629,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verlauf'), findsOneWidget);
+    expect(find.text('Ada'), findsOneWidget);
+    expect(find.text('Ass'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Statistik'));

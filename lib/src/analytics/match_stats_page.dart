@@ -924,6 +924,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             ),
             const SizedBox(height: 12),
             _DetailTile(
+              title: 'Verlauf',
+              subtitle:
+                  '${match.events.length} Einträge chronologisch anzeigen',
+              icon: Icons.history,
+              onTap: () => _openMatchHistory(match),
+            ),
+            const SizedBox(height: 12),
+            _DetailTile(
               title: 'Spiel löschen',
               subtitle: 'Spiel und Statistik unwiderruflich entfernen',
               icon: Icons.delete_outline,
@@ -1270,6 +1278,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => _showMatchDetail(match.id),
         ),
+        actions: [
+          IconButton(
+            key: const ValueKey('match-history-appbar-button'),
+            icon: const Icon(Icons.history),
+            tooltip: 'Verlauf',
+            onPressed: () => _openMatchHistory(match),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -1350,6 +1366,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _openMatchHistory(MatchGame match) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _MatchHistoryPage(match: match),
       ),
     );
   }
@@ -1763,6 +1787,158 @@ class _SetScore {
   final int us;
   final int opponent;
   final bool isFinished;
+}
+
+class _MatchHistoryPage extends StatelessWidget {
+  const _MatchHistoryPage({required this.match});
+
+  final MatchGame match;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = List<MatchEvent>.from(match.events)
+      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verlauf')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: entries.isEmpty
+              ? const Center(
+                  child: Text('Noch keine Verlaufseinträge vorhanden.'),
+                )
+              : SingleChildScrollView(
+                  child: _MatchHistoryTable(entries: entries),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchHistoryTable extends StatelessWidget {
+  const _MatchHistoryTable({required this.entries});
+
+  final List<MatchEvent> entries;
+
+  String _formatTimestamp(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day.$month. $hour:$minute';
+  }
+
+  String _kindLabel(MatchEvent entry) {
+    return entry.kind == 'point' ? 'Punkt' : 'Fehler';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const headerStyle = TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.bold,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Table(
+        columnWidths: const {
+          0: IntrinsicColumnWidth(),
+          1: IntrinsicColumnWidth(),
+          2: IntrinsicColumnWidth(),
+          3: IntrinsicColumnWidth(),
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          const TableRow(
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Text('Zeit', style: headerStyle),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Text('Typ', style: headerStyle),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Text('Spieler', style: headerStyle),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Text('Kategorie', style: headerStyle),
+              ),
+            ],
+          ),
+          for (var i = 0; i < entries.length; i++)
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 8,
+                  ),
+                  child: Text(
+                    _formatTimestamp(entries[i].occurredAt),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 8,
+                  ),
+                  child: Text(
+                    _kindLabel(entries[i]),
+                    style: TextStyle(
+                      color: entries[i].kind == 'point'
+                          ? Colors.greenAccent
+                          : Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 8,
+                  ),
+                  child: Text(
+                    entries[i].playerName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 8,
+                  ),
+                  child: Text(
+                    entries[i].category,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ClockTile extends StatelessWidget {
