@@ -156,8 +156,8 @@ class _TacticsPageState extends State<TacticsPage> {
   static const _colors = <Color>[
     Color(0xFFE85450),
     Colors.blue,
-    Colors.yellow,
-    Colors.green,
+    Color(0xFFFFE680),
+    Color(0xFF7CC57E),
     Colors.white,
   ];
 
