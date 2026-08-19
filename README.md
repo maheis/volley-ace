@@ -40,6 +40,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Uhr / Stop-Uhr
     - [x] Stop-Uhr automatisch starten wenn erster Punkt vergeben wird (damit sie zumindest verzögert startet...)
   - [x] Letzte Punkte pro Satz anzeigen
+  - [x] Verlauf pro Satz anzeigen
   - [x] Auszeiten pro Team
         30 Sekunden Timer
         2 Stück pro Satz und Team

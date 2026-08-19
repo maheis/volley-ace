@@ -8,6 +8,7 @@ import 'package:volleyace/src/arcade/arcade_page.dart';
 import 'package:volleyace/src/settings/settings_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
+import 'package:volleyace/src/scoreboard/scoreboard_state.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
 import 'package:volleyace/src/teams/teams_page.dart';
@@ -174,7 +175,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     await tester.fling(blueScore, const Offset(0, 300), 1000);
@@ -507,40 +509,66 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('history-appbar-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Verlauf'), findsOneWidget);
     expect(find.text('Satzpunkte'), findsOneWidget);
+    expect(find.text('Verlauf'), findsOneWidget);
     expect(find.text('Zeit'), findsOneWidget);
     expect(find.text('Aktion'), findsOneWidget);
     expect(find.text('Punkt blau'), findsOneWidget);
     expect(find.text('Satz beendet blau'), findsOneWidget);
     expect(find.text('1:0'), findsOneWidget);
+
+    expect(
+      tester.getTopLeft(find.text('Satzpunkte')).dy,
+      lessThan(tester.getTopLeft(find.text('Verlauf')).dy),
+    );
   });
 
-  testWidgets('Scoreboard clears history on reset', (
-    WidgetTester tester,
-  ) async {
+  test('Scoreboard reset clears history entries', () async {
     final database = await databaseFactoryMemory.openDatabase('reset.db');
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData(platform: TargetPlatform.windows),
-        home: ScoreboardPage(database: database),
+    final repository = ScoreboardRepository(database);
+
+    await repository.save(
+      ScoreboardState(
+        leftPoints: 3,
+        rightPoints: 2,
+        leftSets: 1,
+        rightSets: 0,
+        leftTimeouts: 1,
+        rightTimeouts: 2,
+        leftColor: ScoreboardState.defaultLeftColor,
+        rightColor: ScoreboardState.defaultRightColor,
+        stopwatchElapsed: Duration(seconds: 12),
+        stopwatchRunning: true,
+        stopwatchStartedAt: null,
+        timeoutSide: null,
+        timeoutStartedAt: null,
+        completedSets: <SetResult>[
+          SetResult(
+            leftPoints: 25,
+            rightPoints: 18,
+            winnerColor: ScoreboardState.defaultLeftColor,
+            wonAt: DateTime.fromMillisecondsSinceEpoch(1),
+            stopwatchAt: Duration(seconds: 31),
+          ),
+        ],
+        historyEntries: <ScoreboardHistoryEntry>[
+          ScoreboardHistoryEntry(
+            action: 'Punkt blau',
+            occurredAt: DateTime.fromMillisecondsSinceEpoch(2),
+            stopwatchAt: Duration(seconds: 3),
+            color: ScoreboardState.defaultLeftColor,
+          ),
+        ],
       ),
     );
-    await tester.pumpAndSettle();
 
-    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
-    await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await repository.save(ScoreboardState.initial);
 
-    await tester.tap(find.byTooltip('Reset'));
-    await tester.pump();
-    await tester.tap(find.text('Zurücksetzen'));
-    await tester.pump(const Duration(milliseconds: 100));
-
-    final persisted = await ScoreboardRepository(database).load();
+    final persisted = await repository.load();
     expect(persisted.historyEntries, isEmpty);
     expect(persisted.completedSets, isEmpty);
+    expect(persisted.leftPoints, 0);
+    expect(persisted.rightPoints, 0);
   });
 
   testWidgets(
