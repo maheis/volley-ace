@@ -142,12 +142,12 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [x] Satzstand
       - [x] Punkte pro Art
       - [x] Fehler pro Art
-      - [ ] Diagram über Punkte/Fehler im Zeitverlauf
+      - [x] Diagram über Punkte/Fehler im Zeitverlauf
       - [x] Spieler
         - [x] Punkte / Fehler pro Spieler
         - [x] Punkte pro Art
         - [x] Fehler pro Art
-        - [ ] Diagram über Punkte/Fehler im Zeitverlauf
+        - [x] Diagram über Punkte/Fehler im Zeitverlauf
         - [ ] Aufklappbare Details pro Spieler
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
 - [ ] Training
@@ -175,3 +175,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [ ] diff / import-date vs. änderungsdatum
 - [ ] farbe rosa in die app übernehmen?
 - [ ] varlaufdarstellung wie einen versionsgraphen
+- [ ] Diagramm mit differenzpunkten?

@@ -643,6 +643,14 @@ void main() {
     await tester.tap(find.text('Statistik'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Zeitverlauf gesamt'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Zeitverlauf pro Spieler'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Zeitverlauf pro Spieler'), findsOneWidget);
     expect(find.text('Ass'), findsWidgets);
   });
 

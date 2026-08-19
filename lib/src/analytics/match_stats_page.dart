@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
@@ -1506,6 +1507,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             const SizedBox(height: 12),
             _StatGroup(title: 'Fehler pro Art', entries: errors),
             const SizedBox(height: 12),
+            _TrendChartCard(
+              title: 'Zeitverlauf gesamt',
+              samples: _trendSamples(match),
+              height: 220,
+            ),
+            const SizedBox(height: 12),
             if (match.players.isNotEmpty) ...[
               const Text(
                 'Spielerübersicht',
@@ -1527,11 +1534,65 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 summaryFor: (player) =>
                     _playerSummary(match, player.id, kind: 'error'),
               ),
+              const SizedBox(height: 12),
+              const Text(
+                'Zeitverlauf pro Spieler',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              for (final player in match.players) ...[
+                _TrendChartCard(
+                  title: player.name,
+                  samples: _trendSamples(match, playerId: player.id),
+                  height: 180,
+                ),
+                const SizedBox(height: 12),
+              ],
             ],
           ],
         ),
       ),
     );
+  }
+
+  List<_TrendSample> _trendSamples(MatchGame match, {int? playerId}) {
+    final events = match.events
+        .where((event) => playerId == null || event.playerId == playerId)
+        .toList()
+      ..sort((a, b) {
+        final timeComparison = a.occurredAt.compareTo(b.occurredAt);
+        if (timeComparison != 0) return timeComparison;
+        return a.id.compareTo(b.id);
+      });
+
+    if (events.isEmpty) {
+      return const <_TrendSample>[];
+    }
+
+    final samples = <_TrendSample>[
+      _TrendSample(
+        time: events.first.occurredAt,
+        points: 0,
+        errors: 0,
+      ),
+    ];
+    var points = 0;
+    var errors = 0;
+    for (final event in events) {
+      if (event.kind == 'point') {
+        points++;
+      } else {
+        errors++;
+      }
+      samples.add(
+        _TrendSample(
+          time: event.occurredAt,
+          points: points,
+          errors: errors,
+        ),
+      );
+    }
+    return samples;
   }
 
   String _formatDate(DateTime value) {
@@ -1787,6 +1848,217 @@ class _SetScore {
   final int us;
   final int opponent;
   final bool isFinished;
+}
+
+class _TrendSample {
+  const _TrendSample({
+    required this.time,
+    required this.points,
+    required this.errors,
+  });
+
+  final DateTime time;
+  final int points;
+  final int errors;
+}
+
+class _TrendChartCard extends StatelessWidget {
+  const _TrendChartCard({
+    required this.title,
+    required this.samples,
+    required this.height,
+  });
+
+  final String title;
+  final List<_TrendSample> samples;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const _TrendLegendDot(
+                  color: Colors.greenAccent,
+                  label: 'Punkte',
+                ),
+                const SizedBox(width: 12),
+                const _TrendLegendDot(color: Colors.redAccent, label: 'Fehler'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: height,
+              width: double.infinity,
+              child: samples.isEmpty
+                  ? const Center(child: Text('Noch keine Diagrammdaten.'))
+                  : CustomPaint(
+                      painter: _TrendChartPainter(samples: samples),
+                      child: const SizedBox.expand(),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendLegendDot extends StatelessWidget {
+  const _TrendLegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(label),
+      ],
+    );
+  }
+}
+
+class _TrendChartPainter extends CustomPainter {
+  _TrendChartPainter({required this.samples});
+
+  final List<_TrendSample> samples;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (samples.isEmpty) return;
+
+    const leftPadding = 36.0;
+    const topPadding = 12.0;
+    const rightPadding = 12.0;
+    const bottomPadding = 24.0;
+
+    final chartRect = Rect.fromLTWH(
+      leftPadding,
+      topPadding,
+      math.max(0, size.width - leftPadding - rightPadding),
+      math.max(0, size.height - topPadding - bottomPadding),
+    );
+
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..strokeWidth = 1;
+    final axisPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35)
+      ..strokeWidth = 1.5;
+
+    for (var i = 1; i <= 3; i++) {
+      final y = chartRect.top + chartRect.height * i / 4;
+      canvas.drawLine(
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+    }
+    for (var i = 1; i <= 3; i++) {
+      final x = chartRect.left + chartRect.width * i / 4;
+      canvas.drawLine(
+        Offset(x, chartRect.top),
+        Offset(x, chartRect.bottom),
+        gridPaint,
+      );
+    }
+
+    canvas.drawLine(chartRect.bottomLeft, chartRect.topLeft, axisPaint);
+    canvas.drawLine(chartRect.bottomLeft, chartRect.bottomRight, axisPaint);
+
+    final maxValue = samples.fold<int>(0, (max, sample) {
+      return math.max(max, math.max(sample.points, sample.errors));
+    });
+    final maxY = math.max(1, maxValue);
+    final firstTime = samples.first.time;
+    final lastTime = samples.last.time;
+    final spanMillis = math.max(
+      1,
+      lastTime.difference(firstTime).inMilliseconds,
+    );
+
+    double xFor(DateTime time) {
+      final relative = time.difference(firstTime).inMilliseconds / spanMillis;
+      return chartRect.left + chartRect.width * relative;
+    }
+
+    double yFor(int value) {
+      final relative = value / maxY;
+      return chartRect.bottom - chartRect.height * relative;
+    }
+
+    void paintSeries(List<Offset> points, Color color) {
+      if (points.length < 2) return;
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (final point in points.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+      final linePaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(path, linePaint);
+
+      final pointPaint = Paint()..color = color;
+      for (final point in points) {
+        canvas.drawCircle(point, 3.5, pointPaint);
+      }
+    }
+
+    final pointSeries = samples
+        .map((sample) => Offset(xFor(sample.time), yFor(sample.points)))
+        .toList();
+    final errorSeries = samples
+        .map((sample) => Offset(xFor(sample.time), yFor(sample.errors)))
+        .toList();
+
+    paintSeries(pointSeries, Colors.greenAccent);
+    paintSeries(errorSeries, Colors.redAccent);
+
+    const labelStyle = TextStyle(
+      color: Colors.white70,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+    );
+    final topLabel = TextPainter(
+      text: TextSpan(text: '$maxY', style: labelStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    topLabel.paint(canvas, Offset(4, chartRect.top - 2));
+
+    final bottomLabel = TextPainter(
+      text: const TextSpan(text: '0', style: labelStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    bottomLabel.paint(canvas, Offset(8, chartRect.bottom - 14));
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
+    return oldDelegate.samples != samples;
+  }
 }
 
 class _MatchHistoryPage extends StatelessWidget {
