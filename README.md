@@ -173,6 +173,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] app name aktuell mit unterstich
 - [x] import / export (teams, punktewertung, taktiktafel)
   - [ ] diff / import-date vs. änderungsdatum
-- [ ] farbe rosa in die app übernehmen?
+- [x] farbe rosa in die app übernehmen?
+      -> Nehme doch das hellblau/mint
 - [ ] varlaufdarstellung wie einen versionsgraphen
 - [ ] Diagramm mit differenzpunkten?

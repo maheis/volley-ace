@@ -1,7 +1,7 @@
 name: volleyace
 description: "Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter."
 publish_to: "none"
-version: 0.1.21+121
+version: 0.1.22+122
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -61,5 +61,5 @@ flutter_icons:
   android: true
   ios: false
   image_path: assets/icons/color_transparent_icon.png
-  adaptive_icon_background: "#FFAACC"
+  adaptive_icon_background: "#82d5c8"
   adaptive_icon_foreground: assets/icons/color_transparent_icon.png
