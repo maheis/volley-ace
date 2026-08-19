@@ -1407,8 +1407,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-point-button'),
                   onPressed: () => _startEventSelection(match, isPoint: true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF82D5C8),
-                    foregroundColor: Colors.black,
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
                     textStyle: TextStyle(
                       fontFamily:
                           Theme.of(context).textTheme.labelLarge?.fontFamily,
@@ -1431,8 +1431,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-error-button'),
                   onPressed: () => _startEventSelection(match, isPoint: false),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF82D5C8),
-                    foregroundColor: Colors.black,
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
                     textStyle: TextStyle(
                       fontFamily:
                           Theme.of(context).textTheme.labelLarge?.fontFamily,
