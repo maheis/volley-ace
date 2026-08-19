@@ -1416,7 +1416,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-point-button'),
                   onPressed: () => _startEventSelection(match, isPoint: true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: const Color(0xFF7CC57E),
                     foregroundColor: Colors.white,
                     textStyle: TextStyle(
                       fontFamily:
@@ -1464,7 +1464,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-timeout-button'),
                   onPressed: () => _recordTimeout(match),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF82D5C8),
+                    backgroundColor: const Color(0xFFFFE680),
                     foregroundColor: Colors.black,
                     textStyle: TextStyle(
                       fontFamily:
