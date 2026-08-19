@@ -2099,7 +2099,7 @@ class _TrendChartPainter extends CustomPainter {
     const leftPadding = 36.0;
     const topPadding = 12.0;
     const rightPadding = 12.0;
-    const bottomPadding = 24.0;
+    const bottomPadding = 38.0;
 
     final chartRect = Rect.fromLTWH(
       leftPadding,
@@ -2154,6 +2154,10 @@ class _TrendChartPainter extends CustomPainter {
     double yFor(int value) {
       final relative = value / maxY;
       return chartRect.bottom - chartRect.height * relative;
+    }
+
+    String formatTime(DateTime value) {
+      return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     }
 
     void paintSeries(List<Offset> points, Color color) {
@@ -2218,6 +2222,41 @@ class _TrendChartPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
     bottomLabel.paint(canvas, Offset(8, chartRect.bottom - 14));
+
+    const axisLabelStyle = TextStyle(
+      color: Colors.white70,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+    );
+    final startLabel = TextPainter(
+      text: TextSpan(text: formatTime(firstTime), style: axisLabelStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    startLabel.paint(canvas, Offset(chartRect.left, chartRect.bottom + 4));
+
+    final middleTime = firstTime.add(
+      Duration(milliseconds: spanMillis ~/ 2),
+    );
+    final middleLabel = TextPainter(
+      text: TextSpan(text: formatTime(middleTime), style: axisLabelStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    middleLabel.paint(
+      canvas,
+      Offset(
+        chartRect.left + chartRect.width / 2 - middleLabel.width / 2,
+        chartRect.bottom + 4,
+      ),
+    );
+
+    final endLabel = TextPainter(
+      text: TextSpan(text: formatTime(lastTime), style: axisLabelStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    endLabel.paint(
+      canvas,
+      Offset(chartRect.right - endLabel.width, chartRect.bottom + 4),
+    );
   }
 
   @override
