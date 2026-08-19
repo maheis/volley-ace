@@ -904,7 +904,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                     subtitle: Text(
                       '${match.matchType} • ${_formatDateTime(match.matchDateTime)} • ${match.matchTag.isEmpty ? 'Ohne Stichwort' : match.matchTag} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
                     ),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Spiel exportieren',
+                          icon: const Icon(Icons.download_outlined),
+                          onPressed: () =>
+                              AppBackupService.exportMatch(context, match),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
                     onTap: () => _showMatchDetail(match.id),
                   ),
                 ),

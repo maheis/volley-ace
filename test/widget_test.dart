@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:sembast/sembast_memory.dart';
 
 import 'package:volleyace/src/analytics/match_stats_page.dart';
+import 'package:volleyace/src/backup/app_backup_service.dart';
 import 'package:volleyace/src/arcade/arcade_page.dart';
 import 'package:volleyace/src/settings/settings_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_repository.dart';
@@ -36,6 +37,61 @@ void main() {
     final migratedSettings = await repository.load();
 
     expect(migratedSettings.fontFamily, 'Ubuntu');
+  });
+
+  test('Team export payload contains one team', () {
+    final team = Team(
+      id: 7,
+      name: 'SV Beispiel',
+      players: const [
+        TeamPlayer(
+          id: 1,
+          name: 'Ada',
+          number: 12,
+          birthDate: null,
+          position: 'Mitte',
+          profile: 'Stark am Netz',
+        ),
+      ],
+      coaches: const [
+        TeamCoach(
+          id: 2,
+          name: 'Mara',
+          profile: 'Cheftrainerin',
+          birthDate: null,
+          position: 'Trainerin',
+        ),
+      ],
+    );
+
+    final payload = AppBackupService.buildTeamBackup(team);
+
+    expect(payload['type'], 'team');
+    expect(payload['team'], isA<Map<String, dynamic>>());
+    expect((payload['team'] as Map<String, dynamic>)['name'], 'SV Beispiel');
+  });
+
+  test('Match export payload contains one match', () {
+    final match = MatchGame(
+      id: 11,
+      createdAt: DateTime(2026),
+      location: 'Halle A',
+      opponentTeam: 'Team B',
+      matchDateTime: DateTime(2026),
+      matchTag: 'Finale',
+      matchType: 'Liga',
+      teamId: null,
+      coaches: const [],
+      players: const [],
+      events: const [],
+    );
+
+    final payload = AppBackupService.buildMatchBackup(match);
+
+    expect(payload['type'], 'match');
+    expect(payload['match'], isA<Map<String, dynamic>>());
+    expect(
+        (payload['match'] as Map<String, dynamic>)['opponentTeam'], 'Team B');
   });
 
   testWidgets('Arcade page moves the player on drag', (

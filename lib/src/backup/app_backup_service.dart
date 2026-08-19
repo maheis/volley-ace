@@ -30,17 +30,36 @@ class AppBackupService {
     };
   }
 
-  static Future<void> exportBackup(
-      BuildContext context, Database database) async {
-    final payload = await _readBackup(database);
-    final jsonText = const JsonEncoder.withIndent('  ').convert(payload);
-    final suggestedName =
-        'volleyace-backup-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+  static Map<String, dynamic> buildTeamBackup(Team team) => <String, dynamic>{
+        'formatVersion': _formatVersion,
+        'type': 'team',
+        'exportedAt': DateTime.now().toIso8601String(),
+        'team': team.toJson(),
+      };
+
+  static Map<String, dynamic> buildMatchBackup(MatchGame match) =>
+      <String, dynamic>{
+        'formatVersion': _formatVersion,
+        'type': 'match',
+        'exportedAt': DateTime.now().toIso8601String(),
+        'match': match.toJson(),
+      };
+
+  static String encodeBackup(Map<String, dynamic> payload) {
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  static Future<void> _exportJson(
+    BuildContext context,
+    String dialogTitle,
+    String suggestedName,
+    String jsonText,
+  ) async {
     final bytes = Uint8List.fromList(utf8.encode(jsonText));
 
     try {
       final selectedPath = await FilePicker.saveFile(
-        dialogTitle: 'VolleyAce Export speichern',
+        dialogTitle: dialogTitle,
         fileName: suggestedName,
         type: FileType.custom,
         allowedExtensions: const ['json'],
@@ -67,6 +86,54 @@ class AppBackupService {
         );
       }
     }
+  }
+
+  static Future<void> exportBackup(
+      BuildContext context, Database database) async {
+    final payload = await _readBackup(database);
+    final jsonText = encodeBackup(payload);
+    final suggestedName =
+        'volleyace-backup-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+    await _exportJson(
+      context,
+      'VolleyAce Export speichern',
+      suggestedName,
+      jsonText,
+    );
+  }
+
+  static Future<void> exportTeam(BuildContext context, Team team) async {
+    final jsonText = encodeBackup(buildTeamBackup(team));
+    final suggestedName =
+        'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+    await _exportJson(
+      context,
+      'Team exportieren',
+      suggestedName,
+      jsonText,
+    );
+  }
+
+  static Future<void> exportMatch(BuildContext context, MatchGame match) async {
+    final jsonText = encodeBackup(buildMatchBackup(match));
+    final suggestedName =
+        'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+    await _exportJson(
+      context,
+      'Spiel exportieren',
+      suggestedName,
+      jsonText,
+    );
+  }
+
+  static String _safeFileName(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 'unbenannt';
+    return trimmed
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '')
+        .toLowerCase();
   }
 
   static Future<bool> importBackup(

@@ -587,7 +587,18 @@ class _TeamsPageState extends State<TeamsPage> {
                         team.name.isEmpty ? 'Unbenanntes Team' : team.name),
                     subtitle: Text(
                         '${team.players.length} Spieler • ${team.coaches.length} Trainer'),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Team exportieren',
+                          icon: const Icon(Icons.download_outlined),
+                          onPressed: () =>
+                              AppBackupService.exportTeam(context, team),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
                     onTap: () => _openTeam(team),
                   ),
                 ),
