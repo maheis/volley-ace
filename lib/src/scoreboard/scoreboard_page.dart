@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'scoreboard_repository.dart';
@@ -301,6 +303,20 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Punktestand gespeichert.')),
+    );
+  }
+
+  Future<void> _shareCurrentStateSnapshot() async {
+    final pretty = const JsonEncoder.withIndent('  ').convert(
+      <String, dynamic>{
+        'type': 'scoreboard-snapshot',
+        'savedAt': DateTime.now().toIso8601String(),
+        'state': _currentState().toJson(),
+      },
+    );
+    await Share.share(
+      pretty,
+      subject: 'VolleyAce Punktetafel-Stand',
     );
   }
 
@@ -760,6 +776,12 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                   tooltip: 'Stand speichern',
                   onPressed: _saveCurrentStateSnapshot,
                   icon: const Icon(Icons.save_outlined),
+                ),
+                IconButton(
+                  key: const ValueKey('share-scoreboard-button'),
+                  tooltip: 'Stand teilen',
+                  onPressed: _shareCurrentStateSnapshot,
+                  icon: const Icon(Icons.share_outlined),
                 ),
                 IconButton(
                   key: const ValueKey('load-scoreboard-button'),

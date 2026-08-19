@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
+import 'package:share_plus/share_plus.dart';
 
 enum _Tool { point, freehand, straight, arrow }
 
@@ -282,6 +285,22 @@ class _TacticsPageState extends State<TacticsPage> {
       _activeTacticName = trimmedName;
     });
     await _persist();
+  }
+
+  Future<void> _shareCurrentBoard() async {
+    final payload = <String, dynamic>{
+      'type': 'tactics-board',
+      'savedAt': DateTime.now().toIso8601String(),
+      'activeTacticName': _activeTacticName,
+      'isRotated': _isRotated,
+      'points': _points.map((point) => point.toJson()).toList(),
+      'lines': _lines.map((line) => line.toJson()).toList(),
+      'savedTactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
+    };
+    await Share.share(
+      const JsonEncoder.withIndent('  ').convert(payload),
+      subject: 'VolleyAce Taktiktafel-Stand',
+    );
   }
 
   void _handleDeleteSelectionIntent() {
@@ -589,6 +608,11 @@ class _TacticsPageState extends State<TacticsPage> {
                   tooltip: 'Taktik speichern',
                   onPressed: _saveTactic,
                   icon: const Icon(Icons.save),
+                ),
+                IconButton(
+                  tooltip: 'Stand teilen',
+                  onPressed: _shareCurrentBoard,
+                  icon: const Icon(Icons.share_outlined),
                 ),
                 IconButton(
                   tooltip: _isRotated
