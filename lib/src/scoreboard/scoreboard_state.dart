@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 
+Color _normalizeScoreboardColor(Color color) {
+  if (color.value == 0xff1976d2) {
+    return const Color(0xFF3690E8);
+  }
+  if (color.value == 0xffe53935) {
+    return const Color(0xFFE85450);
+  }
+  return color;
+}
+
 @immutable
 class ScoreboardHistoryEntry {
   const ScoreboardHistoryEntry({
@@ -38,7 +48,9 @@ class ScoreboardHistoryEntry {
       stopwatchAt: Duration(
         milliseconds: stopwatchAtMillis is num ? stopwatchAtMillis.toInt() : 0,
       ),
-      color: colorValue is num ? Color(colorValue.toInt()) : null,
+      color: colorValue is num
+          ? _normalizeScoreboardColor(Color(colorValue.toInt()))
+          : null,
     );
   }
 }
@@ -87,7 +99,7 @@ class SetResult {
     return SetResult(
       leftPoints: leftPoints.toInt(),
       rightPoints: rightPoints.toInt(),
-      winnerColor: Color(winnerColor.toInt()),
+      winnerColor: _normalizeScoreboardColor(Color(winnerColor.toInt())),
       wonAt: DateTime.fromMillisecondsSinceEpoch(wonAtMillis.toInt()),
       stopwatchAt: Duration(
         milliseconds: stopwatchAtMillis is num ? stopwatchAtMillis.toInt() : 0,
@@ -224,7 +236,9 @@ class ScoreboardState {
 
     Color readColor(String key, Color fallback) {
       final value = data[key];
-      return value is num ? Color(value.toInt()) : fallback;
+      return value is num
+          ? _normalizeScoreboardColor(Color(value.toInt()))
+          : fallback;
     }
 
     final startedAtMillis = data['stopwatchStartedAtMillis'];
