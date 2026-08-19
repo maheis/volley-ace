@@ -123,6 +123,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Block
             - Zuspieler-Finte
             - Gegnerfehler
+            - Sonstiges
           - Fehler
             Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag

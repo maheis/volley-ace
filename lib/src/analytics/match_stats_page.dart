@@ -368,6 +368,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Block',
     'Zuspieler-Finte',
     _opponentErrorCategory,
+    'Sonstiges',
   ];
   static const List<String> _errorTypes = <String>[
     'Aufschlag',
