@@ -287,7 +287,7 @@ class _TeamsPageState extends State<TeamsPage> {
 
   Future<void> _importBackup() async {
     final imported =
-        await AppBackupService.importBackup(context, widget.database);
+        await AppBackupService.importTeamBackup(context, widget.database);
     if (imported && mounted) {
       await _load();
     }

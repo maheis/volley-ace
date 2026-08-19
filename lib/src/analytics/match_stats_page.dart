@@ -447,7 +447,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Future<void> _importBackup() async {
     final imported =
-        await AppBackupService.importBackup(context, widget.database);
+        await AppBackupService.importMatchBackup(context, widget.database);
     if (imported && mounted) {
       await _load();
     }
