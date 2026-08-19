@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -315,8 +317,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         'state': snapshot.state.toJson(),
       },
     );
-    await Share.share(
-      pretty,
+    final directory = await getTemporaryDirectory();
+    final file = File(
+      '${directory.path}/volleyace-punktetafel-${DateTime.now().millisecondsSinceEpoch}.json',
+    );
+    await file.writeAsString(pretty);
+    await Share.shareXFiles(
+      [XFile(file.path)],
       subject: 'VolleyAce Punktetafel-Stand',
     );
   }

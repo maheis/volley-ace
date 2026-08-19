@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 enum _Tool { point, freehand, straight, arrow }
@@ -295,8 +297,14 @@ class _TacticsPageState extends State<TacticsPage> {
       'points': tactic.points.map((point) => point.toJson()).toList(),
       'lines': tactic.lines.map((line) => line.toJson()).toList(),
     };
-    await Share.share(
-      const JsonEncoder.withIndent('  ').convert(payload),
+    final directory = await getTemporaryDirectory();
+    final file = File(
+      '${directory.path}/volleyace-taktiktafel-${DateTime.now().millisecondsSinceEpoch}.json',
+    );
+    await file
+        .writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+    await Share.shareXFiles(
+      [XFile(file.path)],
       subject: 'VolleyAce Taktiktafel-Stand',
     );
   }
