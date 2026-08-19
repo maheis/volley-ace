@@ -12,6 +12,8 @@ import 'settings/settings_page.dart';
 import 'teams/teams_page.dart';
 import 'tactics/tactics_page.dart';
 
+const Color _brandColor = Color(0xFF82D5C8);
+
 class VolleyAceApp extends StatelessWidget {
   const VolleyAceApp({
     super.key,
@@ -107,13 +109,42 @@ class VolleyAceApp extends StatelessWidget {
       brightness: Brightness.dark,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.teal,
+        seedColor: _brandColor,
         brightness: Brightness.dark,
+      ),
+      iconTheme: const IconThemeData(color: _brandColor),
+      appBarTheme: const AppBarTheme(
+        iconTheme: IconThemeData(color: _brandColor),
+        actionsIconTheme: IconThemeData(color: _brandColor),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: _brandColor),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: _brandColor),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _brandColor,
+          side: const BorderSide(color: _brandColor),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _brandColor,
+          foregroundColor: Colors.black,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: _brandColor,
+          foregroundColor: Colors.black,
+        ),
       ),
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: Color(0xFF202124),
         contentTextStyle: TextStyle(color: Colors.white),
-        actionTextColor: Colors.tealAccent,
+        actionTextColor: _brandColor,
       ),
     );
   }

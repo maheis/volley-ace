@@ -673,7 +673,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF82D5C8),
+            ),
             child: const Text('Löschen'),
           ),
         ],
@@ -974,7 +976,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               title: 'Spiel löschen',
               subtitle: 'Spiel und Statistik unwiderruflich entfernen',
               icon: Icons.delete_outline,
-              color: Colors.red,
+              color: const Color(0xFF82D5C8),
               onTap: () => _deleteMatch(match),
             ),
           ],
@@ -1354,8 +1356,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-point-button'),
                   onPressed: () => _startEventSelection(match, isPoint: true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF82D5C8),
+                    foregroundColor: Colors.black,
                     textStyle: TextStyle(
                       fontFamily:
                           Theme.of(context).textTheme.labelLarge?.fontFamily,
@@ -1378,8 +1380,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-error-button'),
                   onPressed: () => _startEventSelection(match, isPoint: false),
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF82D5C8),
+                    foregroundColor: Colors.black,
                     textStyle: TextStyle(
                       fontFamily:
                           Theme.of(context).textTheme.labelLarge?.fontFamily,

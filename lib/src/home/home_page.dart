@@ -20,7 +20,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    const brandColor = Color(0xFF82D5C8);
 
     return Scaffold(
       appBar: AppBar(
@@ -49,7 +49,7 @@ class HomePage extends StatelessWidget {
         children: [
           Card(
             child: ListTile(
-              leading: Icon(Icons.scoreboard, color: scheme.primary),
+              leading: Icon(Icons.scoreboard, color: brandColor),
               title: const Text('Punktetafel'),
               subtitle: const Text('Volleyball-Spielstand erfassen.'),
               trailing: const Icon(Icons.chevron_right),
@@ -59,7 +59,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.sports_volleyball, color: scheme.primary),
+              leading: Icon(Icons.sports_volleyball, color: brandColor),
               title: const Text('Taktiktafel'),
               subtitle: const Text('Aufstellungen und Laufwege zeichnen.'),
               trailing: const Icon(Icons.chevron_right),
@@ -69,7 +69,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.groups_outlined, color: scheme.secondary),
+              leading: Icon(Icons.groups_outlined, color: brandColor),
               title: const Text('Teams'),
               subtitle: const Text('Teams, Spieler und Trainer verwalten.'),
               trailing: const Icon(Icons.chevron_right),
@@ -79,7 +79,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.analytics_outlined, color: scheme.tertiary),
+              leading: Icon(Icons.analytics_outlined, color: brandColor),
               title: const Text('Punktewertung'),
               subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
               trailing: const Icon(Icons.chevron_right),
@@ -89,7 +89,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.sports_esports, color: scheme.secondary),
+              leading: Icon(Icons.sports_esports, color: brandColor),
               title: const Text('Volley-Arcade'),
               subtitle: const Text('C-Prototyp neu in Dart aufbauen.'),
               trailing: const Icon(Icons.chevron_right),

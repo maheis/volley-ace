@@ -474,7 +474,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                                             Navigator.of(dialogContext)
                                                 .pop(true),
                                         style: FilledButton.styleFrom(
-                                          backgroundColor: Colors.red,
+                                          backgroundColor:
+                                              const Color(0xFF82D5C8),
                                         ),
                                         child: const Text('Löschen'),
                                       ),
