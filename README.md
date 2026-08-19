@@ -121,6 +121,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Ass
             - Angriff
             - Block
+            - Zuspieler-Finte
             - Gegnerfehler
           - Fehler
             Auswahl Welcher Fehler gemacht wurde.
@@ -128,10 +129,11 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             - Ball ins Aus
             - Ball ins Netz
             - Ball nicht rüber
-            - Zugeschaut (Ball im Feld)
+            - Zugeschaut
             - Tusch
             - Übertritt
             - Netz Berührung
+            - Fehler beim Hinterfeldangriff
             - Sonstiges
       - [x] Auszeit (wichtig für den Verlauf / Impact)
     - [x] Wer

@@ -366,6 +366,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Ass',
     'Angriff',
     'Block',
+    'Zuspieler-Finte',
     _opponentErrorCategory,
   ];
   static const List<String> _errorTypes = <String>[
@@ -377,6 +378,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Tusch',
     'Übertritt',
     'Netz Berührung',
+    'Fehler beim Hinterfeldangriff',
     'Sonstiges',
   ];
 
