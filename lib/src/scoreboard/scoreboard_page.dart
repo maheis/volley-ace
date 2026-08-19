@@ -236,6 +236,171 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     );
   }
 
+  ScoreboardState _currentState() {
+    return ScoreboardState(
+      leftPoints: _leftPoints,
+      rightPoints: _rightPoints,
+      leftSets: _leftSets,
+      rightSets: _rightSets,
+      leftTimeouts: _leftTimeouts,
+      rightTimeouts: _rightTimeouts,
+      leftColor: _leftColor,
+      rightColor: _rightColor,
+      stopwatchElapsed: _stopwatchElapsed,
+      stopwatchRunning: _stopwatchRunning,
+      stopwatchStartedAt: _stopwatchStartedAt,
+      timeoutSide: _timeoutSide,
+      timeoutStartedAt: _timeoutStartedAt,
+      completedSets: _completedSets,
+      historyEntries: _historyEntries,
+    );
+  }
+
+  Future<void> _saveCurrentStateSnapshot() async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final controller = TextEditingController(
+          text:
+              'Stand ${_now.day.toString().padLeft(2, '0')}.${_now.month.toString().padLeft(2, '0')} ${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}',
+        );
+        return AlertDialog(
+          title: const Text('Stand speichern'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text('Speichern'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (name == null || name.trim().isEmpty || !mounted) return;
+
+    await _repository.saveSnapshot(
+      ScoreboardSnapshot(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name.trim(),
+        savedAt: DateTime.now(),
+        state: _currentState(),
+      ),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Punktestand gespeichert.')),
+    );
+  }
+
+  Future<void> _openSnapshotLoader() async {
+    final snapshots = await _repository.loadSnapshots();
+    if (!mounted) return;
+
+    if (snapshots.isEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Keine gespeicherten Stände'),
+          content:
+              const Text('Es sind noch keine alten Punktestände vorhanden.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: snapshots.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final snapshot = snapshots[index];
+              final savedAt = snapshot.savedAt;
+              final subtitle =
+                  '${savedAt.day.toString().padLeft(2, '0')}.${savedAt.month.toString().padLeft(2, '0')}.${savedAt.year} ${savedAt.hour.toString().padLeft(2, '0')}:${savedAt.minute.toString().padLeft(2, '0')} • ${snapshot.state.leftPoints}:${snapshot.state.rightPoints}';
+              return Card(
+                child: ListTile(
+                  title: Text(snapshot.name),
+                  subtitle: Text(subtitle),
+                  leading: const Icon(Icons.history),
+                  onTap: () async {
+                    final shouldLoad = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Stand laden?'),
+                        content:
+                            Text('„${snapshot.name}“ wird wiederhergestellt.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(false),
+                            child: const Text('Abbrechen'),
+                          ),
+                          FilledButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(true),
+                            child: const Text('Laden'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (shouldLoad != true || !mounted) return;
+                    Navigator.of(sheetContext).pop();
+                    setState(() {
+                      _leftPoints = snapshot.state.leftPoints;
+                      _rightPoints = snapshot.state.rightPoints;
+                      _leftSets = snapshot.state.leftSets;
+                      _rightSets = snapshot.state.rightSets;
+                      _leftTimeouts = snapshot.state.leftTimeouts;
+                      _rightTimeouts = snapshot.state.rightTimeouts;
+                      _leftColor = snapshot.state.leftColor;
+                      _rightColor = snapshot.state.rightColor;
+                      _stopwatchElapsed = snapshot.state.stopwatchElapsed;
+                      _stopwatchRunning = snapshot.state.stopwatchRunning;
+                      _stopwatchStartedAt = snapshot.state.stopwatchStartedAt;
+                      _timeoutSide = snapshot.state.timeoutSide;
+                      _timeoutStartedAt = snapshot.state.timeoutStartedAt;
+                      _completedSets = snapshot.state.completedSets;
+                      _historyEntries = snapshot.state.historyEntries;
+                    });
+                    _persist();
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('„${snapshot.name}“ geladen.')),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _clockTimer?.cancel();
@@ -590,6 +755,18 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           : AppBar(
               title: const Text('Punktetafel'),
               actions: [
+                IconButton(
+                  key: const ValueKey('save-scoreboard-button'),
+                  tooltip: 'Stand speichern',
+                  onPressed: _saveCurrentStateSnapshot,
+                  icon: const Icon(Icons.save_outlined),
+                ),
+                IconButton(
+                  key: const ValueKey('load-scoreboard-button'),
+                  tooltip: 'Stand laden',
+                  onPressed: _openSnapshotLoader,
+                  icon: const Icon(Icons.folder_open),
+                ),
                 IconButton(
                   key: const ValueKey('history-appbar-button'),
                   tooltip: 'Punkthistorie',

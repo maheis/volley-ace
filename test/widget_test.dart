@@ -190,6 +190,56 @@ void main() {
     expect(persisted.stopwatchElapsed, Duration.zero);
   });
 
+  testWidgets('Scoreboard can save and reload an old point state', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final database = await databaseFactoryMemory.openDatabase('snapshot.db');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: ScoreboardPage(database: database),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final blueScore = find.byKey(const ValueKey('blau-score-panel'));
+
+    await tester.fling(blueScore, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: blueScore, matching: find.text('1')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('save-scoreboard-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Erster Stand');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+
+    await tester.fling(blueScore, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: blueScore, matching: find.text('2')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('load-scoreboard-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Erster Stand'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Laden'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: blueScore, matching: find.text('1')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Scoreboard swaps sides with a horizontal swipe', (
     WidgetTester tester,
   ) async {

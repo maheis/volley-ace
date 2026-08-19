@@ -97,6 +97,48 @@ class SetResult {
 }
 
 @immutable
+class ScoreboardSnapshot {
+  const ScoreboardSnapshot({
+    required this.id,
+    required this.name,
+    required this.savedAt,
+    required this.state,
+  });
+
+  final String id;
+  final String name;
+  final DateTime savedAt;
+  final ScoreboardState state;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'name': name,
+        'savedAtMillis': savedAt.millisecondsSinceEpoch,
+        'state': state.toJson(),
+      };
+
+  static ScoreboardSnapshot? fromJson(dynamic raw) {
+    if (raw is! Map) return null;
+    final data = Map<String, dynamic>.from(raw);
+    final id = data['id'];
+    final name = data['name'];
+    final savedAtMillis = data['savedAtMillis'];
+    final state = data['state'];
+    if (id is! String || name is! String || savedAtMillis is! num) {
+      return null;
+    }
+    if (state is! Map) return null;
+
+    return ScoreboardSnapshot(
+      id: id,
+      name: name,
+      savedAt: DateTime.fromMillisecondsSinceEpoch(savedAtMillis.toInt()),
+      state: ScoreboardState.fromJson(Map<String, dynamic>.from(state)),
+    );
+  }
+}
+
+@immutable
 class ScoreboardState {
   const ScoreboardState({
     required this.leftPoints,
