@@ -639,7 +639,7 @@ class _TeamsPageState extends State<TeamsPage> {
                 title: 'Team löschen',
                 subtitle: 'Team und Mitglieder unwiderruflich entfernen',
                 icon: Icons.delete_outline,
-              color: const Color(0xFF82D5C8),
+                color: const Color(0xFF82D5C8),
                 onTap: () => _deleteTeam(team)),
           ],
         ),
