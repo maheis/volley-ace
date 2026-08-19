@@ -14,10 +14,12 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late String _fontFamily;
   late double _textScaleFactor;
+  late bool _useLightTheme;
 
   bool get _hasChanges {
     return _fontFamily != widget.initial.fontFamily ||
-        _textScaleFactor != widget.initial.textScaleFactor;
+        _textScaleFactor != widget.initial.textScaleFactor ||
+        _useLightTheme != widget.initial.useLightTheme;
   }
 
   @override
@@ -25,6 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _fontFamily = widget.initial.fontFamily;
     _textScaleFactor = widget.initial.textScaleFactor;
+    _useLightTheme = widget.initial.useLightTheme;
   }
 
   @override
@@ -52,13 +55,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     AppSettings(
                       fontFamily: _fontFamily,
                       textScaleFactor: _textScaleFactor,
+                      useLightTheme: _useLightTheme,
                     ),
                   );
                 },
                 child: Text(
                   'Speichern',
                   style: TextStyle(
-                    color: _hasChanges ? Colors.red : null,
+                    color: _hasChanges ? const Color(0xFF82D5C8) : null,
                     fontWeight:
                         _hasChanges ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -97,6 +101,16 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Helles Design'),
+                subtitle: const Text(
+                  'Zwischen hellem und dunklem Design wechseln.',
+                ),
+                value: _useLightTheme,
+                onChanged: (value) => setState(() => _useLightTheme = value),
               ),
               const SizedBox(height: 12),
               Text(

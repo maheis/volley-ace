@@ -7,6 +7,7 @@ class SettingsRepository {
 
   static const String _settingsRecordKey = 'app';
   static const String _fontMigrationKey = 'fontFamilyMigratedToUbuntu';
+  static const String _themeMigrationKey = 'themePreferenceMigratedToLightMode';
   static final StoreRef<String, Map<String, dynamic>> _store =
       StoreRef<String, Map<String, dynamic>>('settings');
 
@@ -16,7 +17,9 @@ class SettingsRepository {
     final data = await _store.record(_settingsRecordKey).get(_database);
     final storedFont = data?['fontFamily'];
     final storedScale = data?['uiTextScaleFactor'];
+    final storedUseLightTheme = data?['useLightTheme'];
     final fontMigrationApplied = data?[_fontMigrationKey] == true;
+    final themeMigrationApplied = data?[_themeMigrationKey] == true;
 
     final fontFamily = fontMigrationApplied
         ? AppSettings.availableFonts.contains(storedFont)
@@ -27,18 +30,26 @@ class SettingsRepository {
     final scale = storedScale is num
         ? storedScale.toDouble()
         : AppSettings.defaults.textScaleFactor;
+    final useLightTheme = themeMigrationApplied
+        ? storedUseLightTheme is bool
+            ? storedUseLightTheme
+            : AppSettings.defaults.useLightTheme
+        : AppSettings.defaults.useLightTheme;
 
-    if (!fontMigrationApplied) {
+    if (!fontMigrationApplied || !themeMigrationApplied) {
       await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
         'fontFamily': fontFamily,
         'uiTextScaleFactor': _clampScale(scale),
         _fontMigrationKey: true,
+        'useLightTheme': useLightTheme,
+        _themeMigrationKey: true,
       });
     }
 
     return AppSettings(
       fontFamily: fontFamily,
       textScaleFactor: _clampScale(scale),
+      useLightTheme: useLightTheme,
     );
   }
 
@@ -46,7 +57,9 @@ class SettingsRepository {
     await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
       'fontFamily': settings.fontFamily,
       'uiTextScaleFactor': _clampScale(settings.textScaleFactor),
+      'useLightTheme': settings.useLightTheme,
       _fontMigrationKey: true,
+      _themeMigrationKey: true,
     });
   }
 

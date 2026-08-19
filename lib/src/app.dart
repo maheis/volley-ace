@@ -43,7 +43,15 @@ class VolleyAceApp extends StatelessWidget {
             Locale('en', 'GB'),
             Locale('de', 'DE'),
           ],
-          theme: _buildTheme(settings.fontFamily),
+          theme: _buildTheme(
+            settings.fontFamily,
+            brightness: Brightness.light,
+          ),
+          darkTheme: _buildTheme(
+            settings.fontFamily,
+            brightness: Brightness.dark,
+          ),
+          themeMode: settings.useLightTheme ? ThemeMode.light : ThemeMode.dark,
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
@@ -103,14 +111,17 @@ class VolleyAceApp extends StatelessWidget {
     );
   }
 
-  ThemeData _buildTheme(String fontFamily) {
+  ThemeData _buildTheme(
+    String fontFamily, {
+    required Brightness brightness,
+  }) {
     return ThemeData(
       fontFamily: fontFamily,
-      brightness: Brightness.dark,
+      brightness: brightness,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: _brandColor,
-        brightness: Brightness.dark,
+        brightness: brightness,
       ),
       iconTheme: const IconThemeData(color: _brandColor),
       appBarTheme: const AppBarTheme(
