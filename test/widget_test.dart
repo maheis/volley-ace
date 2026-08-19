@@ -240,6 +240,27 @@ void main() {
     );
   });
 
+  test('Scoreboard can delete a saved point state', () async {
+    final database =
+        await databaseFactoryMemory.openDatabase('snapshot-del.db');
+    final repository = ScoreboardRepository(database);
+
+    await repository.saveSnapshot(
+      ScoreboardSnapshot(
+        id: '1',
+        name: 'Loeschtest',
+        savedAt: DateTime(2026),
+        state: ScoreboardState.initial,
+      ),
+    );
+
+    expect((await repository.loadSnapshots()).length, 1);
+
+    await repository.deleteSnapshot('1');
+
+    expect(await repository.loadSnapshots(), isEmpty);
+  });
+
   testWidgets('Scoreboard swaps sides with a horizontal swipe', (
     WidgetTester tester,
   ) async {

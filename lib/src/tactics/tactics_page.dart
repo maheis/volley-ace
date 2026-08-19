@@ -287,15 +287,13 @@ class _TacticsPageState extends State<TacticsPage> {
     await _persist();
   }
 
-  Future<void> _shareCurrentBoard() async {
+  Future<void> _shareSavedTactic(_SavedTactic tactic) async {
     final payload = <String, dynamic>{
       'type': 'tactics-board',
       'savedAt': DateTime.now().toIso8601String(),
-      'activeTacticName': _activeTacticName,
-      'isRotated': _isRotated,
-      'points': _points.map((point) => point.toJson()).toList(),
-      'lines': _lines.map((line) => line.toJson()).toList(),
-      'savedTactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
+      'name': tactic.name,
+      'points': tactic.points.map((point) => point.toJson()).toList(),
+      'lines': tactic.lines.map((line) => line.toJson()).toList(),
     };
     await Share.share(
       const JsonEncoder.withIndent('  ').convert(payload),
@@ -311,6 +309,7 @@ class _TacticsPageState extends State<TacticsPage> {
   Future<void> _showTactics() async {
     await showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: _savedTactics.isEmpty
             ? const SizedBox(
@@ -330,10 +329,20 @@ class _TacticsPageState extends State<TacticsPage> {
                         Navigator.of(sheetContext).pop();
                         _loadTactic(tactic);
                       },
-                      trailing: IconButton(
-                        tooltip: 'Taktik löschen',
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => _deleteTactic(tactic),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Taktik teilen',
+                            icon: const Icon(Icons.share_outlined),
+                            onPressed: () => _shareSavedTactic(tactic),
+                          ),
+                          IconButton(
+                            tooltip: 'Taktik löschen',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _deleteTactic(tactic),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -608,11 +617,6 @@ class _TacticsPageState extends State<TacticsPage> {
                   tooltip: 'Taktik speichern',
                   onPressed: _saveTactic,
                   icon: const Icon(Icons.save),
-                ),
-                IconButton(
-                  tooltip: 'Stand teilen',
-                  onPressed: _shareCurrentBoard,
-                  icon: const Icon(Icons.share_outlined),
                 ),
                 IconButton(
                   tooltip: _isRotated

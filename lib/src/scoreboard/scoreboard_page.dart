@@ -306,12 +306,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     );
   }
 
-  Future<void> _shareCurrentStateSnapshot() async {
+  Future<void> _shareSnapshot(ScoreboardSnapshot snapshot) async {
     final pretty = const JsonEncoder.withIndent('  ').convert(
       <String, dynamic>{
         'type': 'scoreboard-snapshot',
-        'savedAt': DateTime.now().toIso8601String(),
-        'state': _currentState().toJson(),
+        'savedAt': snapshot.savedAt.toIso8601String(),
+        'name': snapshot.name,
+        'state': snapshot.state.toJson(),
       },
     );
     await Share.share(
@@ -346,72 +347,153 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       context: context,
       showDragHandle: true,
       builder: (sheetContext) {
-        return SafeArea(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: snapshots.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final snapshot = snapshots[index];
-              final savedAt = snapshot.savedAt;
-              final subtitle =
-                  '${savedAt.day.toString().padLeft(2, '0')}.${savedAt.month.toString().padLeft(2, '0')}.${savedAt.year} ${savedAt.hour.toString().padLeft(2, '0')}:${savedAt.minute.toString().padLeft(2, '0')} • ${snapshot.state.leftPoints}:${snapshot.state.rightPoints}';
-              return Card(
-                child: ListTile(
-                  title: Text(snapshot.name),
-                  subtitle: Text(subtitle),
-                  leading: const Icon(Icons.history),
-                  onTap: () async {
-                    final shouldLoad = await showDialog<bool>(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Stand laden?'),
-                        content:
-                            Text('„${snapshot.name}“ wird wiederhergestellt.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
-                            child: const Text('Abbrechen'),
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            if (snapshots.isEmpty) {
+              return const SafeArea(
+                child: SizedBox(
+                  height: 128,
+                  child: Center(
+                    child: Text('Noch keine gespeicherten Stände.'),
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: snapshots.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final snapshot = snapshots[index];
+                  final savedAt = snapshot.savedAt;
+                  final subtitle =
+                      '${savedAt.day.toString().padLeft(2, '0')}.${savedAt.month.toString().padLeft(2, '0')}.${savedAt.year} ${savedAt.hour.toString().padLeft(2, '0')}:${savedAt.minute.toString().padLeft(2, '0')} • ${snapshot.state.leftPoints}:${snapshot.state.rightPoints}';
+                  return Card(
+                    child: ListTile(
+                      title: Text(snapshot.name),
+                      subtitle: Text(subtitle),
+                      leading: const Icon(Icons.history),
+                      onTap: () async {
+                        final shouldLoad = await showDialog<bool>(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Stand laden?'),
+                            content: Text(
+                              '„${snapshot.name}“ wird wiederhergestellt.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(false),
+                                child: const Text('Abbrechen'),
+                              ),
+                              FilledButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(true),
+                                child: const Text('Laden'),
+                              ),
+                            ],
                           ),
-                          FilledButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
-                            child: const Text('Laden'),
+                        );
+
+                        if (shouldLoad != true || !mounted) return;
+                        Navigator.of(sheetContext).pop();
+                        setState(() {
+                          _leftPoints = snapshot.state.leftPoints;
+                          _rightPoints = snapshot.state.rightPoints;
+                          _leftSets = snapshot.state.leftSets;
+                          _rightSets = snapshot.state.rightSets;
+                          _leftTimeouts = snapshot.state.leftTimeouts;
+                          _rightTimeouts = snapshot.state.rightTimeouts;
+                          _leftColor = snapshot.state.leftColor;
+                          _rightColor = snapshot.state.rightColor;
+                          _stopwatchElapsed = snapshot.state.stopwatchElapsed;
+                          _stopwatchRunning = snapshot.state.stopwatchRunning;
+                          _stopwatchStartedAt =
+                              snapshot.state.stopwatchStartedAt;
+                          _timeoutSide = snapshot.state.timeoutSide;
+                          _timeoutStartedAt = snapshot.state.timeoutStartedAt;
+                          _completedSets = snapshot.state.completedSets;
+                          _historyEntries = snapshot.state.historyEntries;
+                        });
+                        _persist();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('„${snapshot.name}“ geladen.'),
+                          ),
+                        );
+                      },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Stand teilen',
+                              icon: const Icon(Icons.share_outlined),
+                              onPressed: () => _shareSnapshot(snapshot),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Stand löschen',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                final shouldDelete = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Stand löschen?'),
+                                    content: Text(
+                                      '„${snapshot.name}“ wird endgültig gelöscht.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(dialogContext)
+                                                .pop(false),
+                                        child: const Text('Abbrechen'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.of(dialogContext)
+                                                .pop(true),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        child: const Text('Löschen'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (shouldDelete != true || !mounted) return;
+                                await _repository.deleteSnapshot(snapshot.id);
+                                if (!mounted) return;
+                                sheetSetState(() {
+                                  snapshots.removeWhere(
+                                    (entry) => entry.id == snapshot.id,
+                                  );
+                                });
+                              },
+                            ),
                           ),
                         ],
                       ),
-                    );
-
-                    if (shouldLoad != true || !mounted) return;
-                    Navigator.of(sheetContext).pop();
-                    setState(() {
-                      _leftPoints = snapshot.state.leftPoints;
-                      _rightPoints = snapshot.state.rightPoints;
-                      _leftSets = snapshot.state.leftSets;
-                      _rightSets = snapshot.state.rightSets;
-                      _leftTimeouts = snapshot.state.leftTimeouts;
-                      _rightTimeouts = snapshot.state.rightTimeouts;
-                      _leftColor = snapshot.state.leftColor;
-                      _rightColor = snapshot.state.rightColor;
-                      _stopwatchElapsed = snapshot.state.stopwatchElapsed;
-                      _stopwatchRunning = snapshot.state.stopwatchRunning;
-                      _stopwatchStartedAt = snapshot.state.stopwatchStartedAt;
-                      _timeoutSide = snapshot.state.timeoutSide;
-                      _timeoutStartedAt = snapshot.state.timeoutStartedAt;
-                      _completedSets = snapshot.state.completedSets;
-                      _historyEntries = snapshot.state.historyEntries;
-                    });
-                    _persist();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('„${snapshot.name}“ geladen.')),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         );
       },
     );
@@ -776,12 +858,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                   tooltip: 'Stand speichern',
                   onPressed: _saveCurrentStateSnapshot,
                   icon: const Icon(Icons.save_outlined),
-                ),
-                IconButton(
-                  key: const ValueKey('share-scoreboard-button'),
-                  tooltip: 'Stand teilen',
-                  onPressed: _shareCurrentStateSnapshot,
-                  icon: const Icon(Icons.share_outlined),
                 ),
                 IconButton(
                   key: const ValueKey('load-scoreboard-button'),
