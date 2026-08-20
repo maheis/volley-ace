@@ -110,7 +110,9 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Helles Design'),
+                title: Text(
+                  _useLightTheme ? 'Dunkles Design' : 'Helles Design',
+                ),
                 subtitle: const Text(
                   'Zwischen hellem und dunklem Design wechseln.',
                 ),
