@@ -32,6 +32,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 ## Features
 
 - [x] Punktetafel
+  - [x] Punktestände importieren
   - Zwei farbige Satzpunkt-Anzeigen (blau/rot)
   - Gewonnene Sätze in der Mitte
   - Nach unten wischen: Punkt vergeben
@@ -66,6 +67,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
           Bei Punktvergabe soll Rotation berücksichtigt werden, manuell soll aber auch eine Rotation ausgelöst werden können (falls ein Team außerhalb der Punkte-Rotation rotieren möchte)
 - [x] Taktiktafel
   - [x] Speichern von Taktiken
+  - [x] Taktiken importieren
 - [x] Team
   - [x] Info
     - [x] Teamname
@@ -156,6 +158,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
 - [x] Training
   - [x] Mehrere Trainings speichern
+  - [x] Trainings teilen
+  - [x] Trainings importieren
   - [x] Infos
     - [x] Name
     - [x] Datum / Uhrzeit

@@ -281,10 +281,6 @@ class _TeamsPageState extends State<TeamsPage> {
     });
   }
 
-  Future<void> _exportBackup() async {
-    await AppBackupService.exportBackup(context, widget.database);
-  }
-
   Future<void> _importBackup() async {
     final imported =
         await AppBackupService.importTeamBackup(context, widget.database);
@@ -551,11 +547,6 @@ class _TeamsPageState extends State<TeamsPage> {
           title: const Text('Teams'),
           actions: [
             IconButton(
-              tooltip: 'Export',
-              icon: const Icon(Icons.download_outlined),
-              onPressed: _exportBackup,
-            ),
-            IconButton(
               tooltip: 'Import',
               icon: const Icon(Icons.upload_outlined),
               onPressed: _importBackup,
@@ -592,12 +583,6 @@ class _TeamsPageState extends State<TeamsPage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          tooltip: 'Team exportieren',
-                          icon: const Icon(Icons.download_outlined),
-                          onPressed: () =>
-                              AppBackupService.exportTeam(context, team),
-                        ),
                         IconButton(
                           tooltip: 'Team teilen',
                           icon: const Icon(Icons.share_outlined),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
@@ -310,10 +311,54 @@ class _TacticsPageState extends State<TacticsPage> {
     );
     await file
         .writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'VolleyAce Taktiktafel-Stand',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'VolleyAce Taktiktafel-Stand',
+      ),
     );
+  }
+
+  Future<void> _importTactic() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        dialogTitle: 'Taktik importieren',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (result.isEmpty) return;
+      final bytes = await result.single.readAsBytes();
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map) {
+        throw const FormatException('Ungültiges Taktikformat.');
+      }
+      final data = Map<String, dynamic>.from(decoded);
+      final rawTactic = data['tactic'] is Map ? data['tactic'] : data;
+      final tactic = _SavedTactic.fromJson(
+        Map<String, dynamic>.from(rawTactic as Map),
+      );
+      final nextId = _savedTactics.isEmpty
+          ? 1
+          : _savedTactics
+                  .map((entry) => entry.id)
+                  .reduce((a, b) => a > b ? a : b) +
+              1;
+      final imported = _SavedTactic(
+        id: nextId,
+        name: '${tactic.name} (Import)',
+        points: tactic.points,
+        lines: tactic.lines,
+      );
+      setState(() => _savedTactics.add(imported));
+      await _persist();
+      _loadTactic(imported);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Taktik konnte nicht importiert werden: $error')),
+      );
+    }
   }
 
   void _handleDeleteSelectionIntent() {
@@ -627,6 +672,12 @@ class _TacticsPageState extends State<TacticsPage> {
                   tooltip: 'Taktik laden',
                   onPressed: _showTactics,
                   icon: const Icon(Icons.folder_open),
+                ),
+                IconButton(
+                  key: const ValueKey('import-tactic-button'),
+                  tooltip: 'Taktik importieren',
+                  onPressed: _importTactic,
+                  icon: const Icon(Icons.file_upload_outlined),
                 ),
                 IconButton(
                   tooltip: 'Taktik speichern',

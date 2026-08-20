@@ -447,10 +447,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     await _repository.save(MatchStatsState(matches: matches));
   }
 
-  Future<void> _exportBackup() async {
-    await AppBackupService.exportBackup(context, widget.database);
-  }
-
   Future<void> _importBackup() async {
     final imported =
         await AppBackupService.importMatchBackup(context, widget.database);
@@ -913,11 +909,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         title: const Text('Punktewertung'),
         actions: [
           IconButton(
-            tooltip: 'Export',
-            icon: const Icon(Icons.download_outlined),
-            onPressed: _exportBackup,
-          ),
-          IconButton(
             tooltip: 'Import',
             icon: const Icon(Icons.upload_outlined),
             onPressed: _importBackup,
@@ -963,12 +954,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          tooltip: 'Spiel exportieren',
-                          icon: const Icon(Icons.download_outlined),
-                          onPressed: () =>
-                              AppBackupService.exportMatch(context, match),
-                        ),
                         IconButton(
                           tooltip: 'Spiel teilen',
                           icon: const Icon(Icons.share_outlined),

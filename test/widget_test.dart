@@ -983,7 +983,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Noch keine Trainings angelegt.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('new-training-button')));
+    await tester.tap(
+      find.byKey(const ValueKey('new-training-content-button')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Trainingsinfo'), findsOneWidget);
@@ -1018,7 +1020,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Zurück'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('new-training-button')));
+    await tester.tap(
+      find.byKey(const ValueKey('new-training-content-button')),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Trainingsinfo'), findsOneWidget);
   });

@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../teams/teams_page.dart';
 
@@ -327,6 +331,85 @@ class _TrainingPageState extends State<TrainingPage> {
     _trainingDescriptionController.text = copied.description;
     await _persist();
   }
+
+  Future<void> _shareTraining(TrainingSession session) async {
+    final jsonText =
+        const JsonEncoder.withIndent('  ').convert(<String, dynamic>{
+      'formatVersion': 1,
+      'type': 'training',
+      'training': session.toJson(),
+    });
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile.fromData(
+            Uint8List.fromList(utf8.encode(jsonText)),
+            name: 'volleyace-training.json',
+            mimeType: 'application/json',
+          ),
+        ],
+        subject: 'VolleyAce Training: ${session.name}',
+      ),
+    );
+  }
+
+  Future<void> _importTraining() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        dialogTitle: 'Training importieren',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (result.isEmpty) return;
+      final bytes = await result.single.readAsBytes();
+      final decoded = jsonDecode(utf8.decode(bytes));
+      final rawTrainings = decoded is Map && decoded['trainings'] is List
+          ? decoded['trainings'] as List
+          : decoded is Map && decoded['training'] is Map
+              ? <dynamic>[decoded['training']]
+              : decoded is Map
+                  ? <dynamic>[decoded]
+                  : const <dynamic>[];
+      final imported = rawTrainings
+          .whereType<Map>()
+          .map((item) =>
+              TrainingSession.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+      if (imported.isEmpty) {
+        throw const FormatException('Keine Trainingsdaten gefunden.');
+      }
+      final copied = imported.map(_withNewSessionId).toList();
+      setState(() {
+        _sessions.addAll(copied);
+        _activeSession = copied.first;
+        _activeView = 'info';
+      });
+      _nameController.text = copied.first.name;
+      _locationController.text = copied.first.location;
+      _durationController.text = copied.first.duration;
+      _trainingDescriptionController.text = copied.first.description;
+      await _persist();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Training konnte nicht importiert werden: $error')),
+      );
+    }
+  }
+
+  TrainingSession _withNewSessionId(TrainingSession source) => TrainingSession(
+        id: _nextSessionId++,
+        name: source.name,
+        teamId: source.teamId,
+        date: source.date,
+        location: source.location,
+        duration: source.duration,
+        description: source.description,
+        attendance: source.attendance,
+        comments: source.comments,
+        exercises: source.exercises,
+      );
 
   void _openTraining(TrainingSession session) {
     setState(() {
@@ -708,10 +791,10 @@ class _TrainingPageState extends State<TrainingPage> {
           title: const Text('Training'),
           actions: [
             IconButton(
-              key: const ValueKey('new-training-button'),
-              tooltip: 'Training hinzufügen',
-              icon: const Icon(Icons.add),
-              onPressed: _createTraining,
+              key: const ValueKey('import-training-button'),
+              tooltip: 'Training importieren',
+              icon: const Icon(Icons.file_upload_outlined),
+              onPressed: _importTraining,
             ),
           ],
         ),
@@ -743,6 +826,12 @@ class _TrainingPageState extends State<TrainingPage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          key: ValueKey('share-training-${session.id}'),
+                          tooltip: 'Training teilen',
+                          icon: const Icon(Icons.share_outlined),
+                          onPressed: () => _shareTraining(session),
+                        ),
                         IconButton(
                           key: ValueKey('copy-training-${session.id}'),
                           tooltip: 'Training kopieren',
@@ -885,6 +974,12 @@ class _TrainingPageState extends State<TrainingPage> {
           onPressed: _closeTraining,
         ),
         actions: [
+          IconButton(
+            key: ValueKey('share-training-detail-${session.id}'),
+            tooltip: 'Training teilen',
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => _shareTraining(session),
+          ),
           IconButton(
             key: ValueKey('copy-training-detail-${session.id}'),
             tooltip: 'Training kopieren',

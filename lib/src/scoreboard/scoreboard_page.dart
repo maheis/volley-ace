@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 import 'package:path_provider/path_provider.dart';
@@ -323,9 +324,11 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       '${directory.path}/volleyace-punktetafel-${DateTime.now().millisecondsSinceEpoch}.json',
     );
     await file.writeAsString(pretty);
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'VolleyAce Punktetafel-Stand',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'VolleyAce Punktetafel-Stand',
+      ),
     );
   }
 
@@ -506,6 +509,82 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         );
       },
     );
+  }
+
+  Future<void> _importSnapshot() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        dialogTitle: 'Punktestand importieren',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (result.isEmpty) return;
+      final bytes = await result.single.readAsBytes();
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map) {
+        throw const FormatException('Ungültiges Punktetafel-Format.');
+      }
+      final data = Map<String, dynamic>.from(decoded);
+      final state = data['state'];
+      final snapshot = state is Map
+          ? ScoreboardSnapshot(
+              id: data['id'] is String
+                  ? data['id'] as String
+                  : '${DateTime.now().millisecondsSinceEpoch}-file',
+              name: data['name'] is String
+                  ? data['name'] as String
+                  : 'Importierter Punktestand',
+              savedAt: data['savedAtMillis'] is num
+                  ? DateTime.fromMillisecondsSinceEpoch(
+                      (data['savedAtMillis'] as num).toInt(),
+                    )
+                  : DateTime.tryParse(data['savedAt'] is String
+                          ? data['savedAt'] as String
+                          : '') ??
+                      DateTime.now(),
+              state: ScoreboardState.fromJson(Map<String, dynamic>.from(state)),
+            )
+          : null;
+      if (snapshot == null) {
+        throw const FormatException('Kein gültiger Punktestand gefunden.');
+      }
+      final imported = ScoreboardSnapshot(
+        id: '${DateTime.now().millisecondsSinceEpoch}-import',
+        name: '${snapshot.name} (Import)',
+        savedAt: DateTime.now(),
+        state: snapshot.state,
+      );
+      await _repository.saveSnapshot(imported);
+      if (!mounted) return;
+      setState(() {
+        _leftPoints = imported.state.leftPoints;
+        _rightPoints = imported.state.rightPoints;
+        _leftSets = imported.state.leftSets;
+        _rightSets = imported.state.rightSets;
+        _leftTimeouts = imported.state.leftTimeouts;
+        _rightTimeouts = imported.state.rightTimeouts;
+        _leftColor = imported.state.leftColor;
+        _rightColor = imported.state.rightColor;
+        _stopwatchElapsed = imported.state.stopwatchElapsed;
+        _stopwatchRunning = imported.state.stopwatchRunning;
+        _stopwatchStartedAt = imported.state.stopwatchStartedAt;
+        _timeoutSide = imported.state.timeoutSide;
+        _timeoutStartedAt = imported.state.timeoutStartedAt;
+        _completedSets = imported.state.completedSets;
+        _historyEntries = imported.state.historyEntries;
+      });
+      _persist();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Punktestand importiert.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Punktestand konnte nicht importiert werden: $error')),
+      );
+    }
   }
 
   @override
@@ -873,6 +952,12 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                   tooltip: 'Stand laden',
                   onPressed: _openSnapshotLoader,
                   icon: const Icon(Icons.folder_open),
+                ),
+                IconButton(
+                  key: const ValueKey('import-scoreboard-button'),
+                  tooltip: 'Punktestand importieren',
+                  onPressed: _importSnapshot,
+                  icon: const Icon(Icons.file_upload_outlined),
                 ),
                 IconButton(
                   key: const ValueKey('history-appbar-button'),
