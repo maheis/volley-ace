@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../backup/app_backup_service.dart';
 import 'scoreboard_repository.dart';
 import 'scoreboard_state.dart';
 import '../theme/app_palette.dart';
@@ -319,16 +317,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         'state': snapshot.state.toJson(),
       },
     );
-    final directory = await getTemporaryDirectory();
-    final file = File(
-      '${directory.path}/volleyace-punktetafel-${DateTime.now().millisecondsSinceEpoch}.json',
-    );
-    await file.writeAsString(pretty);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: 'VolleyAce Punktetafel-Stand',
-      ),
+    await AppBackupService.shareOrSaveJson(
+      context,
+      suggestedName:
+          'volleyace-punktetafel-${DateTime.now().millisecondsSinceEpoch}.json',
+      jsonText: pretty,
+      subject: 'VolleyAce Punktetafel-Stand',
+      dialogTitle: 'Punktetafel speichern',
     );
   }
 

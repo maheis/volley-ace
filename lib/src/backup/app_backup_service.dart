@@ -97,10 +97,29 @@ class AppBackupService {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$suggestedName');
     await file.writeAsString(jsonText);
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: subject,
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: subject,
+      ),
     );
+  }
+
+  static Future<void> shareOrSaveJson(
+    BuildContext context, {
+    required String suggestedName,
+    required String jsonText,
+    required String subject,
+    required String dialogTitle,
+  }) async {
+    final platform = Theme.of(context).platform;
+    if (platform == TargetPlatform.linux ||
+        platform == TargetPlatform.windows) {
+      await _exportJson(context, dialogTitle, suggestedName, jsonText);
+      return;
+    }
+
+    await _shareJson(suggestedName, jsonText, subject);
   }
 
   static Future<void> exportBackup(
@@ -133,10 +152,12 @@ class AppBackupService {
     final jsonText = encodeBackup(buildTeamBackup(team));
     final suggestedName =
         'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().millisecondsSinceEpoch}.json';
-    await _shareJson(
-      suggestedName,
-      jsonText,
-      'VolleyAce Team-Backup',
+    await shareOrSaveJson(
+      context,
+      suggestedName: suggestedName,
+      jsonText: jsonText,
+      subject: 'VolleyAce Team-Backup',
+      dialogTitle: 'Team speichern',
     );
   }
 
@@ -156,10 +177,12 @@ class AppBackupService {
     final jsonText = encodeBackup(buildMatchBackup(match));
     final suggestedName =
         'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.json';
-    await _shareJson(
-      suggestedName,
-      jsonText,
-      'VolleyAce Spiel-Backup',
+    await shareOrSaveJson(
+      context,
+      suggestedName: suggestedName,
+      jsonText: jsonText,
+      subject: 'VolleyAce Spiel-Backup',
+      dialogTitle: 'Spiel speichern',
     );
   }
 

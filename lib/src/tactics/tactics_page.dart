@@ -1,13 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
+import '../backup/app_backup_service.dart';
 import '../theme/app_palette.dart';
 
 enum _Tool { point, freehand, straight, arrow }
@@ -305,17 +303,13 @@ class _TacticsPageState extends State<TacticsPage> {
       'points': tactic.points.map((point) => point.toJson()).toList(),
       'lines': tactic.lines.map((line) => line.toJson()).toList(),
     };
-    final directory = await getTemporaryDirectory();
-    final file = File(
-      '${directory.path}/volleyace-taktiktafel-${DateTime.now().millisecondsSinceEpoch}.json',
-    );
-    await file
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: 'VolleyAce Taktiktafel-Stand',
-      ),
+    await AppBackupService.shareOrSaveJson(
+      context,
+      suggestedName:
+          'volleyace-taktiktafel-${DateTime.now().millisecondsSinceEpoch}.json',
+      jsonText: const JsonEncoder.withIndent('  ').convert(payload),
+      subject: 'VolleyAce Taktiktafel-Stand',
+      dialogTitle: 'Taktiktafel speichern',
     );
   }
 

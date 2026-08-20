@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
-import 'package:share_plus/share_plus.dart';
 
+import '../backup/app_backup_service.dart';
 import '../teams/teams_page.dart';
 
 class TrainingAttendance {
@@ -339,17 +338,13 @@ class _TrainingPageState extends State<TrainingPage> {
       'type': 'training',
       'training': session.toJson(),
     });
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [
-          XFile.fromData(
-            Uint8List.fromList(utf8.encode(jsonText)),
-            name: 'volleyace-training.json',
-            mimeType: 'application/json',
-          ),
-        ],
-        subject: 'VolleyAce Training: ${session.name}',
-      ),
+    await AppBackupService.shareOrSaveJson(
+      context,
+      suggestedName:
+          'volleyace-training-${DateTime.now().millisecondsSinceEpoch}.json',
+      jsonText: jsonText,
+      subject: 'VolleyAce Training: ${session.name}',
+      dialogTitle: 'Training speichern',
     );
   }
 
