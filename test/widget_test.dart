@@ -990,7 +990,9 @@ void main() {
     expect(find.text('Team auswählen'), findsOneWidget);
     await tester.tap(find.text('SV Beispiel'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Training öffnen'));
+    await tester.tap(find.byTooltip('Zurück'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Training').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Teilnahme'));
     await tester.pumpAndSettle();

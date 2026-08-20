@@ -13,6 +13,70 @@ class TrainingAttendance {
   static const String unexcused = 'unexcused';
 }
 
+class TrainingExercise {
+  static const List<String> types = <String>[
+    'Aufwärmen',
+    'Technik',
+    'Taktik',
+    'Spiel',
+    'Kraft',
+    'Ausdauer',
+    'Koordination',
+    'Dehnen',
+    'Cooldown',
+  ];
+
+  const TrainingExercise({
+    required this.id,
+    required this.title,
+    required this.type,
+    required this.goal,
+    required this.duration,
+    required this.description,
+    required this.status,
+  });
+
+  final int id;
+  final String title;
+  final String type;
+  final String goal;
+  final String duration;
+  final String description;
+  final String status;
+
+  TrainingExercise copyWith({String? status}) => TrainingExercise(
+        id: id,
+        title: title,
+        type: type,
+        goal: goal,
+        duration: duration,
+        description: description,
+        status: status ?? this.status,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'title': title,
+        'type': type,
+        'goal': goal,
+        'duration': duration,
+        'description': description,
+        'status': status,
+      };
+
+  static TrainingExercise fromJson(Map<String, dynamic> data) =>
+      TrainingExercise(
+        id: data['id'] is num ? (data['id'] as num).toInt() : 1,
+        title: data['title'] is String ? data['title'] as String : 'Übung',
+        type: data['type'] is String ? data['type'] as String : 'Technik',
+        goal: data['goal'] is String ? data['goal'] as String : '',
+        duration: data['duration'] is String ? data['duration'] as String : '',
+        description:
+            data['description'] is String ? data['description'] as String : '',
+        status: data['status'] is String ? data['status'] as String : '',
+      );
+}
+
 class TrainingSession {
   const TrainingSession({
     required this.id,
@@ -21,6 +85,7 @@ class TrainingSession {
     required this.date,
     required this.location,
     required this.duration,
+    required this.exercises,
     required this.attendance,
     required this.comments,
   });
@@ -31,6 +96,7 @@ class TrainingSession {
   final DateTime date;
   final String location;
   final String duration;
+  final List<TrainingExercise> exercises;
   final Map<String, String> attendance;
   final Map<String, String> comments;
 
@@ -41,6 +107,7 @@ class TrainingSession {
         'dateMillis': date.millisecondsSinceEpoch,
         'location': location,
         'duration': duration,
+        'exercises': exercises.map((exercise) => exercise.toJson()).toList(),
         'attendance': attendance,
         'comments': comments,
       };
@@ -56,6 +123,8 @@ class TrainingSession {
           : <String, String>{};
     }
 
+    final storedExercises = data['exercises'];
+
     return TrainingSession(
       id: data['id'] is num ? (data['id'] as num).toInt() : 1,
       name: data['name'] is String ? data['name'] as String : 'Training',
@@ -67,6 +136,13 @@ class TrainingSession {
           : DateTime.now(),
       location: data['location'] is String ? data['location'] as String : '',
       duration: data['duration'] is String ? data['duration'] as String : '',
+      exercises: storedExercises is List
+          ? storedExercises
+              .whereType<Map>()
+              .map((item) =>
+                  TrainingExercise.fromJson(Map<String, dynamic>.from(item)))
+              .toList()
+          : <TrainingExercise>[],
       attendance: readMap('attendance'),
       comments: readMap('comments'),
     );
@@ -129,6 +205,15 @@ class _TrainingPageState extends State<TrainingPage> {
   int _nextSessionId = 1;
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _exerciseTitleController =
+      TextEditingController();
+  int? _editingExerciseId;
+  String _exerciseType = 'Technik';
+  final TextEditingController _exerciseGoalController = TextEditingController();
+  final TextEditingController _exerciseDurationController =
+      TextEditingController();
+  final TextEditingController _exerciseDescriptionController =
+      TextEditingController();
   bool _isLoaded = false;
 
   @override
@@ -141,6 +226,10 @@ class _TrainingPageState extends State<TrainingPage> {
   void dispose() {
     _locationController.dispose();
     _durationController.dispose();
+    _exerciseTitleController.dispose();
+    _exerciseGoalController.dispose();
+    _exerciseDurationController.dispose();
+    _exerciseDescriptionController.dispose();
     super.dispose();
   }
 
@@ -181,6 +270,7 @@ class _TrainingPageState extends State<TrainingPage> {
       duration: '',
       attendance: const <String, String>{},
       comments: const <String, String>{},
+      exercises: const <TrainingExercise>[],
     );
     setState(() {
       _sessions.add(session);
@@ -274,6 +364,7 @@ class _TrainingPageState extends State<TrainingPage> {
       duration: session.duration,
       attendance: session.attendance,
       comments: session.comments,
+      exercises: session.exercises,
     );
     setState(() {
       _replaceSession(updated);
@@ -299,6 +390,7 @@ class _TrainingPageState extends State<TrainingPage> {
       duration: session.duration,
       attendance: _attendance,
       comments: _comments,
+      exercises: session.exercises,
     );
     setState(() {
       _replaceSession(updated);
@@ -319,9 +411,132 @@ class _TrainingPageState extends State<TrainingPage> {
       duration: duration ?? session.duration,
       attendance: session.attendance,
       comments: session.comments,
+      exercises: session.exercises,
     );
     _replaceSession(updated);
     _activeSession = updated;
+    await _persist();
+  }
+
+  void _openPlan(TrainingSession session) => setState(() {
+        _activeSession = session;
+        _activeView = 'plan';
+      });
+
+  void _openAddExercise() {
+    final session = _activeSession;
+    if (session == null) return;
+    setState(() {
+      _editingExerciseId = null;
+      _exerciseTitleController.clear();
+      _exerciseType = 'Technik';
+      _exerciseGoalController.clear();
+      _exerciseDurationController.clear();
+      _exerciseDescriptionController.clear();
+      _activeView = 'add-exercise';
+    });
+  }
+
+  void _openEditExercise(TrainingExercise exercise) {
+    if (_activeSession == null) return;
+    setState(() {
+      _editingExerciseId = exercise.id;
+      _exerciseTitleController.text = exercise.title;
+      _exerciseType = exercise.type;
+      _exerciseGoalController.text = exercise.goal;
+      _exerciseDurationController.text = exercise.duration;
+      _exerciseDescriptionController.text = exercise.description;
+      _activeView = 'add-exercise';
+    });
+  }
+
+  Future<void> _saveExercise() async {
+    final session = _activeSession;
+    final title = _exerciseTitleController.text.trim();
+    if (session == null || title.isEmpty) return;
+    final editedExercise = session.exercises
+        .where((exercise) => exercise.id == _editingExerciseId)
+        .firstOrNull;
+    final exercise = TrainingExercise(
+      id: editedExercise?.id ?? _nextExerciseId(),
+      title: title,
+      type: _exerciseType,
+      goal: _exerciseGoalController.text.trim(),
+      duration: _exerciseDurationController.text.trim(),
+      description: _exerciseDescriptionController.text.trim(),
+      status: editedExercise?.status ?? '',
+    );
+    final exercises = editedExercise == null
+        ? [...session.exercises, exercise]
+        : session.exercises
+            .map((entry) => entry.id == editedExercise.id ? exercise : entry)
+            .toList();
+    final updated = _withExercises(session, exercises);
+    setState(() {
+      _editingExerciseId = null;
+      _replaceSession(updated);
+      _activeSession = updated;
+      _activeView = 'plan';
+    });
+    await _persist();
+  }
+
+  int _nextExerciseId() {
+    final exercises = _activeSession?.exercises ?? const <TrainingExercise>[];
+    return exercises.isEmpty
+        ? 1
+        : exercises
+                .map((exercise) => exercise.id)
+                .reduce((a, b) => a > b ? a : b) +
+            1;
+  }
+
+  TrainingSession _withExercises(
+    TrainingSession session,
+    List<TrainingExercise> exercises,
+  ) =>
+      TrainingSession(
+        id: session.id,
+        name: session.name,
+        teamId: session.teamId,
+        date: session.date,
+        location: session.location,
+        duration: session.duration,
+        attendance: session.attendance,
+        comments: session.comments,
+        exercises: exercises,
+      );
+
+  Future<void> _setExerciseStatus(
+    TrainingExercise exercise,
+    String status,
+  ) async {
+    final session = _activeSession;
+    if (session == null) return;
+    final updatedExercises = session.exercises
+        .map((entry) => entry.id == exercise.id
+            ? entry.copyWith(status: entry.status == status ? '' : status)
+            : entry)
+        .toList();
+    final updated = _withExercises(session, updatedExercises);
+    setState(() {
+      _replaceSession(updated);
+      _activeSession = updated;
+    });
+    await _persist();
+  }
+
+  Future<void> _reorderExercises(int oldIndex, int newIndex) async {
+    final session = _activeSession;
+    if (session == null) return;
+    final exercises = [...session.exercises];
+    final exercise = exercises.removeAt(oldIndex);
+    exercises.insert(newIndex, exercise);
+    final updated = _withExercises(session, exercises);
+    setState(() {
+      _replaceSession(updated);
+      _activeSession = updated;
+    });
     await _persist();
   }
 
@@ -404,6 +619,7 @@ class _TrainingPageState extends State<TrainingPage> {
       duration: session.duration,
       attendance: session.attendance,
       comments: session.comments,
+      exercises: session.exercises,
     );
     setState(() {
       _trainingDate = dateTime;
@@ -422,6 +638,8 @@ class _TrainingPageState extends State<TrainingPage> {
     final session = _activeSession!;
     if (_activeView == 'info') return _buildTrainingInfo(session);
     if (_activeView == 'detail') return _buildTrainingDetail(session);
+    if (_activeView == 'add-exercise') return _buildAddExercise(session);
+    if (_activeView == 'plan') return _buildTrainingPlan(session);
     return _buildMatrix(session);
   }
 
@@ -594,12 +812,224 @@ class _TrainingPageState extends State<TrainingPage> {
           ),
           const SizedBox(height: 12),
           _subpageTile(
-            title: 'Weitere Unterpunkte',
-            subtitle: 'Für spätere Trainingsfunktionen vorbereitet',
-            icon: Icons.more_horiz,
-            onTap: null,
+            title: 'Trainingsplan',
+            subtitle: '${session.exercises.length} Übungen',
+            icon: Icons.list_alt_outlined,
+            onTap: () => _openPlan(session),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTrainingPlan(TrainingSession session) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Trainingsplan'),
+          leading: IconButton(
+            tooltip: 'Zurück',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _openTraining(session),
+          ),
+          actions: [
+            IconButton(
+              key: const ValueKey('add-training-exercise-button'),
+              tooltip: 'Übung hinzufügen',
+              icon: const Icon(Icons.add),
+              onPressed: _openAddExercise,
+            ),
+          ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Card(
+              child: ListTile(
+                key: const ValueKey('add-training-exercise-content-button'),
+                leading: const CircleAvatar(child: Icon(Icons.add)),
+                title: const Text('Übung hinzufügen'),
+                subtitle: const Text('Ziel, Dauer und Beschreibung anlegen'),
+                onTap: _openAddExercise,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (session.exercises.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Noch keine Übungen angelegt.'),
+                ),
+              )
+            else
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: true,
+                itemCount: session.exercises.length,
+                onReorderItem: _reorderExercises,
+                itemBuilder: (context, index) {
+                  final exercise = session.exercises[index];
+                  return KeyedSubtree(
+                    key: ValueKey(exercise.id),
+                    child: _exerciseCard(exercise, index),
+                  );
+                },
+              ),
+          ],
+        ),
+      );
+
+  Widget _buildAddExercise(TrainingSession session) => Scaffold(
+        appBar: AppBar(
+          title: Text(
+            _editingExerciseId == null
+                ? 'Übung hinzufügen'
+                : 'Übung bearbeiten',
+          ),
+          leading: IconButton(
+            tooltip: 'Zurück',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _openPlan(session),
+          ),
+          actions: [
+            IconButton(
+              key: const ValueKey('save-training-exercise-button'),
+              tooltip: 'Übung speichern',
+              icon: const Icon(Icons.check),
+              onPressed: _saveExercise,
+            ),
+          ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextField(
+              key: const ValueKey('training-exercise-title-input'),
+              controller: _exerciseTitleController,
+              autofocus: true,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Übung',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: const ValueKey('training-exercise-type-input'),
+              initialValue: _exerciseType,
+              decoration: const InputDecoration(
+                labelText: 'Typ',
+                border: OutlineInputBorder(),
+              ),
+              items: TrainingExercise.types
+                  .map(
+                    (type) => DropdownMenuItem<String>(
+                      value: type,
+                      child: Text(type),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (type) {
+                if (type != null) setState(() => _exerciseType = type);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('training-exercise-goal-input'),
+              controller: _exerciseGoalController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Ziel',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('training-exercise-duration-input'),
+              controller: _exerciseDurationController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Dauer',
+                hintText: 'z. B. 10 Minuten',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('training-exercise-description-input'),
+              controller: _exerciseDescriptionController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Beschreibung',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _saveExercise,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Übung speichern'),
+            ),
+          ],
+        ),
+      );
+
+  Widget _exerciseCard(TrainingExercise exercise, int index) {
+    final isCompleted = exercise.status == 'completed';
+    final isSkipped = exercise.status == 'skipped';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Checkbox(
+                  value: isCompleted,
+                  onChanged: (_) => _setExerciseStatus(exercise, 'completed'),
+                ),
+                Expanded(
+                  child: Text(
+                    '${index + 1}. ${exercise.title}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  key: ValueKey('edit-training-exercise-${exercise.id}'),
+                  tooltip: 'Übung bearbeiten',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => _openEditExercise(exercise),
+                ),
+                IconButton(
+                  tooltip: isSkipped
+                      ? 'Übung wieder aktivieren'
+                      : 'Übung überspringen',
+                  icon: Icon(
+                    isSkipped ? Icons.undo : Icons.skip_next_outlined,
+                  ),
+                  onPressed: () => _setExerciseStatus(exercise, 'skipped'),
+                ),
+              ],
+            ),
+            Text('Typ: ${exercise.type}'),
+            if (exercise.goal.isNotEmpty) Text('Ziel: ${exercise.goal}'),
+            if (exercise.duration.isNotEmpty)
+              Text('Dauer: ${exercise.duration}'),
+            if (exercise.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(exercise.description),
+              ),
+            if (isSkipped)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Übersprungen'),
+              ),
+          ],
+        ),
       ),
     );
   }
