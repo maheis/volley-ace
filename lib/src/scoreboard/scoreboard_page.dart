@@ -11,6 +11,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'scoreboard_repository.dart';
 import 'scoreboard_state.dart';
+import '../theme/app_palette.dart';
 
 class ScoreboardPage extends StatefulWidget {
   const ScoreboardPage({super.key, required this.database});
@@ -56,8 +57,8 @@ class _ScoreSnapshot {
 }
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
-  static const Color _blue = Color(0xFF64b5f6);
-  static const Color _red = Color(0xFFe57373);
+  static const Color _blue = AppPalette.blue;
+  static const Color _red = AppPalette.red;
 
   int _leftPoints = 0;
   int _rightPoints = 0;

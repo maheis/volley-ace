@@ -7,6 +7,8 @@ import 'package:sembast/sembast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../theme/app_palette.dart';
+
 enum _Tool { point, freehand, straight, arrow }
 
 enum _LineType { freehand, straight, arrow }
@@ -154,17 +156,17 @@ class _TacticsPageState extends State<TacticsPage> {
   static final StoreRef<String, Map<String, dynamic>> _store =
       StoreRef<String, Map<String, dynamic>>('tactics');
   static const _colors = <Color>[
-    Color(0xFFe57373),
-    Colors.blue,
-    Color(0xFFfff176),
-    Color(0xFFaed581),
+    AppPalette.red,
+    AppPalette.blue,
+    AppPalette.yellow,
+    AppPalette.green,
     Colors.white,
   ];
 
   final List<_BoardPoint> _points = <_BoardPoint>[];
   final List<_BoardLine> _lines = <_BoardLine>[];
   final List<_SavedTactic> _savedTactics = <_SavedTactic>[];
-  Color _selectedColor = const Color(0xFFe57373);
+  Color _selectedColor = AppPalette.red;
   _Tool _tool = _Tool.point;
   List<Offset>? _activeLine;
   int? _movingPointIndex;

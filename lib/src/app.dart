@@ -11,8 +11,7 @@ import 'settings/settings_controller.dart';
 import 'settings/settings_page.dart';
 import 'teams/teams_page.dart';
 import 'tactics/tactics_page.dart';
-
-const Color _brandColor = Color(0xffe57373);
+import 'theme/app_palette.dart';
 
 class VolleyAceApp extends StatelessWidget {
   const VolleyAceApp({
@@ -120,42 +119,47 @@ class VolleyAceApp extends StatelessWidget {
       brightness: brightness,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: _brandColor,
+        seedColor: AppPalette.red,
         brightness: brightness,
+      ).copyWith(
+        primary: AppPalette.red,
+        secondary: AppPalette.orange,
+        tertiary: AppPalette.mint,
+        surfaceTint: AppPalette.purple,
       ),
-      iconTheme: const IconThemeData(color: _brandColor),
+      iconTheme: const IconThemeData(color: AppPalette.red),
       appBarTheme: const AppBarTheme(
-        iconTheme: IconThemeData(color: _brandColor),
-        actionsIconTheme: IconThemeData(color: _brandColor),
+        iconTheme: IconThemeData(color: AppPalette.red),
+        actionsIconTheme: IconThemeData(color: AppPalette.red),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(foregroundColor: _brandColor),
+        style: IconButton.styleFrom(foregroundColor: AppPalette.red),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: _brandColor),
+        style: TextButton.styleFrom(foregroundColor: AppPalette.red),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: _brandColor,
-          side: const BorderSide(color: _brandColor),
+          foregroundColor: AppPalette.red,
+          side: const BorderSide(color: AppPalette.red),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _brandColor,
+          backgroundColor: AppPalette.red,
           foregroundColor: Colors.black,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: _brandColor,
+          backgroundColor: AppPalette.red,
           foregroundColor: Colors.black,
         ),
       ),
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: Color(0xFF202124),
         contentTextStyle: TextStyle(color: Colors.white),
-        actionTextColor: _brandColor,
+        actionTextColor: AppPalette.orange,
       ),
     );
   }
