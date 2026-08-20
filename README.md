@@ -71,9 +71,10 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Team
   - [x] Info
     - [x] Teamname
-    - [ ] Teamlogo
-    - [ ] Teamfarben
-    - [ ] Teamprofil
+    - [x] Teamlogo
+    - [x] Teamfarben
+    - [x] Spielklasse
+    - [x] Teamprofil
     - [ ] Teamstatistik
     - [ ] Teambewertung
     - [ ] Achievements

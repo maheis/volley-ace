@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
@@ -122,23 +124,43 @@ class Team {
     required this.name,
     required this.players,
     required this.coaches,
+    this.logoBase64 = '',
+    this.primaryColorValue,
+    this.secondaryColorValue,
+    this.league = '',
+    this.profile = '',
   });
 
   final int id;
   final String name;
   final List<TeamPlayer> players;
   final List<TeamCoach> coaches;
+  final String logoBase64;
+  final int? primaryColorValue;
+  final int? secondaryColorValue;
+  final String league;
+  final String profile;
 
   Team copyWith({
     String? name,
     List<TeamPlayer>? players,
     List<TeamCoach>? coaches,
+    String? logoBase64,
+    int? primaryColorValue,
+    int? secondaryColorValue,
+    String? league,
+    String? profile,
   }) =>
       Team(
         id: id,
         name: name ?? this.name,
         players: players ?? this.players,
         coaches: coaches ?? this.coaches,
+        logoBase64: logoBase64 ?? this.logoBase64,
+        primaryColorValue: primaryColorValue ?? this.primaryColorValue,
+        secondaryColorValue: secondaryColorValue ?? this.secondaryColorValue,
+        league: league ?? this.league,
+        profile: profile ?? this.profile,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -146,6 +168,11 @@ class Team {
         'name': name,
         'players': players.map((player) => player.toJson()).toList(),
         'coaches': coaches.map((coach) => coach.toJson()).toList(),
+        'logoBase64': logoBase64,
+        'primaryColorValue': primaryColorValue,
+        'secondaryColorValue': secondaryColorValue,
+        'league': league,
+        'profile': profile,
       };
 
   static Team fromJson(Map<String, dynamic> data) {
@@ -164,6 +191,16 @@ class Team {
       name: data['name'] is String ? data['name'] as String : '',
       players: readItems('players', TeamPlayer.fromJson),
       coaches: readItems('coaches', TeamCoach.fromJson),
+      logoBase64:
+          data['logoBase64'] is String ? data['logoBase64'] as String : '',
+      primaryColorValue: data['primaryColorValue'] is num
+          ? (data['primaryColorValue'] as num).toInt()
+          : null,
+      secondaryColorValue: data['secondaryColorValue'] is num
+          ? (data['secondaryColorValue'] as num).toInt()
+          : null,
+      league: data['league'] is String ? data['league'] as String : '',
+      profile: data['profile'] is String ? data['profile'] as String : '',
     );
   }
 }
@@ -212,6 +249,7 @@ class _TeamsPageState extends State<TeamsPage> {
       StoreRef<String, Map<String, dynamic>>('analytics');
   final List<Map<String, dynamic>> _matches = <Map<String, dynamic>>[];
   final TextEditingController _teamNameController = TextEditingController();
+  final TextEditingController _teamProfileController = TextEditingController();
   final TextEditingController _playerNameController = TextEditingController();
   final TextEditingController _playerNumberController = TextEditingController();
   final TextEditingController _playerPositionController =
@@ -224,6 +262,10 @@ class _TeamsPageState extends State<TeamsPage> {
       TextEditingController();
   int? _selectedTeamId;
   String? _activeSection;
+  String _teamLogoBase64 = '';
+  int? _teamPrimaryColorValue;
+  int? _teamSecondaryColorValue;
+  String _teamLeague = '';
   DateTime? _playerBirthDate;
   DateTime? _coachBirthDate;
   TeamPlayer? _editingPlayer;
@@ -232,6 +274,31 @@ class _TeamsPageState extends State<TeamsPage> {
   int? _selectedCoachId;
   int _nextTeamId = 1;
   bool _isLoaded = false;
+
+  static const List<String> _leagues = <String>[
+    'U12',
+    'U13',
+    'U14',
+    'U15',
+    'U16',
+    'U18',
+    'U20',
+    'Damen',
+    'Herren',
+    'Mixed',
+    'Freizeit',
+  ];
+
+  static const List<Color> _teamColorOptions = <Color>[
+    Color(0xFF1565C0),
+    Color(0xFFD32F2F),
+    Color(0xFF2E7D32),
+    Color(0xFFF9A825),
+    Color(0xFF6A1B9A),
+    Color(0xFF00838F),
+    Color(0xFF424242),
+    Color(0xFFF5F5F5),
+  ];
 
   @override
   void initState() {
@@ -242,6 +309,7 @@ class _TeamsPageState extends State<TeamsPage> {
   @override
   void dispose() {
     _teamNameController.dispose();
+    _teamProfileController.dispose();
     _playerNameController.dispose();
     _playerNumberController.dispose();
     _playerPositionController.dispose();
@@ -299,7 +367,14 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 
   void _openTeam(Team team, {String? section}) {
-    if (section == 'info') _teamNameController.text = team.name;
+    if (section == 'info') {
+      _teamNameController.text = team.name;
+      _teamProfileController.text = team.profile;
+      _teamLogoBase64 = team.logoBase64;
+      _teamPrimaryColorValue = team.primaryColorValue;
+      _teamSecondaryColorValue = team.secondaryColorValue;
+      _teamLeague = team.league;
+    }
     if (section == 'players') {
       _clearPlayerForm();
     }
@@ -610,7 +685,17 @@ class _TeamsPageState extends State<TeamsPage> {
           children: [
             _DetailTile(
                 title: 'Info',
-                subtitle: 'Teamname festlegen',
+                subtitle: [
+                  if (team.name.isNotEmpty) team.name,
+                  if (team.league.isNotEmpty) team.league,
+                  if (team.profile.isNotEmpty) 'Teamprofil vorhanden',
+                ].join(' • ').isEmpty
+                    ? 'Teamname, Logo und weitere Infos festlegen'
+                    : [
+                        if (team.name.isNotEmpty) team.name,
+                        if (team.league.isNotEmpty) team.league,
+                        if (team.profile.isNotEmpty) 'Teamprofil vorhanden',
+                      ].join(' • '),
                 icon: Icons.info_outline,
                 onTap: () => _openTeam(team, section: 'info')),
             const SizedBox(height: 12),
@@ -636,19 +721,153 @@ class _TeamsPageState extends State<TeamsPage> {
         ),
       );
 
+  Future<void> _pickTeamLogo(Team team) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+    );
+    if (result.isEmpty) return;
+    final bytes = await result.single.readAsBytes();
+    final encoded = base64Encode(bytes);
+    if (!mounted) return;
+    setState(() => _teamLogoBase64 = encoded);
+    _replaceTeam(team.copyWith(logoBase64: encoded));
+  }
+
+  Widget _buildTeamColorPicker(Team team, String label, bool primary) {
+    final selectedValue =
+        primary ? _teamPrimaryColorValue : _teamSecondaryColorValue;
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _teamColorOptions.map((color) {
+          final isSelected = selectedValue == color.toARGB32();
+          return Semantics(
+            button: true,
+            label: '$label ${color.toARGB32()}',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {
+                setState(() {
+                  if (primary) {
+                    _teamPrimaryColorValue = color.toARGB32();
+                  } else {
+                    _teamSecondaryColorValue = color.toARGB32();
+                  }
+                });
+                _replaceTeam(primary
+                    ? team.copyWith(primaryColorValue: color.toARGB32())
+                    : team.copyWith(secondaryColorValue: color.toARGB32()));
+              },
+              child: CircleAvatar(
+                backgroundColor: color,
+                child: isSelected
+                    ? Icon(
+                        Icons.check,
+                        color: color.computeLuminance() > 0.5
+                            ? Colors.black
+                            : Colors.white,
+                      )
+                    : null,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildInfo(Team team) => Scaffold(
         appBar: _sectionAppBar('Info', team),
-        body: Padding(
+        body: ListView(
           padding: const EdgeInsets.all(16),
-          child: TextField(
-            key: const ValueKey('team-name-input'),
-            controller: _teamNameController,
-            autofocus: true,
-            onChanged: (value) =>
-                _replaceTeam(team.copyWith(name: value.trim())),
-            decoration: const InputDecoration(
-                labelText: 'Teamname', border: OutlineInputBorder()),
-          ),
+          children: [
+            TextField(
+              key: const ValueKey('team-name-input'),
+              controller: _teamNameController,
+              autofocus: true,
+              onChanged: (value) =>
+                  _replaceTeam(team.copyWith(name: value.trim())),
+              decoration: const InputDecoration(
+                labelText: 'Teamname',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Teamlogo',
+                border: OutlineInputBorder(),
+              ),
+              child: Row(
+                children: [
+                  if (_teamLogoBase64.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.memory(
+                        base64Decode(_teamLogoBase64),
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  else
+                    const SizedBox(
+                      width: 64,
+                      height: 64,
+                      child: Icon(Icons.image_outlined, size: 36),
+                    ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: () => _pickTeamLogo(team),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Logo auswählen'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildTeamColorPicker(team, 'Primärfarbe', true),
+            const SizedBox(height: 12),
+            _buildTeamColorPicker(team, 'Sekundärfarbe', false),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _teamLeague.isEmpty ? null : _teamLeague,
+              decoration: const InputDecoration(
+                labelText: 'Spielklasse',
+                border: OutlineInputBorder(),
+              ),
+              items: _leagues
+                  .map((league) => DropdownMenuItem<String>(
+                        value: league,
+                        child: Text(league),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _teamLeague = value);
+                _replaceTeam(team.copyWith(league: value));
+              },
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              key: const ValueKey('team-profile-input'),
+              controller: _teamProfileController,
+              minLines: 4,
+              maxLines: 8,
+              onChanged: (value) =>
+                  _replaceTeam(team.copyWith(profile: value.trim())),
+              decoration: const InputDecoration(
+                labelText: 'Teamprofil',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
       );
 
