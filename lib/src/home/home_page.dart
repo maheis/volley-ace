@@ -102,11 +102,10 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.sports_esports, color: brandColor),
+              enabled: false,
+              leading: const Icon(Icons.sports_esports),
               title: const Text('Volley-Arcade'),
-              subtitle: const Text('C-Prototyp neu in Dart aufbauen.'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onOpenArcade,
+              subtitle: const Text('Work in progress...'),
             ),
           ),
         ],
