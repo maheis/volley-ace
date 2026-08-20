@@ -157,9 +157,11 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Training
   - [x] Mehrere Trainings speichern
   - [x] Infos
+    - [x] Name
     - [x] Datum / Uhrzeit
     - [x] Ort
     - [x] Dauer
+    - [x] Beschreibung
     - [x] Team
   - [x] Trainingsteilnahme (Trainer, Spieler)
     - [x] Teilnahme
@@ -173,8 +175,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [x] Beschreibung
   - [ ] Trainingsstatistik
   - [ ] Trainingsbewertung
-- [x] Trainingspläne
-- [x] Trainingsübungen
+- [ ] Trainingspläne
+- [ ] Trainingsübungen
 - [ ] Volley-Arcade
 
 ## ToDo

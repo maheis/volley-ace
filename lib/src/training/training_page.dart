@@ -85,6 +85,7 @@ class TrainingSession {
     required this.date,
     required this.location,
     required this.duration,
+    required this.description,
     required this.exercises,
     required this.attendance,
     required this.comments,
@@ -96,6 +97,7 @@ class TrainingSession {
   final DateTime date;
   final String location;
   final String duration;
+  final String description;
   final List<TrainingExercise> exercises;
   final Map<String, String> attendance;
   final Map<String, String> comments;
@@ -107,6 +109,7 @@ class TrainingSession {
         'dateMillis': date.millisecondsSinceEpoch,
         'location': location,
         'duration': duration,
+        'description': description,
         'exercises': exercises.map((exercise) => exercise.toJson()).toList(),
         'attendance': attendance,
         'comments': comments,
@@ -136,6 +139,8 @@ class TrainingSession {
           : DateTime.now(),
       location: data['location'] is String ? data['location'] as String : '',
       duration: data['duration'] is String ? data['duration'] as String : '',
+      description:
+          data['description'] is String ? data['description'] as String : '',
       exercises: storedExercises is List
           ? storedExercises
               .whereType<Map>()
@@ -203,8 +208,11 @@ class _TrainingPageState extends State<TrainingPage> {
   Map<String, String> _comments = <String, String>{};
   DateTime _trainingDate = DateTime.now();
   int _nextSessionId = 1;
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _trainingDescriptionController =
+      TextEditingController();
   final TextEditingController _exerciseTitleController =
       TextEditingController();
   int? _editingExerciseId;
@@ -224,8 +232,10 @@ class _TrainingPageState extends State<TrainingPage> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _locationController.dispose();
     _durationController.dispose();
+    _trainingDescriptionController.dispose();
     _exerciseTitleController.dispose();
     _exerciseGoalController.dispose();
     _exerciseDurationController.dispose();
@@ -268,6 +278,7 @@ class _TrainingPageState extends State<TrainingPage> {
       date: DateTime.now(),
       location: '',
       duration: '',
+      description: '',
       attendance: const <String, String>{},
       comments: const <String, String>{},
       exercises: const <TrainingExercise>[],
@@ -278,6 +289,43 @@ class _TrainingPageState extends State<TrainingPage> {
       _activeView = 'info';
     });
     unawaited(_persist());
+  }
+
+  Future<void> _copyTraining(TrainingSession source) async {
+    final copied = TrainingSession(
+      id: _nextSessionId++,
+      name: '${source.name} (Kopie)',
+      teamId: source.teamId,
+      date: DateTime.now(),
+      location: source.location,
+      duration: source.duration,
+      description: source.description,
+      attendance: const <String, String>{},
+      comments: const <String, String>{},
+      exercises: source.exercises
+          .map(
+            (exercise) => TrainingExercise(
+              id: exercise.id,
+              title: exercise.title,
+              type: exercise.type,
+              goal: exercise.goal,
+              duration: exercise.duration,
+              description: exercise.description,
+              status: '',
+            ),
+          )
+          .toList(),
+    );
+    setState(() {
+      _sessions.add(copied);
+      _activeSession = copied;
+      _activeView = 'info';
+    });
+    _nameController.text = copied.name;
+    _locationController.text = copied.location;
+    _durationController.text = copied.duration;
+    _trainingDescriptionController.text = copied.description;
+    await _persist();
   }
 
   void _openTraining(TrainingSession session) {
@@ -324,8 +372,10 @@ class _TrainingPageState extends State<TrainingPage> {
   }
 
   void _openInfo(TrainingSession session) {
+    _nameController.text = session.name;
     _locationController.text = session.location;
     _durationController.text = session.duration;
+    _trainingDescriptionController.text = session.description;
     _trainingDate = session.date;
     setState(() {
       _activeSession = session;
@@ -362,6 +412,7 @@ class _TrainingPageState extends State<TrainingPage> {
       date: session.date,
       location: session.location,
       duration: session.duration,
+      description: session.description,
       attendance: session.attendance,
       comments: session.comments,
       exercises: session.exercises,
@@ -388,6 +439,7 @@ class _TrainingPageState extends State<TrainingPage> {
       date: _trainingDate,
       location: session.location,
       duration: session.duration,
+      description: session.description,
       attendance: _attendance,
       comments: _comments,
       exercises: session.exercises,
@@ -399,16 +451,22 @@ class _TrainingPageState extends State<TrainingPage> {
     await _persist();
   }
 
-  Future<void> _setInfoField({String? location, String? duration}) async {
+  Future<void> _setInfoField({
+    String? name,
+    String? location,
+    String? duration,
+    String? description,
+  }) async {
     final session = _activeSession;
     if (session == null) return;
     final updated = TrainingSession(
       id: session.id,
-      name: session.name,
+      name: name ?? session.name,
       teamId: session.teamId,
       date: session.date,
       location: location ?? session.location,
       duration: duration ?? session.duration,
+      description: description ?? session.description,
       attendance: session.attendance,
       comments: session.comments,
       exercises: session.exercises,
@@ -502,6 +560,7 @@ class _TrainingPageState extends State<TrainingPage> {
         date: session.date,
         location: session.location,
         duration: session.duration,
+        description: session.description,
         attendance: session.attendance,
         comments: session.comments,
         exercises: exercises,
@@ -617,6 +676,7 @@ class _TrainingPageState extends State<TrainingPage> {
       date: dateTime,
       location: session.location,
       duration: session.duration,
+      description: session.description,
       attendance: session.attendance,
       comments: session.comments,
       exercises: session.exercises,
@@ -684,6 +744,12 @@ class _TrainingPageState extends State<TrainingPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
+                          key: ValueKey('copy-training-${session.id}'),
+                          tooltip: 'Training kopieren',
+                          icon: const Icon(Icons.copy_outlined),
+                          onPressed: () => _copyTraining(session),
+                        ),
+                        IconButton(
                           key: ValueKey('delete-training-${session.id}'),
                           tooltip: 'Training löschen',
                           icon: const Icon(Icons.delete_outline),
@@ -717,6 +783,16 @@ class _TrainingPageState extends State<TrainingPage> {
             ),
             const SizedBox(height: 12),
             TextField(
+              key: const ValueKey('training-name-input'),
+              controller: _nameController,
+              onChanged: (value) => unawaited(_setInfoField(name: value)),
+              decoration: const InputDecoration(
+                labelText: 'Name des Trainings',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
               key: const ValueKey('training-location-input'),
               controller: _locationController,
               onChanged: (value) => unawaited(_setInfoField(location: value)),
@@ -734,6 +810,21 @@ class _TrainingPageState extends State<TrainingPage> {
                 labelText: 'Dauer',
                 hintText: 'z. B. 90 Minuten',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('training-description-input'),
+              controller: _trainingDescriptionController,
+              minLines: 3,
+              maxLines: 6,
+              onChanged: (value) =>
+                  unawaited(_setInfoField(description: value)),
+              decoration: const InputDecoration(
+                labelText: 'Beschreibung',
+                hintText: 'Kurze Beschreibung des Trainings',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
               ),
             ),
             const SizedBox(height: 12),
@@ -793,13 +884,23 @@ class _TrainingPageState extends State<TrainingPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: _closeTraining,
         ),
+        actions: [
+          IconButton(
+            key: ValueKey('copy-training-detail-${session.id}'),
+            tooltip: 'Training kopieren',
+            icon: const Icon(Icons.copy_outlined),
+            onPressed: () => _copyTraining(session),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _subpageTile(
             title: 'Info',
-            subtitle: team == null ? 'Team auswählen' : team.name,
+            subtitle: session.description.isEmpty
+                ? (team == null ? 'Team auswählen' : team.name)
+                : session.description,
             icon: Icons.info_outline,
             onTap: () => _openInfo(session),
           ),
