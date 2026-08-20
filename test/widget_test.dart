@@ -1003,23 +1003,20 @@ void main() {
     expect(find.text('Spieler'), findsOneWidget);
     expect(find.text('3  Berta'), findsOneWidget);
     expect(find.text('12  Ada'), findsOneWidget);
-    expect(find.byIcon(Icons.add_circle_outline), findsNWidgets(4));
-    expect(find.byIcon(Icons.circle_outlined), findsNWidgets(4));
-    expect(find.byIcon(Icons.error_outline), findsNWidgets(4));
+    expect(find.byIcon(Icons.add_circle_outline), findsOneWidget);
+    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
 
-    final bertaPosition = tester.getTopLeft(find.text('3  Berta'));
     final adaPosition = tester.getTopLeft(find.text('12  Ada'));
-    expect(bertaPosition.dy, lessThan(adaPosition.dy));
+    final bertaPosition = tester.getTopLeft(find.text('3  Berta'));
+    expect(adaPosition.dy, lessThan(bertaPosition.dy));
 
     final bertaParticipation = find.byKey(
       const ValueKey('attendance-player:2-participating'),
     );
     await tester.tap(bertaParticipation);
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<IconButton>(bertaParticipation).color,
-      isNotNull,
-    );
+    expect(tester.widget<Checkbox>(bertaParticipation).value, isTrue);
 
     await tester.tap(find.byTooltip('Zurück'));
     await tester.pumpAndSettle();

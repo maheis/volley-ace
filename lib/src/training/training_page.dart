@@ -7,6 +7,7 @@ import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
 import '../teams/teams_page.dart';
+import '../theme/app_palette.dart';
 
 class TrainingAttendance {
   const TrainingAttendance._();
@@ -1247,17 +1248,6 @@ class _TrainingPageState extends State<TrainingPage> {
 
   Widget _buildMatrix(TrainingSession session) {
     final team = _teamFor(session)!;
-    final sortedPlayers = [...team.players]..sort((first, second) {
-        if (first.number == null && second.number == null) {
-          return first.name.toLowerCase().compareTo(second.name.toLowerCase());
-        }
-        if (first.number == null) return 1;
-        if (second.number == null) return -1;
-        final result = first.number!.compareTo(second.number!);
-        return result == 0
-            ? first.name.toLowerCase().compareTo(second.name.toLowerCase())
-            : result;
-      });
 
     return Scaffold(
       appBar: AppBar(
@@ -1303,10 +1293,10 @@ class _TrainingPageState extends State<TrainingPage> {
                       ),
                       columnWidths: const {
                         0: IntrinsicColumnWidth(),
-                        1: IntrinsicColumnWidth(),
-                        2: IntrinsicColumnWidth(),
-                        3: IntrinsicColumnWidth(),
-                        4: FixedColumnWidth(250),
+                        1: FixedColumnWidth(52),
+                        2: FixedColumnWidth(52),
+                        3: FixedColumnWidth(52),
+                        4: FlexColumnWidth(),
                       },
                       children: [
                         TableRow(children: [
@@ -1314,22 +1304,25 @@ class _TrainingPageState extends State<TrainingPage> {
                           _attendanceHeader(
                             Icons.add_circle_outline,
                             'Teilnahme',
+                            AppPalette.green,
                           ),
                           _attendanceHeader(
                             Icons.circle_outlined,
                             'Entschuldigt',
+                            AppPalette.yellow,
                           ),
                           _attendanceHeader(
                             Icons.error_outline,
                             'Unentschuldigt',
+                            AppPalette.red,
                           ),
                           _tableText('Kommentar', bold: true),
                         ]),
                         if (team.coaches.isNotEmpty) _sectionRow('Trainer'),
                         for (final coach in team.coaches)
                           _attendanceRow('coach:${coach.id}', coach.name, null),
-                        if (sortedPlayers.isNotEmpty) _sectionRow('Spieler'),
-                        for (final player in sortedPlayers)
+                        if (team.players.isNotEmpty) _sectionRow('Spieler'),
+                        for (final player in team.players)
                           _attendanceRow('player:${player.id}', player.name,
                               player.number),
                       ],
@@ -1351,24 +1344,30 @@ class _TrainingPageState extends State<TrainingPage> {
       _attendanceCell(key, currentValue, TrainingAttendance.participating),
       _attendanceCell(key, currentValue, TrainingAttendance.excused),
       _attendanceCell(key, currentValue, TrainingAttendance.unexcused),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: TextFormField(
-          initialValue: _comments[key] ?? '',
-          onChanged: (value) => unawaited(_setComment(key, value)),
-          textAlign: TextAlign.left,
-          decoration:
-              const InputDecoration(isDense: true, border: InputBorder.none),
+      ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 250),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: TextFormField(
+            initialValue: _comments[key] ?? '',
+            onChanged: (value) => unawaited(_setComment(key, value)),
+            textAlign: TextAlign.left,
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+            ),
+          ),
         ),
       ),
     ]);
   }
 
-  Widget _attendanceHeader(IconData icon, String tooltip) => Tooltip(
+  Widget _attendanceHeader(IconData icon, String tooltip, Color color) =>
+      Tooltip(
         message: tooltip,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          child: Icon(icon),
+          child: Icon(icon, color: color),
         ),
       );
 
@@ -1389,27 +1388,28 @@ class _TrainingPageState extends State<TrainingPage> {
       );
 
   Widget _attendanceCell(String key, String? currentValue, String value) {
-    final icon = switch (value) {
-      TrainingAttendance.participating => Icons.add_circle_outline,
-      TrainingAttendance.excused => Icons.circle_outlined,
-      TrainingAttendance.unexcused => Icons.error_outline,
-      _ => Icons.circle_outlined,
+    final color = switch (value) {
+      TrainingAttendance.participating => AppPalette.green,
+      TrainingAttendance.excused => AppPalette.yellow,
+      TrainingAttendance.unexcused => AppPalette.red,
+      _ => null,
     };
-    final tooltip = switch (value) {
-      TrainingAttendance.participating => 'Teilnahme',
-      TrainingAttendance.excused => 'Entschuldigt',
-      TrainingAttendance.unexcused => 'Unentschuldigt',
-      _ => value,
-    };
-    final selected = currentValue == value;
-    return Align(
-      alignment: Alignment.center,
-      child: IconButton(
+    return Center(
+      child: Checkbox(
         key: ValueKey('attendance-$key-$value'),
-        tooltip: selected ? '$tooltip entfernen' : tooltip,
-        icon: Icon(icon),
-        color: selected ? Theme.of(context).colorScheme.primary : null,
-        onPressed: () => _setAttendance(key, selected ? null : value),
+        value: currentValue == value,
+        fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (color == null) return null;
+          return states.contains(WidgetState.selected)
+              ? color
+              : color.withValues(alpha: 0.24);
+        }),
+        side: WidgetStateBorderSide.resolveWith((states) {
+          if (color == null) return null;
+          return BorderSide(color: color, width: 1.5);
+        }),
+        onChanged: (checked) =>
+            _setAttendance(key, checked == true ? value : null),
       ),
     );
   }
