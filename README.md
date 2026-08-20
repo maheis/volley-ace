@@ -119,6 +119,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
           Spielstand / Uhrzeit / Stopuhr
           - [ ] Auszeiten pro Team anzeigen
           - [ ] Spielerwechsel pro Team anzeigen
+          - [ ] Rotation für unsere Spieler anzeigen
     - [x] Wertung
           - Punkte
             Auswahl wie ein Punkt erreicht wurde.
