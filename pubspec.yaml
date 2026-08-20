@@ -61,5 +61,5 @@ flutter_icons:
   android: true
   ios: false
   image_path: assets/icons/color_transparent_icon.png
-  adaptive_icon_background: "#ffb74d"
+  adaptive_icon_background: "#e57373"
   adaptive_icon_foreground: assets/icons/color_transparent_icon.png
