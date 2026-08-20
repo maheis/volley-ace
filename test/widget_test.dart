@@ -14,6 +14,7 @@ import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
 import 'package:volleyace/src/teams/teams_page.dart';
 import 'package:volleyace/src/tactics/tactics_page.dart';
+import 'package:volleyace/src/training/training_page.dart';
 
 void main() {
   testWidgets('Settings page shows typography controls', (
@@ -936,5 +937,87 @@ void main() {
     expect(find.text('Mara Mustermann'), findsOneWidget);
     expect(find.textContaining('Trainiert die Mittelblocker.'), findsOneWidget);
     expect(find.textContaining('Cheftrainerin'), findsOneWidget);
+  });
+
+  testWidgets('Training shows team attendance matrix sorted by player number', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('training.db');
+    final teamsRepository = TeamsRepository(database);
+    await teamsRepository.save([
+      const Team(
+        id: 1,
+        name: 'SV Beispiel',
+        coaches: [
+          TeamCoach(
+            id: 1,
+            name: 'Mara',
+            profile: '',
+            birthDate: null,
+            position: 'Trainerin',
+          ),
+        ],
+        players: [
+          TeamPlayer(
+            id: 1,
+            name: 'Ada',
+            number: 12,
+            birthDate: null,
+            position: '',
+            profile: '',
+          ),
+          TeamPlayer(
+            id: 2,
+            name: 'Berta',
+            number: 3,
+            birthDate: null,
+            position: '',
+            profile: '',
+          ),
+        ],
+      ),
+    ]);
+
+    await tester
+        .pumpWidget(MaterialApp(home: TrainingPage(database: database)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Noch keine Trainings angelegt.'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('new-training-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Trainingsinfo'), findsOneWidget);
+    expect(find.text('Team auswählen'), findsOneWidget);
+    await tester.tap(find.text('SV Beispiel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Training öffnen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Teilnahme'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Trainer'), findsOneWidget);
+    expect(find.text('Spieler'), findsOneWidget);
+    expect(find.text('3  Berta'), findsOneWidget);
+    expect(find.text('12  Ada'), findsOneWidget);
+    expect(find.byType(Checkbox), findsNWidgets(9));
+
+    final bertaPosition = tester.getTopLeft(find.text('3  Berta'));
+    final adaPosition = tester.getTopLeft(find.text('12  Ada'));
+    expect(bertaPosition.dy, lessThan(adaPosition.dy));
+
+    final checkboxes = find.byType(Checkbox);
+    await tester.tap(checkboxes.at(6));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Checkbox>(checkboxes.at(6)).value, isTrue);
+    expect(tester.widget<Checkbox>(checkboxes.at(7)).value, isFalse);
+    expect(tester.widget<Checkbox>(checkboxes.at(8)).value, isFalse);
+
+    await tester.tap(find.byTooltip('Zurück'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Zurück'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-training-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Trainingsinfo'), findsOneWidget);
   });
 }

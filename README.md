@@ -153,13 +153,17 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Diagram über Punkte/Fehler im Zeitverlauf
         - [ ] Aufklappbare Details pro Spieler
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
-- [ ] Training
-  - [ ] Team
-  - [ ] Trainer
-  - [ ] Trainingsteilnahme
-    - [ ] Teilnahme
-    - [ ] Entschuldigt
-    - [ ] Unentschuldigt
+- [x] Training
+  - [x] Mehrere Trainings speichern
+  - [x] Infos
+    - [x] Datum / Uhrzeit
+    - [x] Ort
+    - [x] Dauer
+    - [x] Team
+  - [x] Trainingsteilnahme (Trainer, Spieler)
+    - [x] Teilnahme
+    - [x] Entschuldigt
+    - [x] Unentschuldigt
   - [ ] Trainingsplan
   - [ ] Trainingsstatistik
   - [ ] Trainingsbewertung

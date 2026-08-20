@@ -9,6 +9,7 @@ class HomePage extends StatelessWidget {
     required this.onOpenMatchStats,
     required this.onOpenTeams,
     required this.onOpenTactics,
+    required this.onOpenTraining,
   });
 
   final VoidCallback onOpenSettings;
@@ -17,6 +18,7 @@ class HomePage extends StatelessWidget {
   final VoidCallback onOpenMatchStats;
   final VoidCallback onOpenTeams;
   final VoidCallback onOpenTactics;
+  final VoidCallback onOpenTraining;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +76,17 @@ class HomePage extends StatelessWidget {
               subtitle: const Text('Teams, Spieler und Trainer verwalten.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenTeams,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.fact_check_outlined, color: brandColor),
+              title: const Text('Training'),
+              subtitle:
+                  const Text('Teilnahme von Trainern und Spielern erfassen.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onOpenTraining,
             ),
           ),
           const SizedBox(height: 12),
