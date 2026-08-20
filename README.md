@@ -155,6 +155,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
 - [ ] Training
   - [ ] Team
+  - [ ] Trainer
   - [ ] Trainingsteilnahme
     - [ ] Teilnahme
     - [ ] Entschuldigt

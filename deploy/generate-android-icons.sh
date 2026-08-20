@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Generates Android launcher and notification icons from SVGs in assets/icons.
-# All icon resources are PNGs — no XML drawables used.
+# Generates density PNGs plus the adaptive XML background drawable.
 # Usage: ./generate-android-icons.sh
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,7 +13,7 @@ SVG_BACKGROUND="$SVG_DIR/color_teal_icon_android.svg"
 SVG_FOREGROUND="$SVG_DIR/color_transparent_icon_android.svg"
 SVG_NOTIFICATION="$SVG_DIR/white_transparent_icon.svg"
 
-# Background color for adaptive launcher icon (user requested)
+# Fallback color used for the splash screen; adaptive icons use the XML gradient.
 LAUNCH_BG_COLOR="#ffb74d"
 
 # Density map and sizes (launcher: mdpi=48 ... xxxhdpi=192; notification: mdpi=24 ... xxxhdpi=96)
@@ -73,23 +73,10 @@ for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
   svg_to_png "$SVG_NOTIFICATION" "$size" "$DIR/ic_stat_notify.png"
 done
 
-# --- Launcher background PNG (solid color, used as ic_launcher_background) ---
-mkdir -p "$ANDROID_RES/drawable"
-if command -v magick >/dev/null 2>&1; then
-  magick -size 432x432 xc:"$LAUNCH_BG_COLOR" "$ANDROID_RES/drawable/ic_launcher_background.png"
-else
-  convert -size 432x432 xc:"$LAUNCH_BG_COLOR" "$ANDROID_RES/drawable/ic_launcher_background.png"
-fi
-echo "Background PNG generated ($LAUNCH_BG_COLOR)"
-
-# Copy background into density-specific drawable folders so they don't contain the foreground
-for d in drawable-mdpi drawable-hdpi drawable-xhdpi drawable-xxhdpi drawable-xxxhdpi; do
-  dst="$ANDROID_RES/$d"
-  mkdir -p "$dst"
-  # copy the generated background; let Android scale if sizes differ
-  cp "$ANDROID_RES/drawable/ic_launcher_background.png" "$dst/ic_launcher_background.png"
-  echo "Copied background to $dst/ic_launcher_background.png"
-done
+# --- Adaptive launcher background is kept as an XML gradient drawable ---
+# Do not generate ic_launcher_background.png here: it would overwrite the
+# gradient drawable in drawable/ic_launcher_background.xml.
+echo "Adaptive background uses drawable/ic_launcher_background.xml"
 
 # --- Splash screen PNG (1x1, 8-bit palette) ---
 # Create a 1x1 PNG approximating the launcher background color but reduced to an 8-bit palette
