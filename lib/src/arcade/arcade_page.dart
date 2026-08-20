@@ -456,7 +456,7 @@ class _ArcadeCourtPainter extends CustomPainter {
       ..strokeWidth = 3;
     final paintBall = Paint()..color = const Color(0xFFFFC56D);
     final paintPlayer = Paint()..color = const Color(0xFF88D6FF);
-    final paintCpu = Paint()..color = const Color(0xFFE85450);
+    final paintCpu = Paint()..color = const Color(0xFFe57373);
     final handColor = Paint()..color = const Color(0xFFFFBC6E);
 
     final court = Rect.fromLTWH(20, 20, size.width - 40, size.height - 40);

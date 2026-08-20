@@ -366,7 +366,7 @@ class _TeamsPageState extends State<TeamsPage> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF82D5C8),
+              backgroundColor: const Color(0xFFFFB74D),
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Löschen'),
@@ -645,7 +645,7 @@ class _TeamsPageState extends State<TeamsPage> {
                 title: 'Team löschen',
                 subtitle: 'Team und Mitglieder unwiderruflich entfernen',
                 icon: Icons.delete_outline,
-                color: const Color(0xFF82D5C8),
+                color: const Color(0xFFFFB74D),
                 onTap: () => _deleteTeam(team)),
           ],
         ),

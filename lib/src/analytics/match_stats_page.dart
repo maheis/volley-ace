@@ -680,7 +680,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF82D5C8),
+              backgroundColor: const Color(0xFFFFB74D),
             ),
             child: const Text('Löschen'),
           ),
@@ -1036,7 +1036,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               title: 'Spiel löschen',
               subtitle: 'Spiel und Statistik unwiderruflich entfernen',
               icon: Icons.delete_outline,
-              color: const Color(0xFF82D5C8),
+              color: const Color(0xFFFFB74D),
               onTap: () => _deleteMatch(match),
             ),
           ],
@@ -1416,7 +1416,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-point-button'),
                   onPressed: () => _startEventSelection(match, isPoint: true),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF7CC57E),
+                    backgroundColor: const Color(0xFFaed581),
                     foregroundColor: Colors.white,
                     textStyle: TextStyle(
                       fontFamily:
@@ -1440,7 +1440,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-error-button'),
                   onPressed: () => _startEventSelection(match, isPoint: false),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE85450),
+                    backgroundColor: const Color(0xFFe57373),
                     foregroundColor: Colors.white,
                     textStyle: TextStyle(
                       fontFamily:
@@ -1464,7 +1464,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   key: const ValueKey('record-timeout-button'),
                   onPressed: () => _recordTimeout(match),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFE680),
+                    backgroundColor: const Color(0xFFfff176),
                     foregroundColor: Colors.black,
                     textStyle: TextStyle(
                       fontFamily:
@@ -2023,10 +2023,10 @@ class _TrendChartCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 const _TrendLegendDot(
-                    color: Color(0xFFE85450), label: 'Fehler'),
+                    color: Color(0xFFe57373), label: 'Fehler'),
                 const SizedBox(width: 12),
                 const _TrendLegendLine(
-                  color: Color(0xFF82D5C8),
+                  color: Color(0xFFFFB74D),
                   label: 'Auszeit',
                 ),
               ],
@@ -2191,7 +2191,7 @@ class _TrendChartPainter extends CustomPainter {
     void paintTimeoutMarkers(List<DateTime> markers) {
       if (markers.isEmpty) return;
       final markerPaint = Paint()
-        ..color = const Color(0xFF82D5C8).withValues(alpha: 0.95)
+        ..color = const Color(0xFFFFB74D).withValues(alpha: 0.95)
         ..strokeWidth = 2;
       for (final time in markers) {
         final x = xFor(time);
@@ -2212,7 +2212,7 @@ class _TrendChartPainter extends CustomPainter {
 
     paintTimeoutMarkers(timeoutMarkers);
     paintSeries(pointSeries, Colors.greenAccent);
-    paintSeries(errorSeries, const Color(0xFFE85450));
+    paintSeries(errorSeries, const Color(0xFFe57373));
 
     const labelStyle = TextStyle(
       color: Colors.white70,
@@ -2388,7 +2388,7 @@ class _MatchHistoryTable extends StatelessWidget {
                     style: TextStyle(
                       color: entries[i].kind == 'point'
                           ? Colors.greenAccent
-                          : const Color(0xFFE85450),
+                          : const Color(0xFFe57373),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2615,7 +2615,7 @@ class _SetsOverview extends StatelessWidget {
                           ? null
                           : sets[index].us > sets[index].opponent
                               ? Colors.green.withValues(alpha: 0.2)
-                              : const Color(0xFFE85450).withValues(alpha: 0.2),
+                              : const Color(0xFFe57373).withValues(alpha: 0.2),
                     ),
                 ],
               ),

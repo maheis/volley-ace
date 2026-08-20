@@ -62,7 +62,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Text(
                   'Speichern',
                   style: TextStyle(
-                    color: _hasChanges ? const Color(0xFF82D5C8) : null,
+                    color: _hasChanges ? const Color(0xFFFFB74D) : null,
                     fontWeight:
                         _hasChanges ? FontWeight.bold : FontWeight.normal,
                   ),

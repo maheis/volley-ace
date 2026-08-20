@@ -12,7 +12,7 @@ import 'settings/settings_page.dart';
 import 'teams/teams_page.dart';
 import 'tactics/tactics_page.dart';
 
-const Color _brandColor = Color(0xFF82D5C8);
+const Color _brandColor = Color(0xffAED581);
 
 class VolleyAceApp extends StatelessWidget {
   const VolleyAceApp({

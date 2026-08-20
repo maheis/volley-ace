@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 Color _normalizeScoreboardColor(Color color) {
   if (color.value == 0xff1976d2) {
-    return const Color(0xFF3690E8);
+    return const Color(0xFF64b5f6);
   }
   if (color.value == 0xffe53935) {
-    return const Color(0xFFE85450);
+    return const Color(0xFFe57373);
   }
   return color;
 }
@@ -170,8 +170,8 @@ class ScoreboardState {
     required this.historyEntries,
   });
 
-  static const Color defaultLeftColor = Color(0xFF3690E8);
-  static const Color defaultRightColor = Color(0xFFE85450);
+  static const Color defaultLeftColor = Color(0xFF64b5f6);
+  static const Color defaultRightColor = Color(0xFFe57373);
 
   static const ScoreboardState initial = ScoreboardState(
     leftPoints: 0,

@@ -47,9 +47,9 @@ Diese Farben haben eine feste Bedeutung und werden konsistent über die ganze Ap
 | Aufgabe: erledigt | Gedimmt | `cs.onSurface.withAlpha((0.6 * 255).round())` |
 | Status: OK / Sync erfolgreich | Hellgrün | `Colors.lightGreenAccent` / `Colors.greenAccent` |
 | Status: Warnung / Beschäftigt | Amber/Orange | `Colors.amberAccent` / `Colors.orangeAccent` |
-| Status: Fehler | Rot | `Color(0xFFE85450)` |
+| Status: Fehler | Rot | `Color(0xFFe57373)` |
 | Termin: rechtzeitig | Grün | `Colors.green` |
-| Termin: überfällig | Rot | `Color(0xFFE85450)` |
+| Termin: überfällig | Rot | `Color(0xFFe57373)` |
 | Transparent / kein Hintergrund | — | `Colors.transparent` |
 
 **Regel:** Statusfarben niemals als Hintergrundfarbe — immer als Textfarbe oder Icon-Farbe einsetzen.
@@ -155,7 +155,7 @@ Wichtige Icons und ihre Bedeutung in der App:
 - Primäraktion: `ElevatedButton`
 - Sekundäraktion / Abbrechen: `TextButton`
 - Ikonbasierte Aktionen in Listen: `IconButton`
-- Destruktive Aktionen (Löschen): `foregroundColor: Color(0xFFE85450)`, `BorderSide(color: Color(0xFFE85450))`
+- Destruktive Aktionen (Löschen): `foregroundColor: Color(0xFFe57373)`, `BorderSide(color: Color(0xFFe57373))`
 
 ### Dialoge
 

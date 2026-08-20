@@ -20,7 +20,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const brandColor = Color(0xFF82D5C8);
+    const brandColor = Color(0xFFFFB74D);
 
     return Scaffold(
       appBar: AppBar(
