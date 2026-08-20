@@ -18,6 +18,7 @@ class SettingsRepository {
     final storedFont = data?['fontFamily'];
     final storedScale = data?['uiTextScaleFactor'];
     final storedUseLightTheme = data?['useLightTheme'];
+    final storedAccentColor = data?['accentColorValue'];
     final fontMigrationApplied = data?[_fontMigrationKey] == true;
     final themeMigrationApplied = data?[_themeMigrationKey] == true;
 
@@ -35,6 +36,9 @@ class SettingsRepository {
             ? storedUseLightTheme
             : AppSettings.defaults.useLightTheme
         : AppSettings.defaults.useLightTheme;
+    final accentColorValue = storedAccentColor is num
+        ? storedAccentColor.toInt()
+        : AppSettings.defaults.accentColorValue;
 
     if (!fontMigrationApplied || !themeMigrationApplied) {
       await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
@@ -42,6 +46,7 @@ class SettingsRepository {
         'uiTextScaleFactor': _clampScale(scale),
         _fontMigrationKey: true,
         'useLightTheme': useLightTheme,
+        'accentColorValue': accentColorValue,
         _themeMigrationKey: true,
       });
     }
@@ -50,6 +55,7 @@ class SettingsRepository {
       fontFamily: fontFamily,
       textScaleFactor: _clampScale(scale),
       useLightTheme: useLightTheme,
+      accentColorValue: accentColorValue,
     );
   }
 
@@ -58,6 +64,7 @@ class SettingsRepository {
       'fontFamily': settings.fontFamily,
       'uiTextScaleFactor': _clampScale(settings.textScaleFactor),
       'useLightTheme': settings.useLightTheme,
+      'accentColorValue': settings.accentColorValue,
       _fontMigrationKey: true,
       _themeMigrationKey: true,
     });

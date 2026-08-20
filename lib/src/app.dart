@@ -44,10 +44,12 @@ class VolleyAceApp extends StatelessWidget {
           ],
           theme: _buildTheme(
             settings.fontFamily,
+            accentColor: Color(settings.accentColorValue),
             brightness: Brightness.light,
           ),
           darkTheme: _buildTheme(
             settings.fontFamily,
+            accentColor: Color(settings.accentColorValue),
             brightness: Brightness.dark,
           ),
           themeMode: settings.useLightTheme ? ThemeMode.light : ThemeMode.dark,
@@ -112,6 +114,7 @@ class VolleyAceApp extends StatelessWidget {
 
   ThemeData _buildTheme(
     String fontFamily, {
+    required Color accentColor,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -119,40 +122,40 @@ class VolleyAceApp extends StatelessWidget {
       brightness: brightness,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppPalette.red,
+        seedColor: accentColor,
         brightness: brightness,
       ).copyWith(
-        primary: AppPalette.red,
+        primary: accentColor,
         secondary: AppPalette.orange,
         tertiary: AppPalette.mint,
         surfaceTint: AppPalette.purple,
       ),
-      iconTheme: const IconThemeData(color: AppPalette.red),
-      appBarTheme: const AppBarTheme(
-        iconTheme: IconThemeData(color: AppPalette.red),
-        actionsIconTheme: IconThemeData(color: AppPalette.red),
+      iconTheme: IconThemeData(color: accentColor),
+      appBarTheme: AppBarTheme(
+        iconTheme: IconThemeData(color: accentColor),
+        actionsIconTheme: IconThemeData(color: accentColor),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(foregroundColor: AppPalette.red),
+        style: IconButton.styleFrom(foregroundColor: accentColor),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppPalette.red),
+        style: TextButton.styleFrom(foregroundColor: accentColor),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppPalette.red,
-          side: const BorderSide(color: AppPalette.red),
+          foregroundColor: accentColor,
+          side: BorderSide(color: accentColor),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppPalette.red,
+          backgroundColor: accentColor,
           foregroundColor: Colors.black,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppPalette.red,
+          backgroundColor: accentColor,
           foregroundColor: Colors.black,
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import '../theme/app_palette.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.initial});
@@ -15,11 +16,13 @@ class _SettingsPageState extends State<SettingsPage> {
   late String _fontFamily;
   late double _textScaleFactor;
   late bool _useLightTheme;
+  late int _accentColorValue;
 
   bool get _hasChanges {
     return _fontFamily != widget.initial.fontFamily ||
         _textScaleFactor != widget.initial.textScaleFactor ||
-        _useLightTheme != widget.initial.useLightTheme;
+        _useLightTheme != widget.initial.useLightTheme ||
+        _accentColorValue != widget.initial.accentColorValue;
   }
 
   @override
@@ -28,6 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _fontFamily = widget.initial.fontFamily;
     _textScaleFactor = widget.initial.textScaleFactor;
     _useLightTheme = widget.initial.useLightTheme;
+    _accentColorValue = widget.initial.accentColorValue;
   }
 
   @override
@@ -56,6 +60,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       fontFamily: _fontFamily,
                       textScaleFactor: _textScaleFactor,
                       useLightTheme: _useLightTheme,
+                      accentColorValue: _accentColorValue,
                     ),
                   );
                 },
@@ -111,6 +116,41 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 value: _useLightTheme,
                 onChanged: (value) => setState(() => _useLightTheme = value),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Akzentfarbe',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButton<int>(
+                isExpanded: true,
+                value: _accentColorValue,
+                items: [
+                  for (var i = 0; i < AppPalette.accentColors.length; i++)
+                    DropdownMenuItem<int>(
+                      value: AppPalette.accentColors[i].toARGB32(),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: AppPalette.accentColors[i],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(AppPalette.accentNames[i]),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _accentColorValue = value);
+                  }
+                },
               ),
               const SizedBox(height: 12),
               Text(

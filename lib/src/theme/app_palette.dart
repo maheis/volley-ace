@@ -8,4 +8,26 @@ abstract final class AppPalette {
   static const mint = Color(0xFF8BEDDE);
   static const purple = Color(0xFF9575CD);
   static const orange = Color(0xFFFFB74D);
+
+  static const accentColors = <Color>[
+    red,
+    orange,
+    green,
+    yellow,
+    blue,
+    mint,
+    purple,
+  ];
+
+  static const accentNames = <String>[
+    'Rot',
+    'Orange',
+    'Grün',
+    'Gelb',
+    'Blau',
+    'Mint',
+    'Lila',
+  ];
+
+  static const defaultAccent = red;
 }
