@@ -3,10 +3,10 @@
 Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 
 - Punktetafel - Ersetzt die klassische Punktetafel
-- Taktiktafel - Taktiken speichern und auf der Punktetafel anzeigen.
+- Taktiktafel - Ersetzt die klassische Taktiktafel
 - Teams - Spieler und Trainer verwalten, Teamstatistiken einsehen und Taktiken speichern.
 - Punktewertung - Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
-- Training - Trainings speichern, Trainingsstatistiken einsehen und Trainingsbewertungen erfassen.
+- Training - Trainingspläne erstellen, Trainingsteilnahme erfassen, Trainingsstatistiken einsehen und Trainingsbewertungen erfassen.
 
 ![Vorstellungsgrafik](.notes/vorstellungsgrafik.png)
 

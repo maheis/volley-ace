@@ -225,6 +225,8 @@ class _TrainingPageState extends State<TrainingPage> {
       TextEditingController();
   final TextEditingController _exerciseDescriptionController =
       TextEditingController();
+  final ScrollController _attendanceVerticalController = ScrollController();
+  final ScrollController _attendanceHorizontalController = ScrollController();
   bool _isLoaded = false;
 
   @override
@@ -243,6 +245,8 @@ class _TrainingPageState extends State<TrainingPage> {
     _exerciseGoalController.dispose();
     _exerciseDurationController.dispose();
     _exerciseDescriptionController.dispose();
+    _attendanceVerticalController.dispose();
+    _attendanceHorizontalController.dispose();
     super.dispose();
   }
 
@@ -1272,37 +1276,67 @@ class _TrainingPageState extends State<TrainingPage> {
         ],
       ),
       body: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
+        builder: (context, constraints) => Padding(
           padding: const EdgeInsets.all(12),
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth - 24),
-            child: Table(
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              border: TableBorder.all(color: Theme.of(context).dividerColor),
-              columnWidths: const {
-                0: IntrinsicColumnWidth(),
-                1: IntrinsicColumnWidth(),
-                2: IntrinsicColumnWidth(),
-                3: IntrinsicColumnWidth(),
-                4: FlexColumnWidth(),
-              },
-              children: [
-                TableRow(children: [
-                  _tableText('Name', bold: true),
-                  _tableText('Teilnahme', bold: true),
-                  _tableText('Entschuldigt', bold: true),
-                  _tableText('Unentschuldigt', bold: true),
-                  _tableText('Kommentar', bold: true),
-                ]),
-                if (team.coaches.isNotEmpty) _sectionRow('Trainer'),
-                for (final coach in team.coaches)
-                  _attendanceRow('coach:${coach.id}', coach.name, null),
-                if (sortedPlayers.isNotEmpty) _sectionRow('Spieler'),
-                for (final player in sortedPlayers)
-                  _attendanceRow(
-                      'player:${player.id}', player.name, player.number),
-              ],
+          child: Scrollbar(
+            controller: _attendanceVerticalController,
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              controller: _attendanceVerticalController,
+              child: Scrollbar(
+                controller: _attendanceHorizontalController,
+                thumbVisibility: true,
+                notificationPredicate: (notification) =>
+                    notification.depth == 1,
+                child: SingleChildScrollView(
+                  controller: _attendanceHorizontalController,
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: constraints.maxWidth - 24,
+                    ),
+                    child: Table(
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      border: TableBorder.all(
+                        color: Theme.of(context).dividerColor,
+                      ),
+                      columnWidths: const {
+                        0: IntrinsicColumnWidth(),
+                        1: IntrinsicColumnWidth(),
+                        2: IntrinsicColumnWidth(),
+                        3: IntrinsicColumnWidth(),
+                        4: FixedColumnWidth(250),
+                      },
+                      children: [
+                        TableRow(children: [
+                          _tableText('Name', bold: true),
+                          _attendanceHeader(
+                            Icons.add_circle_outline,
+                            'Teilnahme',
+                          ),
+                          _attendanceHeader(
+                            Icons.circle_outlined,
+                            'Entschuldigt',
+                          ),
+                          _attendanceHeader(
+                            Icons.error_outline,
+                            'Unentschuldigt',
+                          ),
+                          _tableText('Kommentar', bold: true),
+                        ]),
+                        if (team.coaches.isNotEmpty) _sectionRow('Trainer'),
+                        for (final coach in team.coaches)
+                          _attendanceRow('coach:${coach.id}', coach.name, null),
+                        if (sortedPlayers.isNotEmpty) _sectionRow('Spieler'),
+                        for (final player in sortedPlayers)
+                          _attendanceRow('player:${player.id}', player.name,
+                              player.number),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -1330,6 +1364,14 @@ class _TrainingPageState extends State<TrainingPage> {
     ]);
   }
 
+  Widget _attendanceHeader(IconData icon, String tooltip) => Tooltip(
+        message: tooltip,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Icon(icon),
+        ),
+      );
+
   TableRow _sectionRow(String label) => TableRow(children: [
         _tableText(label, bold: true),
         for (var index = 0; index < 4; index++) const SizedBox.shrink(),
@@ -1346,18 +1388,31 @@ class _TrainingPageState extends State<TrainingPage> {
         ),
       );
 
-  Widget _attendanceCell(String key, String? currentValue, String value) =>
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Checkbox(
-            value: currentValue == value,
-            onChanged: (checked) =>
-                _setAttendance(key, checked == true ? value : null),
-          ),
-        ),
-      );
+  Widget _attendanceCell(String key, String? currentValue, String value) {
+    final icon = switch (value) {
+      TrainingAttendance.participating => Icons.add_circle_outline,
+      TrainingAttendance.excused => Icons.circle_outlined,
+      TrainingAttendance.unexcused => Icons.error_outline,
+      _ => Icons.circle_outlined,
+    };
+    final tooltip = switch (value) {
+      TrainingAttendance.participating => 'Teilnahme',
+      TrainingAttendance.excused => 'Entschuldigt',
+      TrainingAttendance.unexcused => 'Unentschuldigt',
+      _ => value,
+    };
+    final selected = currentValue == value;
+    return Align(
+      alignment: Alignment.center,
+      child: IconButton(
+        key: ValueKey('attendance-$key-$value'),
+        tooltip: selected ? '$tooltip entfernen' : tooltip,
+        icon: Icon(icon),
+        color: selected ? Theme.of(context).colorScheme.primary : null,
+        onPressed: () => _setAttendance(key, selected ? null : value),
+      ),
+    );
+  }
 
   String _formatDate(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
