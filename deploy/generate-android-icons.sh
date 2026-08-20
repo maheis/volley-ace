@@ -9,7 +9,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SVG_DIR="$PROJECT_ROOT/assets/icons"
 ANDROID_RES="$PROJECT_ROOT/android/app/src/main/res"
 
-SVG_BACKGROUND="$SVG_DIR/color_teal_icon_android.svg"
+# Launcher background; the transparent foreground is composited on top for
+# legacy launcher densities. The adaptive icon uses the matching XML drawable.
+SVG_BACKGROUND="$SVG_DIR/color_teal_icon_android_background.svg"
 SVG_FOREGROUND="$SVG_DIR/color_transparent_icon_android.svg"
 SVG_NOTIFICATION="$SVG_DIR/white_transparent_icon.svg"
 
@@ -32,6 +34,15 @@ else
   exit 2
 fi
 
+if command -v magick >/dev/null 2>&1; then
+  IMAGE_COMPOSER="magick"
+elif command -v convert >/dev/null 2>&1; then
+  IMAGE_COMPOSER="convert"
+else
+  echo "No PNG compositor found. Install ImageMagick." >&2
+  exit 2
+fi
+
 svg_to_png() {
   local svg="$1" size="$2" out="$3"
   if [ "$CONVERTER" = "rsvg-convert" ]; then
@@ -45,23 +56,29 @@ svg_to_png() {
 
 mkdir -p "$ANDROID_RES"
 
-# --- Launcher icons (fully opaque, one per density) ---
+# --- Adaptive launcher foreground PNG ---
+# Keep the adaptive foreground in sync with all density-specific foregrounds.
+echo "Adaptive foreground (432px)"
+svg_to_png "$SVG_FOREGROUND" 432 \
+  "$ANDROID_RES/drawable/ic_launcher_foreground.png"
+
+# --- Launcher icons (background plus transparent foreground, one per density) ---
 for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
   DIR="$ANDROID_RES/mipmap-$d"
-  mkdir -p "$DIR"
+  FOREGROUND_DIR="$ANDROID_RES/drawable-$d"
+  mkdir -p "$DIR" "$FOREGROUND_DIR"
   size=${LAUNCHER_SIZES[$d]}
   echo "Launcher $d (${size}px)"
   svg_to_png "$SVG_BACKGROUND" "$size" "$DIR/ic_launcher.png"
+  svg_to_png "$SVG_FOREGROUND" "$size" "$FOREGROUND_DIR/ic_launcher_foreground.png"
+  if [ "$IMAGE_COMPOSER" = "magick" ]; then
+    magick "$DIR/ic_launcher.png" "$FOREGROUND_DIR/ic_launcher_foreground.png" \
+      -compose over -composite "$DIR/ic_launcher.png"
+  else
+    convert "$DIR/ic_launcher.png" "$FOREGROUND_DIR/ic_launcher_foreground.png" \
+      -compose over -composite "$DIR/ic_launcher.png"
+  fi
   cp -f "$DIR/ic_launcher.png" "$DIR/ic_launcher_round.png"
-done
-
-# --- Launcher foreground PNG (transparent, used by adaptive launcher icon) ---
-for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-  DIR="$ANDROID_RES/drawable-$d"
-  mkdir -p "$DIR"
-  size=${LAUNCHER_SIZES[$d]}
-  echo "Foreground $d (${size}px)"
-  svg_to_png "$SVG_FOREGROUND" "$size" "$DIR/ic_launcher_foreground.png"
 done
 
 # --- Notification icons (white glyph on transparent background, one per density) ---
@@ -73,10 +90,21 @@ for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
   svg_to_png "$SVG_NOTIFICATION" "$size" "$DIR/ic_stat_notify.png"
 done
 
-# --- Adaptive launcher background is kept as an XML gradient drawable ---
-# Do not generate ic_launcher_background.png here: it would overwrite the
-# gradient drawable in drawable/ic_launcher_background.xml.
-echo "Adaptive background uses drawable/ic_launcher_background.xml"
+# --- Adaptive launcher background PNG ---
+# Keep the adaptive background identical to the background used for legacy
+# launcher icons.
+echo "Adaptive background drawable (432px)"
+svg_to_png "$SVG_BACKGROUND" 432 \
+  "$ANDROID_RES/drawable/ic_launcher_background.png"
+
+# Keep any density-specific background copies in sync as well. They are not
+# used by the adaptive XML on current Android versions, but stale copies can
+# still be selected by older resource resolution paths.
+for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+  echo "Adaptive background $d (432px)"
+  svg_to_png "$SVG_BACKGROUND" 432 \
+    "$ANDROID_RES/drawable-$d/ic_launcher_background.png"
+done
 
 # --- Splash screen PNG (1x1, 8-bit palette) ---
 # Create a 1x1 PNG approximating the launcher background color but reduced to an 8-bit palette
