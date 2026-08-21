@@ -22,7 +22,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const brandColor = Color(0xFFFFB74D);
+    final highlightColor = Theme.of(context).iconTheme.color;
 
     return Scaffold(
       appBar: AppBar(
@@ -51,7 +51,7 @@ class HomePage extends StatelessWidget {
         children: [
           Card(
             child: ListTile(
-              leading: Icon(Icons.scoreboard, color: brandColor),
+              leading: Icon(Icons.scoreboard, color: highlightColor),
               title: const Text('Punktetafel'),
               subtitle: const Text('Volleyball-Spielstand erfassen.'),
               trailing: const Icon(Icons.chevron_right),
@@ -61,7 +61,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.sports_volleyball, color: brandColor),
+              leading: Icon(Icons.sports_volleyball, color: highlightColor),
               title: const Text('Taktiktafel'),
               subtitle: const Text('Aufstellungen und Laufwege zeichnen.'),
               trailing: const Icon(Icons.chevron_right),
@@ -71,7 +71,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.groups_outlined, color: brandColor),
+              leading: Icon(Icons.groups_outlined, color: highlightColor),
               title: const Text('Teams'),
               subtitle: const Text('Teams, Spieler und Trainer verwalten.'),
               trailing: const Icon(Icons.chevron_right),
@@ -81,7 +81,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.fact_check_outlined, color: brandColor),
+              leading: Icon(Icons.fact_check_outlined, color: highlightColor),
               title: const Text('Training'),
               subtitle:
                   const Text('Teilnahme von Trainern und Spielern erfassen.'),
@@ -92,7 +92,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.analytics_outlined, color: brandColor),
+              leading: Icon(Icons.analytics_outlined, color: highlightColor),
               title: const Text('Punktewertung'),
               subtitle: const Text('Spieler anlegen und Statistiken erfassen.'),
               trailing: const Icon(Icons.chevron_right),

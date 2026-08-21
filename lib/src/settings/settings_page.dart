@@ -160,7 +160,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Highlight-Farbe für Buttons',
+                'Highlight-Farbe',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
