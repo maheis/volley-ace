@@ -31,7 +31,7 @@ class VolleyAceApp extends StatelessWidget {
       builder: (context, _) {
         final settings = settingsController.settings;
         return MaterialApp(
-          title: 'VolleyAce',
+          title: 'Volley Ace',
           locale: const Locale('en', 'US'),
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,

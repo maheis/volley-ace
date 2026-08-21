@@ -25,7 +25,7 @@ cat > "${desktop_file}" <<EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=VolleyAce
+Name=Volley Ace
 Comment=Volleyball Assistenz-App
 Exec=${install_dir}/volley_ace %U
 Path=${install_dir}
