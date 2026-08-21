@@ -176,7 +176,7 @@ class AppBackupService {
   static Future<void> shareMatch(BuildContext context, MatchGame match) async {
     final jsonText = encodeBackup(buildMatchBackup(match));
     final suggestedName =
-        'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.json';
+        'volleyace-punktewertung-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.json';
     await shareOrSaveJson(
       context,
       suggestedName: suggestedName,
