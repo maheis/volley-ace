@@ -68,7 +68,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Taktiktafel
   - [x] Speichern von Taktiken
   - [x] Taktiken importieren
-  - [ ] Mehrere Seiten pro Taktik
+  - [x] Mehrere Seiten pro Taktik
 - [x] Team
   - [x] Info
     - [x] Teamname

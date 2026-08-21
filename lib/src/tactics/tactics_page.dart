@@ -97,32 +97,34 @@ class _BoardLine {
   }
 }
 
-class _SavedTactic {
-  const _SavedTactic({
-    required this.id,
-    required this.name,
-    required this.points,
-    required this.lines,
-  });
+class _TacticPage {
+  const _TacticPage({required this.points, required this.lines});
 
-  final int id;
-  final String name;
   final List<_BoardPoint> points;
   final List<_BoardLine> lines;
 
+  _TacticPage copy() => _TacticPage(
+        points: List<_BoardPoint>.from(points),
+        lines: lines
+            .map(
+              (line) => _BoardLine(
+                points: List<Offset>.from(line.points),
+                color: line.color,
+                type: line.type,
+              ),
+            )
+            .toList(),
+      );
+
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'name': name,
         'points': points.map((point) => point.toJson()).toList(),
         'lines': lines.map((line) => line.toJson()).toList(),
       };
 
-  static _SavedTactic fromJson(Map<String, dynamic> data) {
+  static _TacticPage fromJson(Map<String, dynamic> data) {
     final storedPoints = data['points'];
     final storedLines = data['lines'];
-    return _SavedTactic(
-      id: data['id'] is num ? (data['id'] as num).toInt() : 0,
-      name: data['name'] is String ? data['name'] as String : 'Unbenannt',
+    return _TacticPage(
       points: storedPoints is List
           ? storedPoints
               .whereType<Map>()
@@ -137,6 +139,46 @@ class _SavedTactic {
                   _BoardLine.fromJson(Map<String, dynamic>.from(item)))
               .toList()
           : const <_BoardLine>[],
+    );
+  }
+}
+
+class _SavedTactic {
+  const _SavedTactic({
+    required this.id,
+    required this.name,
+    required this.pages,
+  });
+
+  final int id;
+  final String name;
+  final List<_TacticPage> pages;
+
+  _TacticPage get firstPage => pages.isEmpty
+      ? const _TacticPage(points: <_BoardPoint>[], lines: <_BoardLine>[])
+      : pages.first;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'name': name,
+        'pages': pages.map((page) => page.toJson()).toList(),
+      };
+
+  static _SavedTactic fromJson(Map<String, dynamic> data) {
+    final storedPages = data['pages'];
+    final pages = storedPages is List
+        ? storedPages
+            .whereType<Map>()
+            .map(
+                (item) => _TacticPage.fromJson(Map<String, dynamic>.from(item)))
+            .toList()
+        : <_TacticPage>[
+            _TacticPage.fromJson(data),
+          ];
+    return _SavedTactic(
+      id: data['id'] is num ? (data['id'] as num).toInt() : 0,
+      name: data['name'] is String ? data['name'] as String : 'Unbenannt',
+      pages: pages,
     );
   }
 }
@@ -164,6 +206,7 @@ class _TacticsPageState extends State<TacticsPage> {
 
   final List<_BoardPoint> _points = <_BoardPoint>[];
   final List<_BoardLine> _lines = <_BoardLine>[];
+  final List<_TacticPage> _pages = <_TacticPage>[];
   final List<_SavedTactic> _savedTactics = <_SavedTactic>[];
   Color _selectedColor = AppPalette.red;
   _Tool _tool = _Tool.point;
@@ -175,6 +218,7 @@ class _TacticsPageState extends State<TacticsPage> {
   String? _activeTacticName;
   bool _isRotated = false;
   bool _showPointNumbers = false;
+  int _currentPageIndex = 0;
   bool _isObjectHovered = false;
   int _activePointerCount = 0;
   bool _multiTouchActive = false;
@@ -194,6 +238,7 @@ class _TacticsPageState extends State<TacticsPage> {
     if (!mounted) return;
     final storedPoints = data?['points'];
     final storedLines = data?['lines'];
+    final storedPages = data?['pages'];
     final storedTactics = data?['tactics'];
     setState(() {
       _points
@@ -212,6 +257,30 @@ class _TacticsPageState extends State<TacticsPage> {
                   _BoardLine.fromJson(Map<String, dynamic>.from(item)))
               : const <_BoardLine>[],
         );
+      _pages
+        ..clear()
+        ..addAll(
+          storedPages is List
+              ? storedPages.whereType<Map>().map((item) =>
+                  _TacticPage.fromJson(Map<String, dynamic>.from(item)))
+              : <_TacticPage>[
+                  _TacticPage(
+                    points: List<_BoardPoint>.from(_points),
+                    lines: _lines
+                        .map((line) => _BoardLine(
+                              points: List<Offset>.from(line.points),
+                              color: line.color,
+                              type: line.type,
+                            ))
+                        .toList(),
+                  ),
+                ],
+        );
+      if (_pages.isEmpty) {
+        _pages.add(const _TacticPage(points: [], lines: []));
+      }
+      _currentPageIndex = 0;
+      _loadPage(_currentPageIndex);
       _savedTactics
         ..clear()
         ..addAll(
@@ -231,17 +300,55 @@ class _TacticsPageState extends State<TacticsPage> {
     });
   }
 
-  Future<void> _persist() => _store.record(_recordKey).put(
-        widget.database,
-        <String, dynamic>{
-          'points': _points.map((point) => point.toJson()).toList(),
-          'lines': _lines.map((line) => line.toJson()).toList(),
-          'tactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
-          'activeTacticName': _activeTacticName,
-          'isRotated': _isRotated,
-          'showPointNumbers': _showPointNumbers,
-        },
+  _TacticPage _currentPageSnapshot() => _TacticPage(
+        points: List<_BoardPoint>.from(_points),
+        lines: _lines
+            .map((line) => _BoardLine(
+                  points: List<Offset>.from(line.points),
+                  color: line.color,
+                  type: line.type,
+                ))
+            .toList(),
       );
+
+  void _syncCurrentPage() {
+    if (_pages.isEmpty) {
+      _pages.add(_currentPageSnapshot());
+    } else {
+      _pages[_currentPageIndex] = _currentPageSnapshot();
+    }
+  }
+
+  void _loadPage(int index) {
+    final page = _pages[index];
+    _points
+      ..clear()
+      ..addAll(page.points);
+    _lines
+      ..clear()
+      ..addAll(page.lines.map((line) => _BoardLine(
+            points: List<Offset>.from(line.points),
+            color: line.color,
+            type: line.type,
+          )));
+    _selection = null;
+  }
+
+  Future<void> _persist() {
+    _syncCurrentPage();
+    return _store.record(_recordKey).put(
+      widget.database,
+      <String, dynamic>{
+        'points': _points.map((point) => point.toJson()).toList(),
+        'lines': _lines.map((line) => line.toJson()).toList(),
+        'pages': _pages.map((page) => page.toJson()).toList(),
+        'tactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
+        'activeTacticName': _activeTacticName,
+        'isRotated': _isRotated,
+        'showPointNumbers': _showPointNumbers,
+      },
+    );
+  }
 
   Future<void> _saveTactic() async {
     final controller = TextEditingController(text: _activeTacticName ?? '');
@@ -285,8 +392,7 @@ class _TacticsPageState extends State<TacticsPage> {
       final tactic = _SavedTactic(
         id: id,
         name: trimmedName,
-        points: List<_BoardPoint>.from(_points),
-        lines: List<_BoardLine>.from(_lines),
+        pages: _pages.map((page) => page.copy()).toList(),
       );
       if (index >= 0) {
         _savedTactics[index] = tactic;
@@ -303,8 +409,7 @@ class _TacticsPageState extends State<TacticsPage> {
       'type': 'tactics-board',
       'savedAt': DateTime.now().toIso8601String(),
       'name': tactic.name,
-      'points': tactic.points.map((point) => point.toJson()).toList(),
-      'lines': tactic.lines.map((line) => line.toJson()).toList(),
+      'pages': tactic.pages.map((page) => page.toJson()).toList(),
     };
     await AppBackupService.shareOrSaveJson(
       context,
@@ -343,8 +448,7 @@ class _TacticsPageState extends State<TacticsPage> {
       final imported = _SavedTactic(
         id: nextId,
         name: '${tactic.name} (Import)',
-        points: tactic.points,
-        lines: tactic.lines,
+        pages: tactic.pages.map((page) => page.copy()).toList(),
       );
       setState(() => _savedTactics.add(imported));
       await _persist();
@@ -381,7 +485,7 @@ class _TacticsPageState extends State<TacticsPage> {
                       leading: const Icon(Icons.sports_volleyball),
                       title: Text(tactic.name),
                       subtitle: Text(
-                          '${tactic.points.length} Punkte • ${tactic.lines.length} Linien'),
+                          '${tactic.pages.length} Seiten • ${tactic.pages.fold<int>(0, (total, page) => total + page.points.length)} Punkte'),
                       onTap: () {
                         Navigator.of(sheetContext).pop();
                         _loadTactic(tactic);
@@ -410,14 +514,45 @@ class _TacticsPageState extends State<TacticsPage> {
 
   void _loadTactic(_SavedTactic tactic) {
     setState(() {
-      _points
+      _pages
         ..clear()
-        ..addAll(tactic.points);
-      _lines
-        ..clear()
-        ..addAll(tactic.lines);
+        ..addAll(tactic.pages.map((page) => page.copy()));
+      _currentPageIndex = 0;
+      _loadPage(_currentPageIndex);
       _selection = null;
       _activeTacticName = tactic.name;
+    });
+    _persist();
+  }
+
+  void _addPage() {
+    _syncCurrentPage();
+    setState(() {
+      _pages.add(_pages[_currentPageIndex].copy());
+      _currentPageIndex = _pages.length - 1;
+      _loadPage(_currentPageIndex);
+    });
+    _persist();
+  }
+
+  void _selectPage(int index) {
+    if (index < 0 || index >= _pages.length || index == _currentPageIndex) {
+      return;
+    }
+    _syncCurrentPage();
+    setState(() {
+      _currentPageIndex = index;
+      _loadPage(index);
+    });
+    _persist();
+  }
+
+  void _deleteCurrentPage() {
+    if (_pages.length <= 1) return;
+    setState(() {
+      _pages.removeAt(_currentPageIndex);
+      _currentPageIndex = _currentPageIndex.clamp(0, _pages.length - 1);
+      _loadPage(_currentPageIndex);
     });
     _persist();
   }
@@ -816,43 +951,92 @@ class _TacticsPageState extends State<TacticsPage> {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      SegmentedButton<_Tool>(
-                                        showSelectedIcon: false,
-                                        segments: const [
-                                          ButtonSegment(
-                                            value: _Tool.touch,
-                                            icon: Icon(Icons.pan_tool_outlined),
-                                            tooltip: 'Objekte verschieben',
-                                          ),
-                                          ButtonSegment(
-                                            value: _Tool.point,
-                                            icon: Icon(Icons.circle),
-                                            tooltip: 'Punkte platzieren',
-                                          ),
-                                          ButtonSegment(
-                                            value: _Tool.freehand,
-                                            icon: Icon(Icons.gesture),
-                                            tooltip: 'Freihandlinie zeichnen',
-                                          ),
-                                          ButtonSegment(
-                                            value: _Tool.straight,
-                                            icon: Icon(Icons.remove),
-                                            tooltip: 'Gerade Linie zeichnen',
-                                          ),
-                                          ButtonSegment(
-                                            value: _Tool.arrow,
-                                            icon: Icon(Icons.arrow_forward),
-                                            tooltip: 'Pfeil zeichnen',
-                                          ),
-                                        ],
-                                        selected: <_Tool>{_tool},
-                                        onSelectionChanged: (selected) =>
-                                            setState(
-                                                () => _tool = selected.first),
+                                      SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SegmentedButton<_Tool>(
+                                              showSelectedIcon: false,
+                                              segments: const [
+                                                ButtonSegment(
+                                                  value: _Tool.touch,
+                                                  icon: Icon(
+                                                      Icons.pan_tool_outlined),
+                                                  tooltip:
+                                                      'Objekte verschieben',
+                                                ),
+                                                ButtonSegment(
+                                                  value: _Tool.point,
+                                                  icon: Icon(Icons.circle),
+                                                  tooltip: 'Punkte platzieren',
+                                                ),
+                                                ButtonSegment(
+                                                  value: _Tool.freehand,
+                                                  icon: Icon(Icons.gesture),
+                                                  tooltip:
+                                                      'Freihandlinie zeichnen',
+                                                ),
+                                                ButtonSegment(
+                                                  value: _Tool.straight,
+                                                  icon: Icon(Icons.remove),
+                                                  tooltip:
+                                                      'Gerade Linie zeichnen',
+                                                ),
+                                                ButtonSegment(
+                                                  value: _Tool.arrow,
+                                                  icon:
+                                                      Icon(Icons.arrow_forward),
+                                                  tooltip: 'Pfeil zeichnen',
+                                                ),
+                                              ],
+                                              selected: <_Tool>{_tool},
+                                              onSelectionChanged: (selected) =>
+                                                  setState(() =>
+                                                      _tool = selected.first),
+                                            ),
+                                            IconButton(
+                                              tooltip:
+                                                  'Neue Seite aus aktueller Seite',
+                                              onPressed: _addPage,
+                                              icon: const Icon(
+                                                  Icons.note_add_outlined),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Vorherige Seite',
+                                              onPressed: _currentPageIndex == 0
+                                                  ? null
+                                                  : () => _selectPage(
+                                                      _currentPageIndex - 1),
+                                              icon: const Icon(
+                                                  Icons.chevron_left),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Nächste Seite',
+                                              onPressed: _currentPageIndex >=
+                                                      _pages.length - 1
+                                                  ? null
+                                                  : () => _selectPage(
+                                                      _currentPageIndex + 1),
+                                              icon: const Icon(
+                                                  Icons.chevron_right),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                      Wrap(
+                                        alignment: WrapAlignment.center,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        spacing: 4,
                                         children: [
+                                          if (_pages.length > 1)
+                                            IconButton(
+                                              tooltip: 'Aktuelle Seite löschen',
+                                              onPressed: _deleteCurrentPage,
+                                              icon: const Icon(
+                                                  Icons.delete_outline),
+                                            ),
                                           IconButton(
                                             tooltip: _showPointNumbers
                                                 ? 'Punktnummern ausblenden'
