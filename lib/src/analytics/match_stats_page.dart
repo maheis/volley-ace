@@ -1234,17 +1234,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             if (selectedTeam != null) const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('coach-name-input'),
-                    controller: _coachNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Trainername',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 IconButton.filled(
                   key: const ValueKey('add-coach-button'),
                   onPressed: () => _addCoachToMatch(match),
@@ -1254,6 +1243,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   ),
                   icon: const Icon(Icons.add, color: Colors.white),
                   tooltip: 'Trainer hinzufügen',
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('coach-name-input'),
+                    controller: _coachNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Trainername',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1463,6 +1463,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ],
         Row(
           children: [
+            IconButton.filled(
+              key: const ValueKey('add-player-button'),
+              onPressed: () => _addPlayerToMatch(match),
+              style: IconButton.styleFrom(
+                backgroundColor: AppPalette.green,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Spieler hinzufügen',
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: TextField(
                 key: const ValueKey('player-name-input'),
@@ -1485,17 +1496,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            IconButton.filled(
-              key: const ValueKey('add-player-button'),
-              onPressed: () => _addPlayerToMatch(match),
-              style: IconButton.styleFrom(
-                backgroundColor: AppPalette.green,
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.add, color: Colors.white),
-              tooltip: 'Spieler hinzufügen',
             ),
           ],
         ),
