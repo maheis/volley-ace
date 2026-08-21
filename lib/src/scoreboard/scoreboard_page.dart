@@ -956,7 +956,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                 ),
                 IconButton(
                   key: const ValueKey('history-appbar-button'),
-                  tooltip: 'Punkthistorie',
+                  tooltip: 'Punkteverlauf',
                   onPressed: _openHistoryPage,
                   icon: const Icon(Icons.history),
                 ),
@@ -1468,10 +1468,28 @@ class _SetNumber extends StatelessWidget {
   }
 }
 
-class _ScoreHistoryTable extends StatelessWidget {
-  const _ScoreHistoryTable({required this.entries});
+class _ScoreHistoryEntry {
+  const _ScoreHistoryEntry({
+    required this.entry,
+    required this.leftPoints,
+    required this.rightPoints,
+    required this.leftSets,
+    required this.rightSets,
+    required this.setNumber,
+  });
 
-  final List<ScoreboardHistoryEntry> entries;
+  final ScoreboardHistoryEntry entry;
+  final int leftPoints;
+  final int rightPoints;
+  final int leftSets;
+  final int rightSets;
+  final int setNumber;
+}
+
+class _ScoreHistoryTimeline extends StatelessWidget {
+  const _ScoreHistoryTimeline({required this.entries});
+
+  final List<_ScoreHistoryEntry> entries;
 
   String _formatTimestamp(DateTime value) {
     final day = value.day.toString().padLeft(2, '0');
@@ -1489,215 +1507,152 @@ class _ScoreHistoryTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const headerStyle = TextStyle(
-      color: Colors.white70,
-      fontWeight: FontWeight.bold,
-    );
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Table(
-        columnWidths: const {
-          0: IntrinsicColumnWidth(),
-          1: IntrinsicColumnWidth(),
-          2: IntrinsicColumnWidth(),
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          const TableRow(
-            children: [
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Zeit', style: headerStyle),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Stoppuhr', style: headerStyle),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Aktion', style: headerStyle),
-              ),
-            ],
+    final theme = Theme.of(context);
+    final lineColor = theme.colorScheme.outlineVariant;
+    return Column(
+      children: [
+        for (var index = 0; index < entries.length; index++)
+          _ScoreHistoryTimelineRow(
+            item: entries[index],
+            previousSetNumber: index == 0 ? null : entries[index - 1].setNumber,
+            lineColor: lineColor,
+            formatTimestamp: _formatTimestamp,
+            formatDuration: _formatDuration,
           ),
-          for (var i = 0; i < entries.length; i++)
-            TableRow(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    _formatTimestamp(entries[i].occurredAt),
-                    style: TextStyle(
-                      color: entries[i].color ?? Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    _formatDuration(entries[i].stopwatchAt),
-                    style: TextStyle(
-                      color: entries[i].color ?? Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    entries[i].action,
-                    style: TextStyle(
-                      color: entries[i].color ?? Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-class _SetPointsTable extends StatelessWidget {
-  const _SetPointsTable({required this.sets});
+class _ScoreHistoryTimelineRow extends StatelessWidget {
+  const _ScoreHistoryTimelineRow({
+    required this.item,
+    required this.previousSetNumber,
+    required this.lineColor,
+    required this.formatTimestamp,
+    required this.formatDuration,
+  });
 
-  final List<SetResult> sets;
-
-  String _formatTimestamp(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$day.$month. $hour:$minute';
-  }
-
-  String _winnerLabel(SetResult set) {
-    if (set.winnerColor == ScoreboardState.defaultLeftColor) {
-      return 'blau';
-    }
-    if (set.winnerColor == ScoreboardState.defaultRightColor) {
-      return 'rot';
-    }
-    return 'Team';
-  }
+  final _ScoreHistoryEntry item;
+  final int? previousSetNumber;
+  final Color lineColor;
+  final String Function(DateTime) formatTimestamp;
+  final String Function(Duration) formatDuration;
 
   @override
   Widget build(BuildContext context) {
-    const headerStyle = TextStyle(
-      color: Colors.white70,
-      fontWeight: FontWeight.bold,
-    );
+    final entry = item.entry;
+    final eventColor = entry.color ?? Theme.of(context).colorScheme.primary;
+    final isSet = entry.action.startsWith('Satz beendet');
+    final isTimeout = entry.action.startsWith('Auszeit');
+    final scoreText = isSet
+        ? '${item.leftSets} : ${item.rightSets}'
+        : '${item.leftPoints} : ${item.rightPoints}';
+    final detailText = isSet
+        ? 'Satz ${item.setNumber} abgeschlossen'
+        : isTimeout
+            ? 'Satz ${item.setNumber}  •  ${formatDuration(entry.stopwatchAt)}'
+            : 'Satz ${item.setNumber}  •  ${formatDuration(entry.stopwatchAt)}';
+    final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Table(
-        columnWidths: const {
-          0: IntrinsicColumnWidth(),
-          1: IntrinsicColumnWidth(),
-          2: IntrinsicColumnWidth(),
-          3: IntrinsicColumnWidth(),
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          const TableRow(
+    return Column(
+      children: [
+        if (previousSetNumber != null && previousSetNumber != item.setNumber)
+          Padding(
+            padding: const EdgeInsets.only(left: 48, bottom: 10, top: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Satz ${item.setNumber}',
+                style: textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Satz', style: headerStyle),
+              SizedBox(
+                width: 36,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: eventColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.surface,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: eventColor.withValues(alpha: 0.35),
+                            blurRadius: 5,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: Container(width: 2, color: lineColor)),
+                  ],
+                ),
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Gewinner', style: headerStyle),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Ergebnis', style: headerStyle),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Uhrzeit', style: headerStyle),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: lineColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.action,
+                              style: textTheme.titleSmall?.copyWith(
+                                color: eventColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            scoreText,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(detailText, style: textTheme.bodyLarge),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${formatTimestamp(entry.occurredAt)}  •  ${formatDuration(entry.stopwatchAt)}',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
-          for (var i = 0; i < sets.length; i++)
-            TableRow(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    '${i + 1}',
-                    style: TextStyle(
-                      color: sets[i].winnerColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    _winnerLabel(sets[i]),
-                    style: TextStyle(
-                      color: sets[i].winnerColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    '${sets[i].leftPoints}:${sets[i].rightPoints}',
-                    style: TextStyle(
-                      color: sets[i].winnerColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    _formatTimestamp(sets[i].wonAt),
-                    style: TextStyle(
-                      color: sets[i].winnerColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1708,10 +1663,66 @@ class _SetHistoryPage extends StatelessWidget {
   final List<ScoreboardHistoryEntry> entries;
   final List<SetResult> sets;
 
+  List<_ScoreHistoryEntry> _timelineEntries() {
+    final sortedEntries = List<ScoreboardHistoryEntry>.from(entries)
+      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    final timeline = <_ScoreHistoryEntry>[];
+    var leftPoints = 0;
+    var rightPoints = 0;
+    var leftSets = 0;
+    var rightSets = 0;
+    var setNumber = 1;
+
+    for (final entry in sortedEntries) {
+      final isLeft = entry.action.endsWith('blau');
+      final isRight = entry.action.endsWith('rot');
+      final isPoint = entry.action.startsWith('Punkt ');
+      final isUndo = entry.action.startsWith('Punkt zurückgenommen');
+      final isSet = entry.action.startsWith('Satz beendet');
+
+      if (isUndo && isLeft && leftPoints > 0) {
+        leftPoints--;
+      } else if (isUndo && isRight && rightPoints > 0) {
+        rightPoints--;
+      } else if (isPoint && isLeft) {
+        leftPoints++;
+      } else if (isPoint && isRight) {
+        rightPoints++;
+      }
+
+      if (isSet) {
+        if (isLeft) {
+          leftSets++;
+        } else if (isRight) {
+          rightSets++;
+        }
+      }
+
+      timeline.add(
+        _ScoreHistoryEntry(
+          entry: entry,
+          leftPoints: leftPoints,
+          rightPoints: rightPoints,
+          leftSets: leftSets,
+          rightSets: rightSets,
+          setNumber: setNumber,
+        ),
+      );
+
+      if (isSet) {
+        leftPoints = 0;
+        rightPoints = 0;
+        setNumber++;
+      }
+    }
+    return timeline;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final timelineEntries = _timelineEntries();
     return Scaffold(
-      appBar: AppBar(title: const Text('Punkthistorie')),
+      appBar: AppBar(title: const Text('Punkteverlauf')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -1724,27 +1735,21 @@ class _SetHistoryPage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        'Satzpunkte',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Text(
+                        '${timelineEntries.length} Aktionen',
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      const SizedBox(height: 8),
-                      _SetPointsTable(sets: sets),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Verlauf',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${sets.length} abgeschlossene Sätze',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
-                      const SizedBox(height: 8),
-                      _ScoreHistoryTable(entries: entries),
+                      const SizedBox(height: 20),
+                      _ScoreHistoryTimeline(entries: timelineEntries),
                     ],
                   ),
                 ),

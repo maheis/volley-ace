@@ -2428,38 +2428,101 @@ class _TrendChartPainter extends CustomPainter {
   }
 }
 
+class _HistoryEntry {
+  const _HistoryEntry({
+    required this.event,
+    required this.setNumber,
+    required this.ourScore,
+    required this.opponentScore,
+  });
+
+  final MatchEvent event;
+  final int setNumber;
+  final int ourScore;
+  final int opponentScore;
+}
+
 class _MatchHistoryPage extends StatelessWidget {
   const _MatchHistoryPage({required this.match});
 
   final MatchGame match;
 
+  List<_HistoryEntry> _historyEntries() {
+    final sortedEvents = List<MatchEvent>.from(match.events)
+      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    final entries = <_HistoryEntry>[];
+    var setNumber = 1;
+    var ourScore = 0;
+    var opponentScore = 0;
+
+    for (final event in sortedEvents) {
+      if (event.kind == 'point') {
+        ourScore++;
+      } else if (event.kind == 'error') {
+        opponentScore++;
+      }
+      entries.add(
+        _HistoryEntry(
+          event: event,
+          setNumber: setNumber,
+          ourScore: ourScore,
+          opponentScore: opponentScore,
+        ),
+      );
+
+      final setFinished = (ourScore >= 25 && ourScore - opponentScore >= 2) ||
+          (opponentScore >= 25 && opponentScore - ourScore >= 2);
+      if (setFinished) {
+        setNumber++;
+        ourScore = 0;
+        opponentScore = 0;
+      }
+    }
+    return entries;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final entries = List<MatchEvent>.from(match.events)
-      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    final entries = _historyEntries();
+    final finishedSets = entries.where((entry) {
+      final scoreDifference = entry.ourScore - entry.opponentScore;
+      return (entry.ourScore >= 25 && scoreDifference >= 2) ||
+          (entry.opponentScore >= 25 && scoreDifference <= -2);
+    }).length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Verlauf')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: entries.isEmpty
-              ? const Center(
-                  child: Text('Noch keine Verlaufseinträge vorhanden.'),
-                )
-              : SingleChildScrollView(
-                  child: _MatchHistoryTable(entries: entries),
-                ),
-        ),
+        child: entries.isEmpty
+            ? const Center(
+                child: Text('Noch keine Verlaufseinträge vorhanden.'))
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                children: [
+                  Text(
+                    '${entries.length} Aktionen',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$finishedSets abgeschlossene Sätze',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  _MatchHistoryTimeline(entries: entries),
+                ],
+              ),
       ),
     );
   }
 }
 
-class _MatchHistoryTable extends StatelessWidget {
-  const _MatchHistoryTable({required this.entries});
+class _MatchHistoryTimeline extends StatelessWidget {
+  const _MatchHistoryTimeline({required this.entries});
 
-  final List<MatchEvent> entries;
+  final List<_HistoryEntry> entries;
 
   String _formatTimestamp(DateTime value) {
     final day = value.day.toString().padLeft(2, '0');
@@ -2476,107 +2539,157 @@ class _MatchHistoryTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const headerStyle = TextStyle(
-      color: Colors.white70,
-      fontWeight: FontWeight.bold,
+    final theme = Theme.of(context);
+    final lineColor = theme.colorScheme.outlineVariant;
+    return Column(
+      children: [
+        for (var index = 0; index < entries.length; index++)
+          _HistoryTimelineRow(
+            entry: entries[index],
+            previousSetNumber: index == 0 ? null : entries[index - 1].setNumber,
+            lineColor: lineColor,
+            formatTimestamp: _formatTimestamp,
+            kindLabel: _kindLabel,
+          ),
+      ],
     );
+  }
+}
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Table(
-        columnWidths: const {
-          0: IntrinsicColumnWidth(),
-          1: IntrinsicColumnWidth(),
-          2: IntrinsicColumnWidth(),
-          3: IntrinsicColumnWidth(),
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          const TableRow(
+class _HistoryTimelineRow extends StatelessWidget {
+  const _HistoryTimelineRow({
+    required this.entry,
+    required this.previousSetNumber,
+    required this.lineColor,
+    required this.formatTimestamp,
+    required this.kindLabel,
+  });
+
+  final _HistoryEntry entry;
+  final int? previousSetNumber;
+  final Color lineColor;
+  final String Function(DateTime) formatTimestamp;
+  final String Function(MatchEvent) kindLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final event = entry.event;
+    final isPoint = event.kind == 'point';
+    final isTimeout = event.kind == _timeoutKind;
+    final eventColor = isTimeout
+        ? AppPalette.orange
+        : isPoint
+            ? AppPalette.green
+            : AppPalette.red;
+    final textTheme = Theme.of(context).textTheme;
+    final scoreText = isTimeout
+        ? 'Satz ${entry.setNumber}'
+        : '${entry.ourScore} : ${entry.opponentScore}';
+
+    return Column(
+      children: [
+        if (previousSetNumber != null && previousSetNumber != entry.setNumber)
+          Padding(
+            padding: const EdgeInsets.only(left: 48, bottom: 10, top: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Satz ${entry.setNumber}',
+                style: textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Zeit', style: headerStyle),
+              SizedBox(
+                width: 36,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: eventColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.surface,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: eventColor.withValues(alpha: 0.35),
+                            blurRadius: 5,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: Container(width: 2, color: lineColor)),
+                  ],
+                ),
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Typ', style: headerStyle),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Spieler', style: headerStyle),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text('Kategorie', style: headerStyle),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: lineColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            kindLabel(event),
+                            style: textTheme.titleSmall?.copyWith(
+                              color: eventColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            scoreText,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        isTimeout
+                            ? 'Team-Auszeit'
+                            : '${event.playerName}  •  ${event.category}',
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatTimestamp(event.occurredAt),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
-          for (var i = 0; i < entries.length; i++)
-            TableRow(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    _formatTimestamp(entries[i].occurredAt),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    _kindLabel(entries[i]),
-                    style: TextStyle(
-                      color: entries[i].kind == 'point'
-                          ? Colors.greenAccent
-                          : const Color(0xFFe57373),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    entries[i].playerName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 8,
-                  ),
-                  child: Text(
-                    entries[i].category,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

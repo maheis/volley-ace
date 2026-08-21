@@ -59,7 +59,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             Rotation/Position muss je nach Spielklasse unterschiedlich sein!
             U12-U13: 3 Spieler, U14-U15: 4 Spieler, Rest: 6 Spieler
             U12-U15: Rotation nach 2 Aufschlägen und bei Aufschlagwechsel, Rest: Rotation nach Aufschlagwechsel
-    - [ ]  
+    - [ ] WAS?
       - [ ] Startaufstellung (Positionsnummern)
       - [ ] Ersatzspieler
       - [ ] Spielerwechsel
@@ -68,6 +68,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Taktiktafel
   - [x] Speichern von Taktiken
   - [x] Taktiken importieren
+  - [ ] Mehrere Seiten pro Taktik
 - [x] Team
   - [x] Info
     - [x] Teamname
@@ -199,11 +200,16 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [ ] Diff / import-Date vs. Änderungsdatum
 - [x] Farbe rosa in die App übernehmen?
       -> Nehme doch das hellblau/mint
-- [ ] Verlaufdarstellung wie einen Versionsgraphen
+- [x] Verlaufdarstellung wie einen Versionsgraphen
 - [ ] Diagramm mit Differenzpunkten?
 - [x] Zurück Geste soll nur eine Seite zurück gehen
 - [x] Weitere Trainer in der Punktewertung optional hinzufügen
 - [x] Button für Spieler hinzufügen in der Punktewertung ist vollflächig Rot.
 - [x] Sicherheitsabfrage vor löschen
 - [x] 2.Highlight-Color für Buttons Auswählbar, per default alles Orange
-- [x] Punktewertung soll "Punktewertung" und nicht "match" als Namenhint 
+- [x] Punktewertung soll "Punktewertung" und nicht "match" als Namenhint
+- [ ] Taktiktafel
+  - [ ] Touch Button
+  - [ ] Optional Nummern auf den Punkten
+  - [ ] Button-Liste 2 Zeilig und Überschrift entfernen
+- [ ] Punktetafel Verlauf wird nicht korrekt geteilt (nach Import hab ich nur 1 Satz!)
