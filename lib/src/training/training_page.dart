@@ -1400,6 +1400,10 @@ class _TrainingPageState extends State<TrainingPage> {
                       const SizedBox(width: 8),
                       IconButton.filled(
                         key: const ValueKey('add-guest-button'),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppPalette.green,
+                          foregroundColor: Colors.white,
+                        ),
                         tooltip: 'Gastspieler hinzufügen',
                         icon: const Icon(Icons.add),
                         onPressed: _addGuest,
