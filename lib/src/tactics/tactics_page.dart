@@ -98,13 +98,16 @@ class _BoardLine {
 }
 
 class _TacticPage {
-  const _TacticPage({required this.points, required this.lines});
+  const _TacticPage(
+      {required this.points, required this.lines, this.note = ''});
 
   final List<_BoardPoint> points;
   final List<_BoardLine> lines;
+  final String note;
 
   _TacticPage copy() => _TacticPage(
         points: List<_BoardPoint>.from(points),
+        note: note,
         lines: lines
             .map(
               (line) => _BoardLine(
@@ -119,6 +122,7 @@ class _TacticPage {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'points': points.map((point) => point.toJson()).toList(),
         'lines': lines.map((line) => line.toJson()).toList(),
+        'note': note,
       };
 
   static _TacticPage fromJson(Map<String, dynamic> data) {
@@ -139,6 +143,7 @@ class _TacticPage {
                   _BoardLine.fromJson(Map<String, dynamic>.from(item)))
               .toList()
           : const <_BoardLine>[],
+      note: data['note'] is String ? data['note'] as String : '',
     );
   }
 }
@@ -208,6 +213,7 @@ class _TacticsPageState extends State<TacticsPage> {
   final List<_BoardLine> _lines = <_BoardLine>[];
   final List<_TacticPage> _pages = <_TacticPage>[];
   final List<_SavedTactic> _savedTactics = <_SavedTactic>[];
+  final TextEditingController _pageNoteController = TextEditingController();
   Color _selectedColor = AppPalette.red;
   _Tool _tool = _Tool.point;
   List<Offset>? _activeLine;
@@ -218,6 +224,7 @@ class _TacticsPageState extends State<TacticsPage> {
   String? _activeTacticName;
   bool _isRotated = false;
   bool _showPointNumbers = false;
+  bool _showPageNote = true;
   int _currentPageIndex = 0;
   bool _isObjectHovered = false;
   int _activePointerCount = 0;
@@ -226,6 +233,12 @@ class _TacticsPageState extends State<TacticsPage> {
   Offset? _pointerDownPosition;
   Offset? _lastRawPointerPosition;
   bool _isLoaded = false;
+
+  @override
+  void dispose() {
+    _pageNoteController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -296,12 +309,14 @@ class _TacticsPageState extends State<TacticsPage> {
               ? (data?['isLandscape'] as bool)
               : false;
       _showPointNumbers = (data?['showPointNumbers'] as bool?) ?? false;
+      _showPageNote = (data?['showPageNote'] as bool?) ?? true;
       _isLoaded = true;
     });
   }
 
   _TacticPage _currentPageSnapshot() => _TacticPage(
         points: List<_BoardPoint>.from(_points),
+        note: _pageNoteController.text,
         lines: _lines
             .map((line) => _BoardLine(
                   points: List<Offset>.from(line.points),
@@ -321,6 +336,7 @@ class _TacticsPageState extends State<TacticsPage> {
 
   void _loadPage(int index) {
     final page = _pages[index];
+    _pageNoteController.text = page.note;
     _points
       ..clear()
       ..addAll(page.points);
@@ -346,6 +362,7 @@ class _TacticsPageState extends State<TacticsPage> {
         'activeTacticName': _activeTacticName,
         'isRotated': _isRotated,
         'showPointNumbers': _showPointNumbers,
+        'showPageNote': _showPageNote,
       },
     );
   }
@@ -929,17 +946,15 @@ class _TacticsPageState extends State<TacticsPage> {
                         final availableHeight = constraints.maxHeight -
                             (isAndroidLandscape ? 0 : toolbarHeight);
                         final availableWidth = constraints.maxWidth - 24;
-                        final boardHeight = _isRotated
-                            ? (availableWidth / 1.6 < availableHeight
-                                ? availableWidth / 1.6
-                                : availableHeight)
-                            : (availableHeight * 0.625 < availableWidth
-                                    ? availableHeight * 0.625
-                                    : availableWidth) /
-                                0.625;
-                        final boardWidth = _isRotated
-                            ? boardHeight * 1.6
-                            : boardHeight * 0.625;
+                        final boardAspectRatio = _isRotated ? 1.6 : 0.625;
+                        final contentWidth = _showPageNote
+                            ? (availableWidth - 12) / 2
+                            : availableWidth;
+                        final boardHeight =
+                            contentWidth / boardAspectRatio < availableHeight
+                                ? contentWidth / boardAspectRatio
+                                : availableHeight;
+                        final boardWidth = boardHeight * boardAspectRatio;
                         _isRotated ? boardHeight * 2 : boardHeight / 2;
                         final size = Size(boardWidth, boardHeight);
                         return Column(
@@ -1082,6 +1097,24 @@ class _TacticsPageState extends State<TacticsPage> {
                                                 ),
                                               ),
                                             ),
+                                          IconButton(
+                                            tooltip: _showPageNote
+                                                ? 'Notiz ausblenden'
+                                                : 'Notiz einblenden',
+                                            color: _showPageNote
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : null,
+                                            onPressed: () {
+                                              setState(() => _showPageNote =
+                                                  !_showPageNote);
+                                              _persist();
+                                            },
+                                            icon: Icon(_showPageNote
+                                                ? Icons.notes
+                                                : Icons.notes_outlined),
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -1089,171 +1122,210 @@ class _TacticsPageState extends State<TacticsPage> {
                                 ),
                               ),
                             Expanded(
-                              child: InteractiveViewer(
-                                key: const ValueKey('tactics-board-viewport'),
-                                minScale: 1,
-                                maxScale: 4,
-                                panEnabled: false,
-                                scaleEnabled: true,
-                                trackpadScrollCausesScale: true,
-                                boundaryMargin: const EdgeInsets.all(320),
-                                constrained: true,
-                                clipBehavior: Clip.hardEdge,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: boardWidth,
-                                    height: boardHeight,
-                                    child: Semantics(
-                                      label: 'Volleyballfeld',
-                                      child: MouseRegion(
-                                        cursor: _isObjectHovered
-                                            ? SystemMouseCursors.click
-                                            : SystemMouseCursors.basic,
-                                        onHover: (event) {
-                                          final position = _relativePosition(
-                                            event.localPosition,
-                                            size,
-                                          );
-                                          final isHovered =
-                                              _findPointAt(position, size) !=
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    InteractiveViewer(
+                                      key: const ValueKey(
+                                          'tactics-board-viewport'),
+                                      minScale: 1,
+                                      maxScale: 4,
+                                      panEnabled: false,
+                                      scaleEnabled: true,
+                                      trackpadScrollCausesScale: true,
+                                      boundaryMargin: const EdgeInsets.all(320),
+                                      constrained: true,
+                                      clipBehavior: Clip.hardEdge,
+                                      child: SizedBox(
+                                        width: boardWidth,
+                                        height: boardHeight,
+                                        child: Semantics(
+                                          label: 'Volleyballfeld',
+                                          child: MouseRegion(
+                                            cursor: _isObjectHovered
+                                                ? SystemMouseCursors.click
+                                                : SystemMouseCursors.basic,
+                                            onHover: (event) {
+                                              final position =
+                                                  _relativePosition(
+                                                event.localPosition,
+                                                size,
+                                              );
+                                              final isHovered = _findPointAt(
+                                                          position, size) !=
                                                       null ||
                                                   _findLineAt(position, size) !=
                                                       null;
-                                          if (isHovered != _isObjectHovered) {
-                                            setState(() =>
-                                                _isObjectHovered = isHovered);
-                                          }
-                                        },
-                                        onExit: (_) {
-                                          if (_isObjectHovered) {
-                                            setState(
-                                                () => _isObjectHovered = false);
-                                          }
-                                        },
-                                        child: Listener(
-                                          key: const ValueKey('tactics-board'),
-                                          onPointerDown: (event) {
-                                            _activePointerCount++;
-                                            if (_activePointerCount > 1) {
-                                              _multiTouchActive = true;
-                                              _activeLine = null;
-                                              _movingPointIndex = null;
-                                              _movingLineIndex = null;
-                                              return;
-                                            }
-                                            _rawPointerMoved = false;
-                                            _pointerDownPosition =
-                                                event.localPosition;
-                                            _lastRawPointerPosition =
-                                                event.localPosition;
-                                            _startDrag(
-                                              DragStartDetails(
-                                                globalPosition: event.position,
-                                                localPosition:
-                                                    event.localPosition,
-                                                kind: event.kind,
-                                              ),
-                                              size,
-                                            );
-                                          },
-                                          onPointerMove: (event) {
-                                            if (_activePointerCount != 1 ||
-                                                _multiTouchActive) {
-                                              return;
-                                            }
-                                            final downPosition =
-                                                _pointerDownPosition;
-                                            if (downPosition != null &&
-                                                (event.localPosition -
-                                                            downPosition)
-                                                        .distance >
-                                                    8) {
-                                              _rawPointerMoved = true;
-                                            }
-                                            _lastRawPointerPosition =
-                                                event.localPosition;
-                                            _updateDrag(
-                                              DragUpdateDetails(
-                                                globalPosition: event.position,
-                                                localPosition:
-                                                    event.localPosition,
-                                                kind: event.kind,
-                                              ),
-                                              size,
-                                            );
-                                          },
-                                          onPointerUp: (event) {
-                                            if (_activePointerCount == 1 &&
-                                                !_multiTouchActive) {
-                                              if (!_rawPointerMoved) {
-                                                _handleTap(
-                                                  TapUpDetails(
-                                                    kind: event.kind,
+                                              if (isHovered !=
+                                                  _isObjectHovered) {
+                                                setState(() =>
+                                                    _isObjectHovered =
+                                                        isHovered);
+                                              }
+                                            },
+                                            onExit: (_) {
+                                              if (_isObjectHovered) {
+                                                setState(() =>
+                                                    _isObjectHovered = false);
+                                              }
+                                            },
+                                            child: Listener(
+                                              key: const ValueKey(
+                                                  'tactics-board'),
+                                              onPointerDown: (event) {
+                                                _activePointerCount++;
+                                                if (_activePointerCount > 1) {
+                                                  _multiTouchActive = true;
+                                                  _activeLine = null;
+                                                  _movingPointIndex = null;
+                                                  _movingLineIndex = null;
+                                                  return;
+                                                }
+                                                _rawPointerMoved = false;
+                                                _pointerDownPosition =
+                                                    event.localPosition;
+                                                _lastRawPointerPosition =
+                                                    event.localPosition;
+                                                _startDrag(
+                                                  DragStartDetails(
+                                                    globalPosition:
+                                                        event.position,
                                                     localPosition:
                                                         event.localPosition,
+                                                    kind: event.kind,
                                                   ),
                                                   size,
                                                 );
-                                              }
-                                              _finishDrag(DragEndDetails());
-                                            }
-                                            _activePointerCount =
-                                                (_activePointerCount - 1)
-                                                    .clamp(0, 10);
-                                            if (_activePointerCount == 0) {
-                                              _multiTouchActive = false;
-                                              _pointerDownPosition = null;
-                                            }
-                                          },
-                                          onPointerCancel: (event) {
-                                            if (_activePointerCount == 1 &&
-                                                !_multiTouchActive &&
-                                                !_rawPointerMoved &&
-                                                _lastRawPointerPosition !=
-                                                    null) {
-                                              _handleTap(
-                                                TapUpDetails(
-                                                  kind: event.kind,
-                                                  localPosition:
-                                                      _lastRawPointerPosition!,
-                                                ),
-                                                size,
-                                              );
-                                            }
-                                            _activePointerCount =
-                                                (_activePointerCount - 1)
-                                                    .clamp(0, 10);
-                                            if (_activePointerCount == 0) {
-                                              _multiTouchActive = false;
-                                              _pointerDownPosition = null;
-                                              _finishDrag(DragEndDetails());
-                                            }
-                                          },
-                                          child: CustomPaint(
-                                            size: size,
-                                            painter: _VolleyballCourtPainter(
-                                              points: _points,
-                                              lines: _lines,
-                                              activeLine: _activeLine,
-                                              activeLineType: switch (_tool) {
-                                                _Tool.arrow => _LineType.arrow,
-                                                _Tool.straight =>
-                                                  _LineType.straight,
-                                                _ => _LineType.freehand,
                                               },
-                                              activeColor: _selectedColor,
-                                              outerColor:
-                                                  Theme.of(context).cardColor,
-                                              selection: _selection,
-                                              isRotated: _isRotated,
-                                              showPointNumbers:
-                                                  _showPointNumbers,
+                                              onPointerMove: (event) {
+                                                if (_activePointerCount != 1 ||
+                                                    _multiTouchActive) {
+                                                  return;
+                                                }
+                                                final downPosition =
+                                                    _pointerDownPosition;
+                                                if (downPosition != null &&
+                                                    (event.localPosition -
+                                                                downPosition)
+                                                            .distance >
+                                                        8) {
+                                                  _rawPointerMoved = true;
+                                                }
+                                                _lastRawPointerPosition =
+                                                    event.localPosition;
+                                                _updateDrag(
+                                                  DragUpdateDetails(
+                                                    globalPosition:
+                                                        event.position,
+                                                    localPosition:
+                                                        event.localPosition,
+                                                    kind: event.kind,
+                                                  ),
+                                                  size,
+                                                );
+                                              },
+                                              onPointerUp: (event) {
+                                                if (_activePointerCount == 1 &&
+                                                    !_multiTouchActive) {
+                                                  if (!_rawPointerMoved) {
+                                                    _handleTap(
+                                                      TapUpDetails(
+                                                        kind: event.kind,
+                                                        localPosition:
+                                                            event.localPosition,
+                                                      ),
+                                                      size,
+                                                    );
+                                                  }
+                                                  _finishDrag(DragEndDetails());
+                                                }
+                                                _activePointerCount =
+                                                    (_activePointerCount - 1)
+                                                        .clamp(0, 10);
+                                                if (_activePointerCount == 0) {
+                                                  _multiTouchActive = false;
+                                                  _pointerDownPosition = null;
+                                                }
+                                              },
+                                              onPointerCancel: (event) {
+                                                if (_activePointerCount == 1 &&
+                                                    !_multiTouchActive &&
+                                                    !_rawPointerMoved &&
+                                                    _lastRawPointerPosition !=
+                                                        null) {
+                                                  _handleTap(
+                                                    TapUpDetails(
+                                                      kind: event.kind,
+                                                      localPosition:
+                                                          _lastRawPointerPosition!,
+                                                    ),
+                                                    size,
+                                                  );
+                                                }
+                                                _activePointerCount =
+                                                    (_activePointerCount - 1)
+                                                        .clamp(0, 10);
+                                                if (_activePointerCount == 0) {
+                                                  _multiTouchActive = false;
+                                                  _pointerDownPosition = null;
+                                                  _finishDrag(DragEndDetails());
+                                                }
+                                              },
+                                              child: CustomPaint(
+                                                size: size,
+                                                painter:
+                                                    _VolleyballCourtPainter(
+                                                  points: _points,
+                                                  lines: _lines,
+                                                  activeLine: _activeLine,
+                                                  activeLineType: switch (
+                                                      _tool) {
+                                                    _Tool.arrow =>
+                                                      _LineType.arrow,
+                                                    _Tool.straight =>
+                                                      _LineType.straight,
+                                                    _ => _LineType.freehand,
+                                                  },
+                                                  activeColor: _selectedColor,
+                                                  outerColor: Theme.of(context)
+                                                      .cardColor,
+                                                  selection: _selection,
+                                                  isRotated: _isRotated,
+                                                  showPointNumbers:
+                                                      _showPointNumbers,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
+                                    if (_showPageNote) ...[
+                                      const SizedBox(width: 12),
+                                      SizedBox(
+                                        width: boardWidth,
+                                        height: boardHeight,
+                                        child: TextField(
+                                          key: const ValueKey(
+                                              'tactics-page-note-input'),
+                                          controller: _pageNoteController,
+                                          expands: true,
+                                          maxLines: null,
+                                          minLines: null,
+                                          textAlignVertical:
+                                              TextAlignVertical.top,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Notiz dieser Seite',
+                                            alignLabelWithHint: true,
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (_) => _persist(),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),

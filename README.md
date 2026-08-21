@@ -69,7 +69,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Speichern von Taktiken
   - [x] Taktiken importieren
   - [x] Mehrere Seiten pro Taktik
-  - [ ] Text-Notizen pro Seite
+  - [x] Text-Notizen pro Seite
 - [x] Team
   - [x] Info
     - [x] Teamname
@@ -214,3 +214,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Optional Nummern auf den Punkten
   - [x] Button-Liste 2 Zeilig wenn der Platz nicht reicht und Überschrift entfernen
 - [ ] Punktetafel Verlauf wird nicht korrekt geteilt (nach Import hab ich nur 1 Satz!)
+      -> Nein, Sätze werden im Verlauf nicht korrekt gespeichert/angezeigt!
