@@ -15,7 +15,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Flutter/Dart
   - [x] Android
   - [ ] Web
-  - [ ] Windows/Linux
+  - [x] Windows/Linux
 - Lokaler Storage: Sembast
   - Datei: `volley_ace.db` auf Desktop/Android
   - IndexedDB im Web
@@ -191,10 +191,10 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 
 - [x] Toast ist weiß!
 - [x] Landscape Modus Punktetafel soll automatisch Zoom machen (Pinch to Zoom entfernen)
-- [ ] Icon (z.B. taskbar)
+- [x] Icon (z.B. taskbar)
 - [x] Settings auf deutsch
 - [-] Sportschrift
-- [ ] Admin
+- [ ] Appname aktuell mit unterstich
 - [x] Import / Export (Teams, Punktewertung, Taktiktafel)
   - [ ] Diff / import-Date vs. Änderungsdatum
 - [x] Farbe rosa in die App übernehmen?
