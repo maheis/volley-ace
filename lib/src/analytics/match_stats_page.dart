@@ -500,6 +500,26 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     });
   }
 
+  void _handleSystemBack() {
+    if (_selectedMatchId == null) return;
+    setState(() {
+      if (_activeSection == 'player-selection') {
+        _activeSection = 'category-selection';
+      } else if (_activeSection == 'category-selection') {
+        _activeSection = 'scoring';
+      } else if (_activeSection == 'info' ||
+          _activeSection == 'scoring' ||
+          _activeSection == 'stats') {
+        _activeSection = null;
+      } else {
+        _selectedMatchId = null;
+        _activeSection = null;
+        _pendingEventKind = null;
+        _pendingCategory = null;
+      }
+    });
+  }
+
   void _openNewMatchForm() {
     final match = MatchGame(
       id: _nextMatchId++,
@@ -872,32 +892,38 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   @override
   Widget build(BuildContext context) {
     if (!_isLoaded) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const PopScope(
+        child: Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     final selectedMatch = _selectedMatch;
+    final Widget page;
     if (selectedMatch != null && _activeSection == null) {
-      return _buildMatchDetailView(selectedMatch);
+      page = _buildMatchDetailView(selectedMatch);
+    } else if (selectedMatch != null && _activeSection == 'info') {
+      page = _buildMatchInfoView(selectedMatch);
+    } else if (selectedMatch != null && _activeSection == 'scoring') {
+      page = _buildScoringView(selectedMatch);
+    } else if (selectedMatch != null && _activeSection == 'player-selection') {
+      page = _buildPlayerSelectionView(selectedMatch);
+    } else if (selectedMatch != null &&
+        _activeSection == 'category-selection') {
+      page = _buildCategorySelectionView(selectedMatch);
+    } else if (selectedMatch != null && _activeSection == 'stats') {
+      page = _buildStatsView(selectedMatch);
+    } else {
+      page = _buildMatchListView();
     }
-    if (selectedMatch != null && _activeSection == 'info') {
-      return _buildMatchInfoView(selectedMatch);
-    }
-    if (selectedMatch != null && _activeSection == 'scoring') {
-      return _buildScoringView(selectedMatch);
-    }
-    if (selectedMatch != null && _activeSection == 'player-selection') {
-      return _buildPlayerSelectionView(selectedMatch);
-    }
-    if (selectedMatch != null && _activeSection == 'category-selection') {
-      return _buildCategorySelectionView(selectedMatch);
-    }
-    if (selectedMatch != null && _activeSection == 'stats') {
-      return _buildStatsView(selectedMatch);
-    }
-
-    return _buildMatchListView();
+    return PopScope(
+      canPop: _selectedMatchId == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleSystemBack();
+      },
+      child: page,
+    );
   }
 
   Widget _buildMatchListView() {

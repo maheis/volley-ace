@@ -200,8 +200,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Farbe rosa in die App übernehmen?
       -> Nehme doch das hellblau/mint
 - [ ] Verlaufdarstellung wie einen Versionsgraphen
-- [ ] Diagramm mit Differenzpunkten?
-- [ ] Zurück Geste soll nur eine Seite zurück gehen
+- [ ] Diagramm mit differenzpunkten?
+- [x] Zurück Geste soll nur eine Seite zurück gehen
 - [ ] Weitere Trainer in der Punktewertung optional hinzufügen
 - [ ] Button für Spieler hinzufügen in der Punktewertung ist vollflächig Rot.
 - [ ] Sicherheitsabfrage vor löschen

@@ -772,18 +772,53 @@ class _TrainingPageState extends State<TrainingPage> {
     await _persist();
   }
 
+  void _handleSystemBack() {
+    if (_activeView == 'list') return;
+    setState(() {
+      if (_activeView == 'add-exercise') {
+        _activeView = 'plan';
+      } else if (_activeView == 'info' ||
+          _activeView == 'plan' ||
+          _activeView == 'matrix') {
+        _activeView = 'detail';
+      } else {
+        _activeSession = null;
+        _activeView = 'list';
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const PopScope(
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
     }
-    if (_activeView == 'list') return _buildTrainingList();
-    final session = _activeSession!;
-    if (_activeView == 'info') return _buildTrainingInfo(session);
-    if (_activeView == 'detail') return _buildTrainingDetail(session);
-    if (_activeView == 'add-exercise') return _buildAddExercise(session);
-    if (_activeView == 'plan') return _buildTrainingPlan(session);
-    return _buildMatrix(session);
+    final Widget page;
+    if (_activeView == 'list') {
+      page = _buildTrainingList();
+    } else {
+      final session = _activeSession!;
+      if (_activeView == 'info') {
+        page = _buildTrainingInfo(session);
+      } else if (_activeView == 'detail') {
+        page = _buildTrainingDetail(session);
+      } else if (_activeView == 'add-exercise') {
+        page = _buildAddExercise(session);
+      } else if (_activeView == 'plan') {
+        page = _buildTrainingPlan(session);
+      } else {
+        page = _buildMatrix(session);
+      }
+    }
+    return PopScope(
+      canPop: _activeView == 'list',
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleSystemBack();
+      },
+      child: page,
+    );
   }
 
   Widget _buildTrainingList() => Scaffold(

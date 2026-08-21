@@ -382,6 +382,24 @@ class _TeamsPageState extends State<TeamsPage> {
         _selectedCoachId = null;
       });
 
+  void _handleSystemBack() {
+    if (_selectedTeamId == null) return;
+    setState(() {
+      if (_activeSection == 'player-stats') {
+        _activeSection = 'players';
+      } else if (_activeSection == 'coach-stats') {
+        _activeSection = 'coaches';
+      } else if (_activeSection != null) {
+        _activeSection = null;
+      } else {
+        _selectedTeamId = null;
+        _activeSection = null;
+        _selectedPlayerId = null;
+        _selectedCoachId = null;
+      }
+    });
+  }
+
   void _showPlayerStats(TeamPlayer player) => setState(() {
         _selectedPlayerId = player.id;
         _activeSection = 'player-stats';
@@ -575,36 +593,46 @@ class _TeamsPageState extends State<TeamsPage> {
   @override
   Widget build(BuildContext context) {
     if (!_isLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const PopScope(
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
     }
     final team = _selectedTeam;
+    final Widget page;
     if (team == null) {
-      return _buildTeamList();
-    }
-    if (_activeSection == 'info') {
-      return _buildInfo(team);
-    }
-    if (_activeSection == 'players') {
-      return _buildPlayers(team);
-    }
-    if (_activeSection == 'player-stats') {
+      page = _buildTeamList();
+    } else if (_activeSection == 'info') {
+      page = _buildInfo(team);
+    } else if (_activeSection == 'players') {
+      page = _buildPlayers(team);
+    } else if (_activeSection == 'player-stats') {
       final player = team.players.cast<TeamPlayer?>().firstWhere(
             (entry) => entry?.id == _selectedPlayerId,
             orElse: () => null,
           );
-      if (player != null) return _buildPlayerStats(team, player);
-    }
-    if (_activeSection == 'coach-stats') {
+      page = player == null
+          ? _buildTeamDetail(team)
+          : _buildPlayerStats(team, player);
+    } else if (_activeSection == 'coach-stats') {
       final coach = team.coaches.cast<TeamCoach?>().firstWhere(
             (entry) => entry?.id == _selectedCoachId,
             orElse: () => null,
           );
-      if (coach != null) return _buildCoachStats(team, coach);
+      page = coach == null
+          ? _buildTeamDetail(team)
+          : _buildCoachStats(team, coach);
+    } else if (_activeSection == 'coaches') {
+      page = _buildCoaches(team);
+    } else {
+      page = _buildTeamDetail(team);
     }
-    if (_activeSection == 'coaches') {
-      return _buildCoaches(team);
-    }
-    return _buildTeamDetail(team);
+    return PopScope(
+      canPop: _selectedTeamId == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleSystemBack();
+      },
+      child: page,
+    );
   }
 
   Widget _buildTeamList() => Scaffold(
