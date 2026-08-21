@@ -46,11 +46,13 @@ class VolleyAceApp extends StatelessWidget {
           theme: _buildTheme(
             settings.fontFamily,
             accentColor: Color(settings.accentColorValue),
+            highlightColor: Color(settings.highlightColorValue),
             brightness: Brightness.light,
           ),
           darkTheme: _buildTheme(
             settings.fontFamily,
             accentColor: Color(settings.accentColorValue),
+            highlightColor: Color(settings.highlightColorValue),
             brightness: Brightness.dark,
           ),
           themeMode: settings.useLightTheme ? ThemeMode.light : ThemeMode.dark,
@@ -123,6 +125,7 @@ class VolleyAceApp extends StatelessWidget {
   ThemeData _buildTheme(
     String fontFamily, {
     required Color accentColor,
+    required Color highlightColor,
     required Brightness brightness,
   }) {
     return ThemeData(
@@ -138,34 +141,75 @@ class VolleyAceApp extends StatelessWidget {
         tertiary: AppPalette.mint,
         surfaceTint: AppPalette.purple,
       ),
-      iconTheme: IconThemeData(color: accentColor),
+      iconTheme: IconThemeData(color: highlightColor),
       appBarTheme: AppBarTheme(
-        iconTheme: IconThemeData(color: accentColor),
-        actionsIconTheme: IconThemeData(color: accentColor),
+        iconTheme: IconThemeData(color: highlightColor),
+        actionsIconTheme: IconThemeData(color: highlightColor),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(foregroundColor: accentColor),
+        style: IconButton.styleFrom(foregroundColor: highlightColor),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: accentColor),
+        style: TextButton.styleFrom(foregroundColor: highlightColor),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: accentColor,
-          side: BorderSide(color: accentColor),
+          foregroundColor: highlightColor,
+          side: BorderSide(color: highlightColor),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accentColor,
+          backgroundColor: highlightColor,
           foregroundColor: Colors.black,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: accentColor,
+          backgroundColor: highlightColor,
           foregroundColor: Colors.black,
         ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.selected) ? highlightColor : null;
+        }),
+        side: WidgetStateBorderSide.resolveWith(
+          (_) => BorderSide(color: highlightColor),
+        ),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStatePropertyAll(highlightColor),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.selected) ? highlightColor : null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.selected)
+              ? highlightColor.withValues(alpha: 0.5)
+              : null;
+        }),
+      ),
+      sliderTheme: SliderThemeData(
+        thumbColor: highlightColor,
+        activeTrackColor: highlightColor,
+        inactiveTrackColor: highlightColor.withValues(alpha: 0.35),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: highlightColor,
+        foregroundColor: Colors.black,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: highlightColor, width: 2),
+        ),
+        floatingLabelStyle: TextStyle(color: highlightColor),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: highlightColor,
+        selectionColor: highlightColor.withValues(alpha: 0.3),
+        selectionHandleColor: highlightColor,
       ),
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: Color(0xFF202124),

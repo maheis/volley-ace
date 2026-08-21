@@ -17,12 +17,14 @@ class _SettingsPageState extends State<SettingsPage> {
   late double _textScaleFactor;
   late bool _useLightTheme;
   late int _accentColorValue;
+  late int _highlightColorValue;
 
   bool get _hasChanges {
     return _fontFamily != widget.initial.fontFamily ||
         _textScaleFactor != widget.initial.textScaleFactor ||
         _useLightTheme != widget.initial.useLightTheme ||
-        _accentColorValue != widget.initial.accentColorValue;
+        _accentColorValue != widget.initial.accentColorValue ||
+        _highlightColorValue != widget.initial.highlightColorValue;
   }
 
   @override
@@ -32,6 +34,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _textScaleFactor = widget.initial.textScaleFactor;
     _useLightTheme = widget.initial.useLightTheme;
     _accentColorValue = widget.initial.accentColorValue;
+    _highlightColorValue = widget.initial.highlightColorValue;
   }
 
   @override
@@ -61,6 +64,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       textScaleFactor: _textScaleFactor,
                       useLightTheme: _useLightTheme,
                       accentColorValue: _accentColorValue,
+                      highlightColorValue: _highlightColorValue,
                     ),
                   );
                 },
@@ -151,6 +155,41 @@ class _SettingsPageState extends State<SettingsPage> {
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _accentColorValue = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Highlight-Farbe für Buttons',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButton<int>(
+                isExpanded: true,
+                value: _highlightColorValue,
+                items: [
+                  for (var i = 0; i < AppPalette.accentColors.length; i++)
+                    DropdownMenuItem<int>(
+                      value: AppPalette.accentColors[i].toARGB32(),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: AppPalette.accentColors[i],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(AppPalette.accentNames[i]),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _highlightColorValue = value);
                   }
                 },
               ),

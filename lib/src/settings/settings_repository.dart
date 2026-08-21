@@ -1,6 +1,7 @@
 import 'package:sembast/sembast.dart';
 
 import 'app_settings.dart';
+import '../theme/app_palette.dart';
 
 class SettingsRepository {
   SettingsRepository(Database database) : _database = database;
@@ -19,6 +20,7 @@ class SettingsRepository {
     final storedScale = data?['uiTextScaleFactor'];
     final storedUseLightTheme = data?['useLightTheme'];
     final storedAccentColor = data?['accentColorValue'];
+    final storedHighlightColor = data?['highlightColorValue'];
     final fontMigrationApplied = data?[_fontMigrationKey] == true;
     final themeMigrationApplied = data?[_themeMigrationKey] == true;
 
@@ -39,6 +41,14 @@ class SettingsRepository {
     final accentColorValue = storedAccentColor is num
         ? storedAccentColor.toInt()
         : AppSettings.defaults.accentColorValue;
+    final storedHighlightValue = storedHighlightColor is num
+        ? storedHighlightColor.toInt()
+        : AppPalette.orange.toARGB32();
+    final highlightColorValue = AppPalette.accentColors.any(
+      (color) => color.toARGB32() == storedHighlightValue,
+    )
+        ? storedHighlightValue
+        : AppPalette.orange.toARGB32();
 
     if (!fontMigrationApplied || !themeMigrationApplied) {
       await _store.record(_settingsRecordKey).put(_database, <String, dynamic>{
@@ -47,6 +57,7 @@ class SettingsRepository {
         _fontMigrationKey: true,
         'useLightTheme': useLightTheme,
         'accentColorValue': accentColorValue,
+        'highlightColorValue': highlightColorValue,
         _themeMigrationKey: true,
       });
     }
@@ -56,6 +67,7 @@ class SettingsRepository {
       textScaleFactor: _clampScale(scale),
       useLightTheme: useLightTheme,
       accentColorValue: accentColorValue,
+      highlightColorValue: highlightColorValue,
     );
   }
 
@@ -65,6 +77,7 @@ class SettingsRepository {
       'uiTextScaleFactor': _clampScale(settings.textScaleFactor),
       'useLightTheme': settings.useLightTheme,
       'accentColorValue': settings.accentColorValue,
+      'highlightColorValue': settings.highlightColorValue,
       _fontMigrationKey: true,
       _themeMigrationKey: true,
     });
