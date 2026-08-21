@@ -174,6 +174,7 @@ class _TacticsPageState extends State<TacticsPage> {
   _BoardSelection? _selection;
   String? _activeTacticName;
   bool _isRotated = false;
+  bool _showPointNumbers = false;
   bool _isObjectHovered = false;
   int _activePointerCount = 0;
   bool _multiTouchActive = false;
@@ -225,6 +226,7 @@ class _TacticsPageState extends State<TacticsPage> {
           : (data?['isLandscape']) is bool
               ? (data?['isLandscape'] as bool)
               : false;
+      _showPointNumbers = (data?['showPointNumbers'] as bool?) ?? false;
       _isLoaded = true;
     });
   }
@@ -237,6 +239,7 @@ class _TacticsPageState extends State<TacticsPage> {
           'tactics': _savedTactics.map((tactic) => tactic.toJson()).toList(),
           'activeTacticName': _activeTacticName,
           'isRotated': _isRotated,
+          'showPointNumbers': _showPointNumbers,
         },
       );
 
@@ -787,8 +790,9 @@ class _TacticsPageState extends State<TacticsPage> {
                     autofocus: true,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
+                        const toolbarHeight = 116.0;
                         final availableHeight = constraints.maxHeight -
-                            (isAndroidLandscape ? 0 : 76);
+                            (isAndroidLandscape ? 0 : toolbarHeight);
                         final availableWidth = constraints.maxWidth - 24;
                         final boardHeight = _isRotated
                             ? (availableWidth / 1.6 < availableHeight
@@ -807,10 +811,9 @@ class _TacticsPageState extends State<TacticsPage> {
                           children: [
                             if (!isAndroidLandscape)
                               SizedBox(
-                                height: 76,
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
+                                height: toolbarHeight,
+                                child: Center(
+                                  child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       SegmentedButton<_Tool>(
@@ -847,33 +850,56 @@ class _TacticsPageState extends State<TacticsPage> {
                                             setState(
                                                 () => _tool = selected.first),
                                       ),
-                                      const SizedBox(width: 12),
-                                      for (final color in _colors)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 2),
-                                          child: IconButton(
-                                            tooltip: 'Farbe auswählen',
-                                            onPressed: () => setState(
-                                                () => _selectedColor = color),
-                                            icon: DecoratedBox(
-                                              decoration: BoxDecoration(
-                                                color: color,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: _selectedColor == color
-                                                      ? Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface
-                                                      : Colors.transparent,
-                                                  width: 3,
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: _showPointNumbers
+                                                ? 'Punktnummern ausblenden'
+                                                : 'Punktnummern anzeigen',
+                                            color: _showPointNumbers
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : null,
+                                            onPressed: () {
+                                              setState(() => _showPointNumbers =
+                                                  !_showPointNumbers);
+                                              _persist();
+                                            },
+                                            icon: const Icon(
+                                                Icons.format_list_numbered),
+                                          ),
+                                          for (final color in _colors)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2),
+                                              child: IconButton(
+                                                tooltip: 'Farbe auswählen',
+                                                onPressed: () => setState(() =>
+                                                    _selectedColor = color),
+                                                icon: DecoratedBox(
+                                                  decoration: BoxDecoration(
+                                                    color: color,
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color: _selectedColor ==
+                                                              color
+                                                          ? Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurface
+                                                          : Colors.transparent,
+                                                      width: 3,
+                                                    ),
+                                                  ),
+                                                  child: const SizedBox(
+                                                      width: 20, height: 20),
                                                 ),
                                               ),
-                                              child: const SizedBox(
-                                                  width: 20, height: 20),
                                             ),
-                                          ),
-                                        ),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1036,6 +1062,8 @@ class _TacticsPageState extends State<TacticsPage> {
                                                   Theme.of(context).cardColor,
                                               selection: _selection,
                                               isRotated: _isRotated,
+                                              showPointNumbers:
+                                                  _showPointNumbers,
                                             ),
                                           ),
                                         ),
@@ -1067,6 +1095,7 @@ class _VolleyballCourtPainter extends CustomPainter {
     required this.outerColor,
     required this.selection,
     required this.isRotated,
+    required this.showPointNumbers,
   });
 
   final List<_BoardPoint> points;
@@ -1077,6 +1106,7 @@ class _VolleyballCourtPainter extends CustomPainter {
   final Color outerColor;
   final _BoardSelection? selection;
   final bool isRotated;
+  final bool showPointNumbers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1191,6 +1221,23 @@ class _VolleyballCourtPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
+      if (showPointNumbers) {
+        final number = TextPainter(
+          text: TextSpan(
+            text: '${index + 1}',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: pointRadius * 0.9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        number.paint(
+          canvas,
+          position - Offset(number.width / 2, number.height / 2),
+        );
+      }
     }
   }
 

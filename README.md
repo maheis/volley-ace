@@ -208,8 +208,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Sicherheitsabfrage vor löschen
 - [x] 2.Highlight-Color für Buttons Auswählbar, per default alles Orange
 - [x] Punktewertung soll "Punktewertung" und nicht "match" als Namenhint
-- [ ] Taktiktafel
+- [x] Taktiktafel
   - [x] Touch Button
-  - [ ] Optional Nummern auf den Punkten
-  - [ ] Button-Liste 2 Zeilig und Überschrift entfernen
+  - [x] Optional Nummern auf den Punkten
+  - [x] Button-Liste 2 Zeilig wenn der Platz nicht reicht und Überschrift entfernen
 - [ ] Punktetafel Verlauf wird nicht korrekt geteilt (nach Import hab ich nur 1 Satz!)
