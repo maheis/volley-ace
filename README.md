@@ -194,7 +194,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Icon (z.B. taskbar)
 - [x] Settings auf deutsch
 - [-] Sportschrift
-- [ ] Appname aktuell mit unterstich
+- [ ] Admin
 - [x] Import / Export (Teams, Punktewertung, Taktiktafel)
   - [ ] Diff / import-Date vs. Änderungsdatum
 - [x] Farbe rosa in die App übernehmen?
