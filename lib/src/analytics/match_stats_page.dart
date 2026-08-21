@@ -145,6 +145,7 @@ class MatchGame {
     required this.matchDateTime,
     required this.matchTag,
     required this.matchType,
+    this.league = '',
     this.teamId,
     this.coaches = const <MatchCoach>[],
     required this.players,
@@ -161,6 +162,7 @@ class MatchGame {
   final DateTime matchDateTime;
   final String matchTag;
   final String matchType;
+  final String league;
   final int? teamId;
   final List<MatchCoach> coaches;
   final List<MatchPlayer> players;
@@ -177,6 +179,7 @@ class MatchGame {
     DateTime? matchDateTime,
     String? matchTag,
     String? matchType,
+    String? league,
     int? teamId,
     bool clearTeamId = false,
     List<MatchCoach>? coaches,
@@ -195,6 +198,7 @@ class MatchGame {
       matchDateTime: matchDateTime ?? this.matchDateTime,
       matchTag: matchTag ?? this.matchTag,
       matchType: matchType ?? this.matchType,
+      league: league ?? this.league,
       teamId: clearTeamId ? null : (teamId ?? this.teamId),
       coaches: coaches ?? this.coaches,
       players: players ?? this.players,
@@ -215,6 +219,7 @@ class MatchGame {
         'matchDateTimeMillis': matchDateTime.millisecondsSinceEpoch,
         'matchTag': matchTag,
         'matchType': matchType,
+        'league': league,
         'teamId': teamId,
         'coaches': coaches.map((coach) => coach.toJson()).toList(),
         'players': players.map((player) => player.toJson()).toList(),
@@ -279,6 +284,7 @@ class MatchGame {
       matchType: data['matchType'] is String
           ? data['matchType'] as String
           : 'Freundschaftsspiel',
+      league: data['league'] is String ? data['league'] as String : '',
       teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
       coaches: coaches,
       players: players,
@@ -359,6 +365,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Turnier',
     'Freundschaftsspiel',
     'Trainingsspiel',
+  ];
+  static const List<String> _leagues = <String>[
+    'U12',
+    'U13',
+    'U14',
+    'U15',
+    'U16',
+    'U18',
+    'U20',
+    'Damen',
+    'Herren',
+    'Mixed',
+    'Freizeit',
   ];
 
   static const String _opponentErrorCategory = 'Gegner Fehler';
@@ -554,6 +573,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     DateTime? matchDateTime,
     String? matchTag,
     String? matchType,
+    String? league,
     int? teamId,
     bool clearTeamId = false,
     List<MatchCoach>? coaches,
@@ -565,6 +585,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         matchDateTime: matchDateTime,
         matchTag: matchTag,
         matchType: matchType,
+        league: league,
         teamId: teamId,
         clearTeamId: clearTeamId,
         coaches: coaches,
@@ -655,10 +676,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _selectTeam(MatchGame match, int? teamId) {
+    final selectedTeam = teamId == null
+        ? null
+        : _teams.cast<Team?>().firstWhere(
+              (team) => team?.id == teamId,
+              orElse: () => null,
+            );
     _updateMatchInfo(
       match,
       teamId: teamId,
       clearTeamId: teamId == null,
+      league: selectedTeam?.league ?? '',
       coaches: const <MatchCoach>[],
     );
   }
@@ -1207,6 +1235,29 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ),
               ],
               onChanged: (teamId) => _selectTeam(match, teamId),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String?>(
+              key: const ValueKey('match-league-select'),
+              initialValue: match.league.isEmpty ? null : match.league,
+              decoration: const InputDecoration(
+                labelText: 'Spielklasse',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Keine Spielklasse auswählen'),
+                ),
+                ..._leagues.map(
+                  (league) => DropdownMenuItem<String?>(
+                    value: league,
+                    child: Text(league),
+                  ),
+                ),
+              ],
+              onChanged: (league) =>
+                  _updateMatchInfo(match, league: league ?? ''),
             ),
             const SizedBox(height: 12),
             if (selectedTeam != null) ...[
