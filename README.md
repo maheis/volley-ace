@@ -113,6 +113,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Team / Spieler / Trainer
           Im Ersten Schritt pro Wertungsbogen Spieler (Name und Trikotnummer) mit + und - Buttons hinzufügen oder entfernen.
           Im zweiten Schritt Spieler aus dem Team welches vorab angelegt wird ausgewählt werden und die Punktewertung pro Spieler speichern.
+    - [ ] Spielklasse
   - [x] Punktewertung erfassen
     - [x] Punkt / Fehler
           Zwei Buttons Grün und Rot die je für Punkt / Fehler stehen und dann zur Abfrage des Spielers scrollen.
@@ -171,6 +172,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Team
   - [x] Trainingsteilnahme (Trainer, Spieler)
     - [x] Teilnahme
+      - [ ] Manuell Trainer und Spieler hinzufügen
     - [x] Entschuldigt
     - [x] Unentschuldigt
   - [x] Trainingsplan mit Übungen, Sortierung, Abschluss und Überspringen
@@ -188,14 +190,19 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 ## ToDo
 
 - [x] Toast ist weiß!
-- [x] Landscape Modus punktetafel soll automatisch zoom machen (pinch to zoom entfernen)
-- [ ] icon (z.B. taskbar)
-- [x] settings deutsch
-- [-] sportschrift
-- [x] app name aktuell mit unterstich
-- [x] import / export (teams, punktewertung, taktiktafel)
-  - [ ] diff / import-date vs. änderungsdatum
-- [x] farbe rosa in die app übernehmen?
+- [x] Landscape Modus Punktetafel soll automatisch Zoom machen (Pinch to Zoom entfernen)
+- [ ] Icon (z.B. taskbar)
+- [x] Settings auf deutsch
+- [-] Sportschrift
+- [ ] Appname aktuell mit unterstich
+- [x] Import / Export (Teams, Punktewertung, Taktiktafel)
+  - [ ] Diff / import-Date vs. Änderungsdatum
+- [x] Farbe rosa in die App übernehmen?
       -> Nehme doch das hellblau/mint
-- [ ] varlaufdarstellung wie einen versionsgraphen
-- [ ] Diagramm mit differenzpunkten?
+- [ ] Verlaufdarstellung wie einen Versionsgraphen
+- [ ] Diagramm mit Differenzpunkten?
+- [ ] Zurück Geste soll nur eine Seite zurück gehen
+- [ ] Weitere Trainer in der Punktewertung optional hinzufügen
+- [ ] Button für Spieler hinzufügen in der Punktewertung ist vollflächig Rot.
+- [ ] Sicherheitsabfrage vor löschen
+- [ ] Highlight-Color für Buttons Orange oder Auswählbar?!

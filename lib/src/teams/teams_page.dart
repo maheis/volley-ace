@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
+import '../theme/app_palette.dart';
 
 class TeamPlayer {
   const TeamPlayer({
@@ -287,17 +288,6 @@ class _TeamsPageState extends State<TeamsPage> {
     'Herren',
     'Mixed',
     'Freizeit',
-  ];
-
-  static const List<Color> _teamColorOptions = <Color>[
-    Color(0xFF1565C0),
-    Color(0xFFD32F2F),
-    Color(0xFF2E7D32),
-    Color(0xFFF9A825),
-    Color(0xFF6A1B9A),
-    Color(0xFF00838F),
-    Color(0xFF424242),
-    Color(0xFFF5F5F5),
   ];
 
   @override
@@ -744,7 +734,7 @@ class _TeamsPageState extends State<TeamsPage> {
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: _teamColorOptions.map((color) {
+        children: AppPalette.accentColors.map((color) {
           final isSelected = selectedValue == color.toARGB32();
           return Semantics(
             button: true,
@@ -763,16 +753,22 @@ class _TeamsPageState extends State<TeamsPage> {
                     ? team.copyWith(primaryColorValue: color.toARGB32())
                     : team.copyWith(secondaryColorValue: color.toARGB32()));
               },
-              child: CircleAvatar(
-                backgroundColor: color,
-                child: isSelected
-                    ? Icon(
-                        Icons.check,
-                        color: color.computeLuminance() > 0.5
-                            ? Colors.black
-                            : Colors.white,
-                      )
-                    : null,
+              child: SizedBox(
+                width: 32,
+                height: 32,
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: color,
+                  child: isSelected
+                      ? Icon(
+                          Icons.check,
+                          size: 18,
+                          color: color.computeLuminance() > 0.5
+                              ? Colors.black
+                              : Colors.white,
+                        )
+                      : null,
+                ),
               ),
             ),
           );
