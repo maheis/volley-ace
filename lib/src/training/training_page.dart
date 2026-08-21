@@ -93,6 +93,7 @@ class TrainingSession {
     required this.exercises,
     required this.attendance,
     required this.comments,
+    this.guests = const <String>[],
   });
 
   final int id;
@@ -105,6 +106,7 @@ class TrainingSession {
   final List<TrainingExercise> exercises;
   final Map<String, String> attendance;
   final Map<String, String> comments;
+  final List<String> guests;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -117,6 +119,7 @@ class TrainingSession {
         'exercises': exercises.map((exercise) => exercise.toJson()).toList(),
         'attendance': attendance,
         'comments': comments,
+        'guests': guests,
       };
 
   static TrainingSession fromJson(Map<String, dynamic> data) {
@@ -129,6 +132,8 @@ class TrainingSession {
             )
           : <String, String>{};
     }
+
+    final storedGuests = data['guests'];
 
     final storedExercises = data['exercises'];
 
@@ -154,6 +159,9 @@ class TrainingSession {
           : <TrainingExercise>[],
       attendance: readMap('attendance'),
       comments: readMap('comments'),
+      guests: storedGuests is List
+          ? storedGuests.whereType<String>().toList()
+          : <String>[],
     );
   }
 }
@@ -210,6 +218,7 @@ class _TrainingPageState extends State<TrainingPage> {
   String _activeView = 'list';
   Map<String, String> _attendance = <String, String>{};
   Map<String, String> _comments = <String, String>{};
+  List<String> _guests = <String>[];
   DateTime _trainingDate = DateTime.now();
   int _nextSessionId = 1;
   final TextEditingController _nameController = TextEditingController();
@@ -217,6 +226,7 @@ class _TrainingPageState extends State<TrainingPage> {
   final TextEditingController _durationController = TextEditingController();
   final TextEditingController _trainingDescriptionController =
       TextEditingController();
+  final TextEditingController _guestNameController = TextEditingController();
   final TextEditingController _exerciseTitleController =
       TextEditingController();
   int? _editingExerciseId;
@@ -242,6 +252,7 @@ class _TrainingPageState extends State<TrainingPage> {
     _locationController.dispose();
     _durationController.dispose();
     _trainingDescriptionController.dispose();
+    _guestNameController.dispose();
     _exerciseTitleController.dispose();
     _exerciseGoalController.dispose();
     _exerciseDurationController.dispose();
@@ -289,6 +300,7 @@ class _TrainingPageState extends State<TrainingPage> {
       description: '',
       attendance: const <String, String>{},
       comments: const <String, String>{},
+      guests: const <String>[],
       exercises: const <TrainingExercise>[],
     );
     setState(() {
@@ -310,6 +322,7 @@ class _TrainingPageState extends State<TrainingPage> {
       description: source.description,
       attendance: const <String, String>{},
       comments: const <String, String>{},
+      guests: const <String>[],
       exercises: source.exercises
           .map(
             (exercise) => TrainingExercise(
@@ -408,6 +421,7 @@ class _TrainingPageState extends State<TrainingPage> {
         description: source.description,
         attendance: source.attendance,
         comments: source.comments,
+        guests: source.guests,
         exercises: source.exercises,
       );
 
@@ -473,6 +487,7 @@ class _TrainingPageState extends State<TrainingPage> {
       _activeView = 'matrix';
       _attendance = Map<String, String>.from(session.attendance);
       _comments = Map<String, String>.from(session.comments);
+      _guests = List<String>.from(session.guests);
       _trainingDate = session.date;
     });
   }
@@ -498,6 +513,7 @@ class _TrainingPageState extends State<TrainingPage> {
       description: session.description,
       attendance: session.attendance,
       comments: session.comments,
+      guests: session.guests,
       exercises: session.exercises,
     );
     setState(() {
@@ -525,6 +541,7 @@ class _TrainingPageState extends State<TrainingPage> {
       description: session.description,
       attendance: _attendance,
       comments: _comments,
+      guests: _guests,
       exercises: session.exercises,
     );
     setState(() {
@@ -552,6 +569,7 @@ class _TrainingPageState extends State<TrainingPage> {
       description: description ?? session.description,
       attendance: session.attendance,
       comments: session.comments,
+      guests: session.guests,
       exercises: session.exercises,
     );
     _replaceSession(updated);
@@ -646,6 +664,7 @@ class _TrainingPageState extends State<TrainingPage> {
         description: session.description,
         attendance: session.attendance,
         comments: session.comments,
+        guests: session.guests,
         exercises: exercises,
       );
 
@@ -693,6 +712,14 @@ class _TrainingPageState extends State<TrainingPage> {
     await _persistMatrix();
   }
 
+  Future<void> _addGuest() async {
+    final trimmedName = _guestNameController.text.trim();
+    if (trimmedName.isEmpty) return;
+    setState(() => _guests.add(trimmedName));
+    _guestNameController.clear();
+    await _persistMatrix();
+  }
+
   Future<void> _setComment(String key, String value) async {
     final comment = value.trim();
     if (comment.isEmpty) {
@@ -700,18 +727,6 @@ class _TrainingPageState extends State<TrainingPage> {
     } else {
       _comments[key] = comment;
     }
-    await _persistMatrix();
-  }
-
-  Future<void> _selectDate() async {
-    final selectedDate = await showDatePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      initialDate: _trainingDate,
-    );
-    if (selectedDate == null || !mounted) return;
-    setState(() => _trainingDate = selectedDate);
     await _persistMatrix();
   }
 
@@ -762,6 +777,7 @@ class _TrainingPageState extends State<TrainingPage> {
       description: session.description,
       attendance: session.attendance,
       comments: session.comments,
+      guests: session.guests,
       exercises: session.exercises,
     );
     setState(() {
@@ -1292,13 +1308,6 @@ class _TrainingPageState extends State<TrainingPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => _openTraining(session),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Trainingstag auswählen',
-            icon: const Icon(Icons.calendar_today_outlined),
-            onPressed: _selectDate,
-          ),
-        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) => Padding(
@@ -1308,62 +1317,96 @@ class _TrainingPageState extends State<TrainingPage> {
             thumbVisibility: true,
             child: SingleChildScrollView(
               controller: _attendanceVerticalController,
-              child: Scrollbar(
-                controller: _attendanceHorizontalController,
-                thumbVisibility: true,
-                notificationPredicate: (notification) =>
-                    notification.depth == 1,
-                child: SingleChildScrollView(
-                  controller: _attendanceHorizontalController,
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: constraints.maxWidth - 24,
-                    ),
-                    child: Table(
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      border: TableBorder.all(
-                        color: Theme.of(context).dividerColor,
+              child: Column(
+                children: [
+                  Scrollbar(
+                    controller: _attendanceHorizontalController,
+                    thumbVisibility: true,
+                    notificationPredicate: (notification) =>
+                        notification.depth == 1,
+                    child: SingleChildScrollView(
+                      controller: _attendanceHorizontalController,
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth - 24,
+                        ),
+                        child: Table(
+                          defaultVerticalAlignment:
+                              TableCellVerticalAlignment.middle,
+                          border: TableBorder.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                          columnWidths: const {
+                            0: IntrinsicColumnWidth(),
+                            1: FixedColumnWidth(52),
+                            2: FixedColumnWidth(52),
+                            3: FixedColumnWidth(52),
+                            4: FlexColumnWidth(),
+                          },
+                          children: [
+                            TableRow(children: [
+                              _tableText('Name', bold: true),
+                              _attendanceHeader(
+                                Icons.add_circle_outline,
+                                'Teilnahme',
+                                AppPalette.green,
+                              ),
+                              _attendanceHeader(
+                                Icons.circle_outlined,
+                                'Entschuldigt',
+                                AppPalette.yellow,
+                              ),
+                              _attendanceHeader(
+                                Icons.error_outline,
+                                'Unentschuldigt',
+                                AppPalette.red,
+                              ),
+                              _tableText('Kommentar', bold: true),
+                            ]),
+                            if (team.coaches.isNotEmpty) _sectionRow('Trainer'),
+                            for (final coach in team.coaches)
+                              _attendanceRow(
+                                  'coach:${coach.id}', coach.name, null),
+                            if (team.players.isNotEmpty) _sectionRow('Spieler'),
+                            for (final player in team.players)
+                              _attendanceRow('player:${player.id}', player.name,
+                                  player.number),
+                            if (_guests.isNotEmpty) _sectionRow('Gäste'),
+                            for (var index = 0; index < _guests.length; index++)
+                              _attendanceRow(
+                                  'guest:$index', _guests[index], null),
+                          ],
+                        ),
                       ),
-                      columnWidths: const {
-                        0: IntrinsicColumnWidth(),
-                        1: FixedColumnWidth(52),
-                        2: FixedColumnWidth(52),
-                        3: FixedColumnWidth(52),
-                        4: FlexColumnWidth(),
-                      },
-                      children: [
-                        TableRow(children: [
-                          _tableText('Name', bold: true),
-                          _attendanceHeader(
-                            Icons.add_circle_outline,
-                            'Teilnahme',
-                            AppPalette.green,
-                          ),
-                          _attendanceHeader(
-                            Icons.circle_outlined,
-                            'Entschuldigt',
-                            AppPalette.yellow,
-                          ),
-                          _attendanceHeader(
-                            Icons.error_outline,
-                            'Unentschuldigt',
-                            AppPalette.red,
-                          ),
-                          _tableText('Kommentar', bold: true),
-                        ]),
-                        if (team.coaches.isNotEmpty) _sectionRow('Trainer'),
-                        for (final coach in team.coaches)
-                          _attendanceRow('coach:${coach.id}', coach.name, null),
-                        if (team.players.isNotEmpty) _sectionRow('Spieler'),
-                        for (final player in team.players)
-                          _attendanceRow('player:${player.id}', player.name,
-                              player.number),
-                      ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey('guest-name-input'),
+                          controller: _guestNameController,
+                          textCapitalization: TextCapitalization.words,
+                          onSubmitted: (_) => _addGuest(),
+                          decoration: const InputDecoration(
+                            labelText: 'Gastspieler',
+                            hintText: 'Name eingeben',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        key: const ValueKey('add-guest-button'),
+                        tooltip: 'Gastspieler hinzufügen',
+                        icon: const Icon(Icons.add),
+                        onPressed: _addGuest,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

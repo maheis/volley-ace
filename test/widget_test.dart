@@ -1007,6 +1007,22 @@ void main() {
     expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
     expect(find.byIcon(Icons.error_outline), findsOneWidget);
 
+    await tester.enterText(
+      find.byKey(const ValueKey('guest-name-input')),
+      'Gast Anna',
+    );
+    await tester.tap(find.byKey(const ValueKey('add-guest-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Gäste'), findsOneWidget);
+    expect(find.text('Gast Anna'), findsOneWidget);
+
+    final guestParticipation = find.byKey(
+      const ValueKey('attendance-guest:0-participating'),
+    );
+    await tester.tap(guestParticipation);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Checkbox>(guestParticipation).value, isTrue);
+
     final adaPosition = tester.getTopLeft(find.text('12  Ada'));
     final bertaPosition = tester.getTopLeft(find.text('3  Berta'));
     expect(adaPosition.dy, lessThan(bertaPosition.dy));

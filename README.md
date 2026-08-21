@@ -174,7 +174,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Team
   - [x] Trainingsteilnahme (Trainer, Spieler)
     - [x] Teilnahme
-      - [ ] Manuell Trainer und Spieler hinzufügen
+      - [x] Manuell Trainer und Spieler hinzufügen
     - [x] Entschuldigt
     - [x] Unentschuldigt
   - [x] Trainingsplan mit Übungen, Sortierung, Abschluss und Überspringen
