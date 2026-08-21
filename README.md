@@ -206,4 +206,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Button für Spieler hinzufügen in der Punktewertung ist vollflächig Rot.
 - [x] Sicherheitsabfrage vor löschen
 - [x] 2.Highlight-Color für Buttons Auswählbar, per default alles Orange
-- [ ] Punktewertung soll "Punktewertung" und nicht "match" als Namenhint 
+- [x] Punktewertung soll "Punktewertung" und nicht "match" als Namenhint 
