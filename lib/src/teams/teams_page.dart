@@ -812,7 +812,7 @@ class _TeamsPageState extends State<TeamsPage> {
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: AppPalette.accentColors.map((color) {
+        children: AppPalette.teamColors.map((color) {
           final isSelected = selectedValue == color.toARGB32();
           return Semantics(
             button: true,

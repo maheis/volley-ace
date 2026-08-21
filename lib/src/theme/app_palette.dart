@@ -19,6 +19,12 @@ abstract final class AppPalette {
     purple,
   ];
 
+  static const teamColors = <Color>[
+    ...accentColors,
+    Colors.black,
+    Colors.white,
+  ];
+
   static const accentNames = <String>[
     'Rot',
     'Orange',
