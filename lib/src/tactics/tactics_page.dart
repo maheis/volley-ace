@@ -8,7 +8,7 @@ import 'package:sembast/sembast.dart';
 import '../backup/app_backup_service.dart';
 import '../theme/app_palette.dart';
 
-enum _Tool { point, freehand, straight, arrow }
+enum _Tool { touch, point, freehand, straight, arrow }
 
 enum _LineType { freehand, straight, arrow }
 
@@ -486,18 +486,20 @@ class _TacticsPageState extends State<TacticsPage> {
 
   void _startDrag(DragStartDetails details, Size size) {
     final position = _relativePosition(details.localPosition, size);
-    if (_tool == _Tool.point) {
+    if (_tool == _Tool.touch || _tool == _Tool.point) {
       final pointIndex = _findPointAt(position, size);
-      if (pointIndex == null) return;
-      setState(() {
-        _movingPointIndex = pointIndex;
-        _selection = _BoardSelection(
-          kind: _SelectionKind.point,
-          index: pointIndex,
-        );
-        _lastDragPosition = position;
-      });
-      return;
+      if (pointIndex != null) {
+        setState(() {
+          _movingPointIndex = pointIndex;
+          _selection = _BoardSelection(
+            kind: _SelectionKind.point,
+            index: pointIndex,
+          );
+          _lastDragPosition = position;
+        });
+        return;
+      }
+      if (_tool == _Tool.point) return;
     }
     final lineIndex = _findLineAt(position, size);
     setState(() {
@@ -508,9 +510,10 @@ class _TacticsPageState extends State<TacticsPage> {
           kind: _SelectionKind.line,
           index: lineIndex,
         );
-      } else if (_tool == _Tool.freehand ||
-          _tool == _Tool.straight ||
-          _tool == _Tool.arrow) {
+      } else if (_tool != _Tool.touch &&
+          (_tool == _Tool.freehand ||
+              _tool == _Tool.straight ||
+              _tool == _Tool.arrow)) {
         _activeLine = <Offset>[position];
       }
     });
@@ -813,6 +816,11 @@ class _TacticsPageState extends State<TacticsPage> {
                                       SegmentedButton<_Tool>(
                                         showSelectedIcon: false,
                                         segments: const [
+                                          ButtonSegment(
+                                            value: _Tool.touch,
+                                            icon: Icon(Icons.pan_tool_outlined),
+                                            tooltip: 'Objekte verschieben',
+                                          ),
                                           ButtonSegment(
                                             value: _Tool.point,
                                             icon: Icon(Icons.circle),
