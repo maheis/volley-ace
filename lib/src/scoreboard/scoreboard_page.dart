@@ -608,6 +608,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   void _addPoint({required bool left}) {
     _history.add(_snapshot);
+    Color? finishedSetColor;
     setState(() {
       if (left) {
         _leftPoints++;
@@ -620,12 +621,20 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         _stopwatchRunning = true;
         _stopwatchStartedAt = _now;
       }
-      _finishSetIfNeeded();
+      finishedSetColor = _finishSetIfNeeded();
     });
     _recordHistory(
       left ? 'Punkt blau' : 'Punkt rot',
       color: left ? _leftColor : _rightColor,
     );
+    if (finishedSetColor != null) {
+      _recordHistory(
+        finishedSetColor == _leftColor
+            ? 'Satz beendet blau'
+            : 'Satz beendet rot',
+        color: finishedSetColor,
+      );
+    }
     _persist();
   }
 
@@ -811,7 +820,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     _timeoutStartedAt = null;
   }
 
-  void _finishSetIfNeeded() {
+  Color? _finishSetIfNeeded() {
     final leftWon = _leftPoints >= 25 && _leftPoints - _rightPoints >= 2;
     final rightWon = _rightPoints >= 25 && _rightPoints - _leftPoints >= 2;
 
@@ -833,6 +842,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
+      return _leftColor;
     } else if (rightWon) {
       _completedSets = List<SetResult>.from(_completedSets)
         ..add(
@@ -851,7 +861,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchRunning = false;
       _stopwatchElapsed = Duration.zero;
       _stopwatchStartedAt = null;
+      return _rightColor;
     }
+    return null;
   }
 
   void _swapSides() {
@@ -1511,6 +1523,20 @@ class _ScoreHistoryTimeline extends StatelessWidget {
     final lineColor = theme.colorScheme.outlineVariant;
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 46, right: 14, bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Aktion',
+                  style: theme.textTheme.labelMedium,
+                ),
+              ),
+              Text('Zeit', style: theme.textTheme.labelMedium),
+            ],
+          ),
+        ),
         for (var index = 0; index < entries.length; index++)
           _ScoreHistoryTimelineRow(
             item: entries[index],
@@ -1546,7 +1572,7 @@ class _ScoreHistoryTimelineRow extends StatelessWidget {
     final isSet = entry.action.startsWith('Satz beendet');
     final isTimeout = entry.action.startsWith('Auszeit');
     final scoreText = isSet
-        ? '${item.leftSets} : ${item.rightSets}'
+        ? '${item.leftSets}:${item.rightSets}'
         : '${item.leftPoints} : ${item.rightPoints}';
     final detailText = isSet
         ? 'Satz ${item.setNumber} abgeschlossen'
@@ -1748,7 +1774,33 @@ class _SetHistoryPage extends StatelessWidget {
                                   .onSurfaceVariant,
                             ),
                       ),
-                      const SizedBox(height: 20),
+                      if (sets.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Text(
+                          'Satzpunkte',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        for (var index = 0; index < sets.length; index++)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: sets[index].winnerColor,
+                              child: Text('${index + 1}'),
+                            ),
+                            title: Text(
+                              '${sets[index].leftPoints} : ${sets[index].rightPoints}',
+                            ),
+                            subtitle: Text(
+                              'Satz ${index + 1} abgeschlossen',
+                            ),
+                          ),
+                      ],
+                      Text(
+                        'Verlauf',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
                       _ScoreHistoryTimeline(entries: timelineEntries),
                     ],
                   ),
