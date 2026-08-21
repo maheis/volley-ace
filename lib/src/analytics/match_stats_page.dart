@@ -6,6 +6,7 @@ import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
 import '../teams/teams_page.dart';
+import '../theme/app_palette.dart';
 
 class MatchPlayer {
   const MatchPlayer({
@@ -400,6 +401,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   final TextEditingController _playerNameController = TextEditingController();
   final TextEditingController _playerNumberController = TextEditingController();
+  final TextEditingController _coachNameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _opponentController = TextEditingController();
   final TextEditingController _matchTagController = TextEditingController();
@@ -672,6 +674,51 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       match,
       coaches: coaches,
     );
+  }
+
+  void _addCoachToMatch(MatchGame match) {
+    final name = _coachNameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Der Trainername ist erforderlich.')),
+      );
+      return;
+    }
+
+    final nextId = match.coaches.isEmpty
+        ? -1
+        : match.coaches.map((coach) => coach.id).reduce(math.min) - 1;
+    final coaches = List<MatchCoach>.from(match.coaches)
+      ..add(MatchCoach(id: nextId, name: name));
+    _updateMatchInfo(match, coaches: coaches);
+    _coachNameController.clear();
+  }
+
+  Future<void> _removeCoachFromMatch(
+    MatchGame match,
+    MatchCoach coach,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Trainer entfernen?'),
+        content: Text('„${coach.name}“ wird aus dieser Wertung entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final coaches = List<MatchCoach>.from(match.coaches)
+      ..removeWhere((entry) => entry.id == coach.id);
+    _updateMatchInfo(match, coaches: coaches);
   }
 
   void _updateTeamPlayerNumber(
@@ -1185,6 +1232,49 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   ),
             ],
             if (selectedTeam != null) const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('coach-name-input'),
+                    controller: _coachNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Trainername',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton.filled(
+                  key: const ValueKey('add-coach-button'),
+                  onPressed: () => _addCoachToMatch(match),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppPalette.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Trainer hinzufügen',
+                ),
+              ],
+            ),
+            for (final coach in match.coaches.where(
+              (entry) =>
+                  selectedTeam?.coaches.every(
+                    (teamCoach) => teamCoach.id != entry.id,
+                  ) ??
+                  true,
+            ))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(coach.name),
+                subtitle: const Text('Zusätzlicher Trainer'),
+                trailing: IconButton(
+                  onPressed: () => _removeCoachFromMatch(match, coach),
+                  icon: const Icon(Icons.remove_circle_outline),
+                  tooltip: 'Trainer entfernen',
+                ),
+              ),
+            const SizedBox(height: 12),
             TextField(
               key: const ValueKey('match-opponent-input'),
               controller: _opponentController,
@@ -1371,11 +1461,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ),
           const Divider(height: 32),
         ],
-        const Text(
-          'Spieler manuell hinzufügen',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -1405,7 +1490,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             IconButton.filled(
               key: const ValueKey('add-player-button'),
               onPressed: () => _addPlayerToMatch(match),
-              icon: const Icon(Icons.add),
+              style: IconButton.styleFrom(
+                backgroundColor: AppPalette.green,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.add, color: Colors.white),
               tooltip: 'Spieler hinzufügen',
             ),
           ],
@@ -1872,6 +1961,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _clockTimer?.cancel();
     _playerNameController.dispose();
     _playerNumberController.dispose();
+    _coachNameController.dispose();
     _locationController.dispose();
     _opponentController.dispose();
     _matchTagController.dispose();
