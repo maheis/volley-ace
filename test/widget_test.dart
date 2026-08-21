@@ -131,22 +131,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final board = find.byKey(const ValueKey('tactics-board'));
-    expect(board, findsOneWidget);
-    await tester.tap(board);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Taktik speichern'));
+    await tester.tap(find.byKey(const ValueKey('new-tactic-button')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('tactic-name-input')),
       'Aufschlag',
     );
-    await tester.tap(find.text('Speichern'));
+    await tester.tap(find.text('Erstellen'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Taktik laden'));
-    await tester.pumpAndSettle();
-    expect(find.text('Aufschlag'), findsOneWidget);
-    await tester.tap(find.text('Aufschlag'));
+    final board = find.byKey(const ValueKey('tactics-board'));
+    expect(board, findsOneWidget);
+    await tester.tap(board);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Feld ins Querformat drehen'));
     await tester.pumpAndSettle();
@@ -178,10 +173,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final board = find.byKey(const ValueKey('tactics-board'));
-    await tester.tap(board);
+    await tester.tap(find.byKey(const ValueKey('new-tactic-button')));
     await tester.pumpAndSettle();
-    await tester.tap(board);
+    await tester.enterText(
+      find.byKey(const ValueKey('tactic-name-input')),
+      'Löschen',
+    );
+    await tester.tap(find.text('Erstellen'));
+    await tester.pumpAndSettle();
+    final board = find.byKey(const ValueKey('tactics-board'));
+    await tester.tap(find.byIcon(Icons.circle));
+    await tester.tap(board, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.pan_tool_outlined));
+    await tester.tap(board, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(
@@ -190,6 +195,8 @@ void main() {
     );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Löschen').last);
     await tester.pumpAndSettle();
 
     expect(

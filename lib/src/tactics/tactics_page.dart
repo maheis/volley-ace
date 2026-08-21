@@ -225,6 +225,7 @@ class _TacticsPageState extends State<TacticsPage> {
   bool _isRotated = false;
   bool _showPointNumbers = false;
   bool _showPageNote = true;
+  bool _showBoard = false;
   int _currentPageIndex = 0;
   bool _isObjectHovered = false;
   int _activePointerCount = 0;
@@ -352,6 +353,18 @@ class _TacticsPageState extends State<TacticsPage> {
 
   Future<void> _persist() {
     _syncCurrentPage();
+    if (_activeTacticName != null) {
+      final index = _savedTactics.indexWhere(
+        (tactic) => tactic.name == _activeTacticName,
+      );
+      if (index >= 0) {
+        _savedTactics[index] = _SavedTactic(
+          id: _savedTactics[index].id,
+          name: _savedTactics[index].name,
+          pages: _pages.map((page) => page.copy()).toList(),
+        );
+      }
+    }
     return _store.record(_recordKey).put(
       widget.database,
       <String, dynamic>{
@@ -367,12 +380,12 @@ class _TacticsPageState extends State<TacticsPage> {
     );
   }
 
-  Future<void> _saveTactic() async {
-    final controller = TextEditingController(text: _activeTacticName ?? '');
+  Future<void> _createTactic() async {
+    final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Taktik speichern'),
+        title: const Text('Neue Taktik'),
         content: TextField(
           key: const ValueKey('tactic-name-input'),
           controller: controller,
@@ -387,36 +400,33 @@ class _TacticsPageState extends State<TacticsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: const Text('Speichern'),
+            child: const Text('Erstellen'),
           ),
         ],
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    final trimmedName = name?.trim();
-    if (trimmedName == null || trimmedName.isEmpty || !mounted) return;
+    final trimmedName = name?.trim() ?? '';
+    if (trimmedName.isEmpty || !mounted) return;
+    final tactic = _SavedTactic(
+      id: _savedTactics.isEmpty
+          ? 1
+          : _savedTactics
+                  .map((entry) => entry.id)
+                  .reduce((a, b) => a > b ? a : b) +
+              1,
+      name: trimmedName,
+      pages: [const _TacticPage(points: [], lines: [])],
+    );
     setState(() {
-      final index =
-          _savedTactics.indexWhere((tactic) => tactic.name == trimmedName);
-      final id = index >= 0
-          ? _savedTactics[index].id
-          : (_savedTactics.isEmpty
-              ? 1
-              : _savedTactics
-                      .map((tactic) => tactic.id)
-                      .reduce((a, b) => a > b ? a : b) +
-                  1);
-      final tactic = _SavedTactic(
-        id: id,
-        name: trimmedName,
-        pages: _pages.map((page) => page.copy()).toList(),
-      );
-      if (index >= 0) {
-        _savedTactics[index] = tactic;
-      } else {
-        _savedTactics.add(tactic);
-      }
-      _activeTacticName = trimmedName;
+      _savedTactics.add(tactic);
+      _activeTacticName = tactic.name;
+      _pages
+        ..clear()
+        ..add(tactic.firstPage.copy());
+      _currentPageIndex = 0;
+      _loadPage(0);
+      _showBoard = true;
     });
     await _persist();
   }
@@ -484,51 +494,6 @@ class _TacticsPageState extends State<TacticsPage> {
     _deleteSelection();
   }
 
-  Future<void> _showTactics() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: _savedTactics.isEmpty
-            ? const SizedBox(
-                height: 128,
-                child: Center(child: Text('Noch keine Taktiken gespeichert.')),
-              )
-            : ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final tactic in _savedTactics)
-                    ListTile(
-                      leading: const Icon(Icons.sports_volleyball),
-                      title: Text(tactic.name),
-                      subtitle: Text(
-                          '${tactic.pages.length} Seiten • ${tactic.pages.fold<int>(0, (total, page) => total + page.points.length)} Punkte'),
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        _loadTactic(tactic);
-                      },
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Taktik teilen',
-                            icon: const Icon(Icons.share_outlined),
-                            onPressed: () => _shareSavedTactic(tactic),
-                          ),
-                          IconButton(
-                            tooltip: 'Taktik löschen',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _deleteTactic(tactic),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-      ),
-    );
-  }
-
   void _loadTactic(_SavedTactic tactic) {
     setState(() {
       _pages
@@ -538,6 +503,7 @@ class _TacticsPageState extends State<TacticsPage> {
       _loadPage(_currentPageIndex);
       _selection = null;
       _activeTacticName = tactic.name;
+      _showBoard = true;
     });
     _persist();
   }
@@ -863,8 +829,78 @@ class _TacticsPageState extends State<TacticsPage> {
     _persist();
   }
 
+  Widget _buildTacticList() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Taktiktafel'),
+        actions: [
+          IconButton(
+            key: const ValueKey('import-tactic-button'),
+            tooltip: 'Taktik importieren',
+            onPressed: _importTactic,
+            icon: const Icon(Icons.file_upload_outlined),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: ListTile(
+              key: const ValueKey('new-tactic-button'),
+              leading: const CircleAvatar(child: Icon(Icons.add)),
+              title: const Text('Neue Taktik'),
+              subtitle: const Text('Taktiktafel öffnen'),
+              onTap: _createTactic,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_savedTactics.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Noch keine Taktiken gespeichert.'),
+              ),
+            )
+          else
+            for (final tactic in _savedTactics)
+              Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: const Icon(Icons.sports_volleyball),
+                  title: Text(tactic.name),
+                  subtitle: Text(
+                    '${tactic.pages.length} Seiten • ${tactic.pages.fold<int>(0, (total, page) => total + page.points.length)} Punkte',
+                  ),
+                  onTap: () => _loadTactic(tactic),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Taktik teilen',
+                        icon: const Icon(Icons.share_outlined),
+                        onPressed: () => _shareSavedTactic(tactic),
+                      ),
+                      IconButton(
+                        tooltip: 'Taktik löschen',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deleteTactic(tactic),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    return _showBoard ? _buildBoard(context) : _buildTacticList();
+  }
+
+  Widget _buildBoard(BuildContext context) {
     final isAndroidLandscape =
         Theme.of(context).platform == TargetPlatform.android &&
             MediaQuery.orientationOf(context) == Orientation.landscape;
@@ -873,23 +909,12 @@ class _TacticsPageState extends State<TacticsPage> {
           ? null
           : AppBar(
               title: const Text('Taktiktafel'),
+              leading: IconButton(
+                tooltip: 'Zurück zur Taktikübersicht',
+                onPressed: _closeBoard,
+                icon: const Icon(Icons.arrow_back),
+              ),
               actions: [
-                IconButton(
-                  tooltip: 'Taktik laden',
-                  onPressed: _showTactics,
-                  icon: const Icon(Icons.folder_open),
-                ),
-                IconButton(
-                  key: const ValueKey('import-tactic-button'),
-                  tooltip: 'Taktik importieren',
-                  onPressed: _importTactic,
-                  icon: const Icon(Icons.file_upload_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Taktik speichern',
-                  onPressed: _saveTactic,
-                  icon: const Icon(Icons.save),
-                ),
                 IconButton(
                   tooltip: _isRotated
                       ? 'Feld ins Hochformat drehen'
@@ -901,21 +926,38 @@ class _TacticsPageState extends State<TacticsPage> {
                   icon: const Icon(Icons.screen_rotation),
                 ),
                 IconButton(
-                  tooltip: 'Rückgängig',
-                  onPressed: _points.isEmpty && _lines.isEmpty ? null : _undo,
-                  icon: const Icon(Icons.undo),
+                  tooltip:
+                      _showPageNote ? 'Notiz ausblenden' : 'Notiz einblenden',
+                  color: _showPageNote
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                  onPressed: () {
+                    setState(() => _showPageNote = !_showPageNote);
+                    _persist();
+                  },
+                  icon: Icon(
+                    _showPageNote ? Icons.notes : Icons.notes_outlined,
+                  ),
                 ),
                 IconButton(
-                  tooltip: 'Alles löschen',
-                  onPressed: _points.isEmpty && _lines.isEmpty ? null : _clear,
-                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Neue Seite aus aktueller Seite',
+                  onPressed: _addPage,
+                  icon: const Icon(Icons.note_add_outlined),
                 ),
-                if (_selection != null)
-                  IconButton(
-                    tooltip: 'Ausgewähltes Objekt löschen',
-                    onPressed: _deleteSelection,
-                    icon: const Icon(Icons.delete_forever),
-                  ),
+                IconButton(
+                  tooltip: 'Vorherige Seite',
+                  onPressed: _currentPageIndex == 0
+                      ? null
+                      : () => _selectPage(_currentPageIndex - 1),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                IconButton(
+                  tooltip: 'Nächste Seite',
+                  onPressed: _currentPageIndex >= _pages.length - 1
+                      ? null
+                      : () => _selectPage(_currentPageIndex + 1),
+                  icon: const Icon(Icons.chevron_right),
+                ),
               ],
             ),
       body: !_isLoaded
@@ -1011,31 +1053,38 @@ class _TacticsPageState extends State<TacticsPage> {
                                                       _tool = selected.first),
                                             ),
                                             IconButton(
-                                              tooltip:
-                                                  'Neue Seite aus aktueller Seite',
-                                              onPressed: _addPage,
-                                              icon: const Icon(
-                                                  Icons.note_add_outlined),
+                                              tooltip: 'Rückgängig',
+                                              onPressed: _points.isEmpty &&
+                                                      _lines.isEmpty
+                                                  ? null
+                                                  : _undo,
+                                              icon: const Icon(Icons.undo),
                                             ),
                                             IconButton(
-                                              tooltip: 'Vorherige Seite',
-                                              onPressed: _currentPageIndex == 0
+                                              tooltip: 'Aktuelle Seite leeren',
+                                              onPressed: _points.isEmpty &&
+                                                      _lines.isEmpty
                                                   ? null
-                                                  : () => _selectPage(
-                                                      _currentPageIndex - 1),
+                                                  : _clear,
                                               icon: const Icon(
-                                                  Icons.chevron_left),
+                                                  Icons.delete_outline),
                                             ),
                                             IconButton(
-                                              tooltip: 'Nächste Seite',
-                                              onPressed: _currentPageIndex >=
-                                                      _pages.length - 1
-                                                  ? null
-                                                  : () => _selectPage(
-                                                      _currentPageIndex + 1),
+                                              tooltip: 'Aktuelle Seite löschen',
+                                              onPressed: _pages.length > 1
+                                                  ? _deleteCurrentPage
+                                                  : null,
                                               icon: const Icon(
-                                                  Icons.chevron_right),
+                                                  Icons.delete_sweep_outlined),
                                             ),
+                                            if (_selection != null)
+                                              IconButton(
+                                                tooltip:
+                                                    'Ausgewähltes Objekt löschen',
+                                                onPressed: _deleteSelection,
+                                                icon: const Icon(
+                                                    Icons.delete_forever),
+                                              ),
                                           ],
                                         ),
                                       ),
@@ -1045,13 +1094,6 @@ class _TacticsPageState extends State<TacticsPage> {
                                             WrapCrossAlignment.center,
                                         spacing: 4,
                                         children: [
-                                          if (_pages.length > 1)
-                                            IconButton(
-                                              tooltip: 'Aktuelle Seite löschen',
-                                              onPressed: _deleteCurrentPage,
-                                              icon: const Icon(
-                                                  Icons.delete_outline),
-                                            ),
                                           IconButton(
                                             tooltip: _showPointNumbers
                                                 ? 'Punktnummern ausblenden'
@@ -1097,24 +1139,6 @@ class _TacticsPageState extends State<TacticsPage> {
                                                 ),
                                               ),
                                             ),
-                                          IconButton(
-                                            tooltip: _showPageNote
-                                                ? 'Notiz ausblenden'
-                                                : 'Notiz einblenden',
-                                            color: _showPageNote
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .primary
-                                                : null,
-                                            onPressed: () {
-                                              setState(() => _showPageNote =
-                                                  !_showPageNote);
-                                              _persist();
-                                            },
-                                            icon: Icon(_showPageNote
-                                                ? Icons.notes
-                                                : Icons.notes_outlined),
-                                          ),
                                         ],
                                       ),
                                     ],
@@ -1338,6 +1362,12 @@ class _TacticsPageState extends State<TacticsPage> {
               ),
             ),
     );
+  }
+
+  void _closeBoard() {
+    _syncCurrentPage();
+    _persist();
+    setState(() => _showBoard = false);
   }
 }
 
