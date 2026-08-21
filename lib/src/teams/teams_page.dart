@@ -430,6 +430,56 @@ class _TeamsPageState extends State<TeamsPage> {
     unawaited(_persist());
   }
 
+  Future<void> _removePlayer(Team team, TeamPlayer player) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Spieler entfernen?'),
+        content: Text('„${player.name}“ wird aus dem Team entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      _replaceTeam(team.copyWith(
+        players: team.players.where((entry) => entry.id != player.id).toList(),
+      ));
+    }
+  }
+
+  Future<void> _removeCoach(Team team, TeamCoach coach) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Trainer entfernen?'),
+        content: Text('„${coach.name}“ wird aus dem Team entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      _replaceTeam(team.copyWith(
+        coaches: team.coaches.where((entry) => entry.id != coach.id).toList(),
+      ));
+    }
+  }
+
   Future<void> _deleteTeam(Team team) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -1001,10 +1051,7 @@ class _TeamsPageState extends State<TeamsPage> {
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline),
                         tooltip: 'Spieler entfernen',
-                        onPressed: () => _replaceTeam(team.copyWith(
-                            players: team.players
-                                .where((entry) => entry.id != player.id)
-                                .toList())),
+                        onPressed: () => _removePlayer(team, player),
                       ),
                     ],
                   ),
@@ -1215,10 +1262,7 @@ class _TeamsPageState extends State<TeamsPage> {
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline),
                         tooltip: 'Trainer entfernen',
-                        onPressed: () => _replaceTeam(team.copyWith(
-                            coaches: team.coaches
-                                .where((entry) => entry.id != coach.id)
-                                .toList())),
+                        onPressed: () => _removeCoach(team, coach),
                       ),
                     ],
                   ),

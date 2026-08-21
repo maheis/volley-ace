@@ -419,7 +419,25 @@ class _TacticsPageState extends State<TacticsPage> {
     _persist();
   }
 
-  void _deleteTactic(_SavedTactic tactic) {
+  Future<void> _deleteTactic(_SavedTactic tactic) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Taktik löschen?'),
+        content: Text('„${tactic.name}“ wird unwiderruflich gelöscht.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() {
       _savedTactics.removeWhere((entry) => entry.id == tactic.id);
       if (_activeTacticName == tactic.name) _activeTacticName = null;
@@ -625,9 +643,27 @@ class _TacticsPageState extends State<TacticsPage> {
     _persist();
   }
 
-  void _deleteSelection() {
+  Future<void> _deleteSelection() async {
     final selection = _selection;
     if (selection == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Objekt löschen?'),
+        content: const Text('Das ausgewählte Objekt wird gelöscht.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() {
       if (selection.kind == _SelectionKind.point &&
           selection.index < _points.length) {
@@ -642,7 +678,25 @@ class _TacticsPageState extends State<TacticsPage> {
     _persist();
   }
 
-  void _clear() {
+  Future<void> _clear() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Taktiktafel leeren?'),
+        content: const Text('Alle Punkte und Linien werden gelöscht.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Leeren'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() {
       _points.clear();
       _lines.clear();

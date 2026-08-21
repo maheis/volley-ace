@@ -619,8 +619,36 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         sourceTeamId: match.teamId,
       ));
     } else {
-      players.removeWhere((entry) => entry.teamPlayerId == player.id);
+      _confirmRemoveTeamPlayer(match, player);
+      return;
     }
+    _replaceMatch(match.copyWith(players: players));
+  }
+
+  Future<void> _confirmRemoveTeamPlayer(
+    MatchGame match,
+    TeamPlayer player,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Spieler entfernen?'),
+        content: Text('„${player.name}“ wird aus dieser Wertung entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final players = List<MatchPlayer>.from(match.players)
+      ..removeWhere((entry) => entry.teamPlayerId == player.id);
     _replaceMatch(match.copyWith(players: players));
   }
 
@@ -659,6 +687,31 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _removePlayerFromMatch(MatchGame match, MatchPlayer player) {
+    _confirmRemovePlayerFromMatch(match, player);
+  }
+
+  Future<void> _confirmRemovePlayerFromMatch(
+    MatchGame match,
+    MatchPlayer player,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Spieler entfernen?'),
+        content: Text('„${player.name}“ und seine Wertungen werden entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     final players = List<MatchPlayer>.from(match.players)
       ..removeWhere((entry) => entry.id == player.id);
     final events = List<MatchEvent>.from(match.events)
