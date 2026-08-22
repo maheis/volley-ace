@@ -236,6 +236,5 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       -> Nein, Sätze werden im Verlauf nicht korrekt gespeichert/angezeigt!
 - [ ] Teams-Kachel vorne das Teams Icon in den Farben des Teams
 - [x] Training-Kachel vorne das Trainings Icon
-- [ ] Trainingsplan-Kachel vorne das Trainingsplan Icon
+- [x] Trainingsplan-Kachel vorne das Trainingsplan Icon
 - [x] Punktewertung-Kachel vorne das Punktewertung Icon
-- [ ] Alle Icons in Highlight-Color

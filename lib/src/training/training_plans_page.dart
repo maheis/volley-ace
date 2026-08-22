@@ -258,6 +258,7 @@ class _TrainingPlansPageState extends State<TrainingPlansPage> {
                   for (final plan in _plans)
                     Card(
                       child: ListTile(
+                        leading: const Icon(Icons.view_list_outlined),
                         title: Text(plan.topic.isEmpty
                             ? 'Neuer Trainingsplan'
                             : plan.topic),
