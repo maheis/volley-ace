@@ -594,7 +594,6 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
               itemCount: _exercises.length,
               onReorderItem: (oldIndex, newIndex) {
                 setState(() {
-                  if (oldIndex < newIndex) newIndex -= 1;
                   final exercise = _exercises.removeAt(oldIndex);
                   _exercises.insert(newIndex, exercise);
                 });
