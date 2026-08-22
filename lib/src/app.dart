@@ -12,6 +12,7 @@ import 'settings/settings_page.dart';
 import 'teams/teams_page.dart';
 import 'tactics/tactics_page.dart';
 import 'training/training_page.dart';
+import 'training/training_menu_page.dart';
 import 'theme/app_palette.dart';
 
 class VolleyAceApp extends StatelessWidget {
@@ -72,7 +73,7 @@ class VolleyAceApp extends StatelessWidget {
               onOpenMatchStats: () => _openMatchStats(homeContext),
               onOpenTeams: () => _openTeams(homeContext),
               onOpenTactics: () => _openTactics(homeContext),
-              onOpenTraining: () => _openTraining(homeContext),
+              onOpenTraining: () => _openTrainingMenu(homeContext),
             ),
           ),
         );
@@ -116,9 +117,41 @@ class VolleyAceApp extends StatelessWidget {
     );
   }
 
+  Future<void> _openTrainingMenu(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TrainingMenuPage(
+          onOpenTraining: () => _openTraining(context),
+          onOpenTrainingPlans: () => _openTrainingPlans(context),
+          onOpenTrainingExercises: () => _openTrainingExercises(context),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openTraining(BuildContext context) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => TrainingPage(database: database)),
+    );
+  }
+
+  Future<void> _openTrainingPlans(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const TrainingPlaceholderPage(
+          title: 'Trainingspläne',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openTrainingExercises(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const TrainingPlaceholderPage(
+          title: 'Trainingsübungen',
+        ),
+      ),
     );
   }
 

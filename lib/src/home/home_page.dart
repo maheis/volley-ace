@@ -83,8 +83,7 @@ class HomePage extends StatelessWidget {
             child: ListTile(
               leading: Icon(Icons.fact_check_outlined, color: highlightColor),
               title: const Text('Training'),
-              subtitle:
-                  const Text('Teilnahme von Trainern und Spielern erfassen.'),
+              subtitle: const Text('Training verwalten.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onOpenTraining,
             ),
