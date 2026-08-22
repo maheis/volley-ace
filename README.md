@@ -188,15 +188,16 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Beschreibung
     - [ ] Trainingsstatistik
     - [ ] Trainingsbewertung
-  - [ ] Trainingspläne
-    - [ ] Trainingsplan erstellen
-      - [ ] Thema
-      - [ ] Dauer
-      - [ ] Beschreibung
-      - [ ] Übungen aus den Trainingsübungen hinzufügen
-      - [x] Übungen sortieren
-      - [x] Übungen abschließen und überspringen
-  - [ ] Trainingsübungen
+  - [x] Trainingspläne
+    - [x] Trainingsplan erstellen
+      - [x] Thema
+      - [x] Dauer
+      - [x] Beschreibung
+      - [x] Übungen aus den Trainingsübungen hinzufügen
+      - [x] Übungen sortieren per D&D
+    - [x] Import / Teilen von Trainingsplänen
+    - [x] Trainingspläne kopieren und löschen
+  - [x] Trainingsübungen
     - [x] Einzelne Übungen erstellen und konfigurieren
       - [x] Typ (Aufwärmen, Technik, Taktik, Spiel, Kraft, Ausdauer, Koordination, Dehnen, Cooldown)
       - [x] Ziel

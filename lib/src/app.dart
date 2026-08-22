@@ -14,6 +14,7 @@ import 'tactics/tactics_page.dart';
 import 'training/training_page.dart';
 import 'training/training_exercises_page.dart';
 import 'training/training_menu_page.dart';
+import 'training/training_plans_page.dart';
 import 'theme/app_palette.dart';
 
 class VolleyAceApp extends StatelessWidget {
@@ -139,9 +140,7 @@ class VolleyAceApp extends StatelessWidget {
   Future<void> _openTrainingPlans(BuildContext context) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => const TrainingPlaceholderPage(
-          title: 'Trainingspläne',
-        ),
+        builder: (_) => TrainingPlansPage(database: database),
       ),
     );
   }
