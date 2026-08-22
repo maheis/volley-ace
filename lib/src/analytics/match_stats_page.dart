@@ -497,6 +497,27 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return teamPlayer?.name ?? player.name;
   }
 
+  Widget _buildMatchIcon(BuildContext context, MatchGame match) {
+    final team = match.teamId == null
+        ? null
+        : _teams.cast<Team?>().firstWhere(
+              (entry) => entry?.id == match.teamId,
+              orElse: () => null,
+            );
+    final colorScheme = Theme.of(context).colorScheme;
+    final backgroundColor = team?.primaryColorValue == null
+        ? colorScheme.primary
+        : Color(team!.primaryColorValue!);
+    final iconColor = team?.secondaryColorValue == null
+        ? colorScheme.surfaceContainerHighest
+        : Color(team!.secondaryColorValue!);
+
+    return CircleAvatar(
+      backgroundColor: backgroundColor,
+      child: Icon(Icons.analytics_outlined, color: iconColor),
+    );
+  }
+
   void _showMatchDetail(int matchId, {String? section}) {
     if (section == 'info') {
       final match = _matches.firstWhere((entry) => entry.id == matchId);
@@ -1097,6 +1118,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
+                    leading: _buildMatchIcon(context, match),
                     title: Text(
                       match.opponentTeam.isEmpty
                           ? 'Neues Spiel'
