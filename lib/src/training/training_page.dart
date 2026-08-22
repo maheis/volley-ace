@@ -731,18 +731,31 @@ class _TrainingPageState extends State<TrainingPage> {
     await _persist();
   }
 
-  void _openAddExercise() {
+  Future<void> _openAddExercise() async {
     final session = _activeSession;
     if (session == null) return;
+    final exercise = TrainingExercise(
+      id: _nextExerciseId(),
+      title: '',
+      type: 'Technik',
+      goal: '',
+      duration: '',
+      description: '',
+      status: '',
+    );
+    final updated = _withExercises(session, [...session.exercises, exercise]);
     setState(() {
-      _editingExerciseId = null;
+      _editingExerciseId = exercise.id;
       _exerciseTitleController.clear();
       _exerciseType = 'Technik';
       _exerciseGoalController.clear();
       _exerciseDurationController.clear();
       _exerciseDescriptionController.clear();
+      _replaceSession(updated);
+      _activeSession = updated;
       _activeView = 'add-exercise';
     });
+    await _persist();
   }
 
   void _openEditExercise(TrainingExercise exercise) {
@@ -758,35 +771,32 @@ class _TrainingPageState extends State<TrainingPage> {
     });
   }
 
-  Future<void> _saveExercise() async {
+  void _updateExerciseFromFields() {
     final session = _activeSession;
-    final title = _exerciseTitleController.text.trim();
-    if (session == null || title.isEmpty) return;
-    final editedExercise = session.exercises
-        .where((exercise) => exercise.id == _editingExerciseId)
-        .firstOrNull;
-    final exercise = TrainingExercise(
-      id: editedExercise?.id ?? _nextExerciseId(),
-      title: title,
+    final exerciseId = _editingExerciseId;
+    if (session == null || exerciseId == null) return;
+    final updatedExercise = TrainingExercise(
+      id: exerciseId,
+      title: _exerciseTitleController.text.trim(),
       type: _exerciseType,
       goal: _exerciseGoalController.text.trim(),
       duration: _exerciseDurationController.text.trim(),
       description: _exerciseDescriptionController.text.trim(),
-      status: editedExercise?.status ?? '',
+      status: session.exercises
+              .where((exercise) => exercise.id == exerciseId)
+              .firstOrNull
+              ?.status ??
+          '',
     );
-    final exercises = editedExercise == null
-        ? [...session.exercises, exercise]
-        : session.exercises
-            .map((entry) => entry.id == editedExercise.id ? exercise : entry)
-            .toList();
+    final exercises = session.exercises
+        .map((entry) => entry.id == exerciseId ? updatedExercise : entry)
+        .toList();
     final updated = _withExercises(session, exercises);
     setState(() {
-      _editingExerciseId = null;
       _replaceSession(updated);
       _activeSession = updated;
-      _activeView = 'plan';
     });
-    await _persist();
+    unawaited(_persist());
   }
 
   int _nextExerciseId() {
@@ -1307,14 +1317,6 @@ class _TrainingPageState extends State<TrainingPage> {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => _openPlan(session),
           ),
-          actions: [
-            IconButton(
-              key: const ValueKey('save-training-exercise-button'),
-              tooltip: 'Übung speichern',
-              icon: const Icon(Icons.check),
-              onPressed: _saveExercise,
-            ),
-          ],
         ),
         body: ListView(
           padding: const EdgeInsets.all(16),
@@ -1328,6 +1330,7 @@ class _TrainingPageState extends State<TrainingPage> {
                 labelText: 'Übung',
                 border: OutlineInputBorder(),
               ),
+              onChanged: (_) => _updateExerciseFromFields(),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1346,7 +1349,10 @@ class _TrainingPageState extends State<TrainingPage> {
                   )
                   .toList(),
               onChanged: (type) {
-                if (type != null) setState(() => _exerciseType = type);
+                if (type != null) {
+                  setState(() => _exerciseType = type);
+                  _updateExerciseFromFields();
+                }
               },
             ),
             const SizedBox(height: 12),
@@ -1358,6 +1364,7 @@ class _TrainingPageState extends State<TrainingPage> {
                 labelText: 'Ziel',
                 border: OutlineInputBorder(),
               ),
+              onChanged: (_) => _updateExerciseFromFields(),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -1369,6 +1376,7 @@ class _TrainingPageState extends State<TrainingPage> {
                 hintText: 'z. B. 10 Minuten',
                 border: OutlineInputBorder(),
               ),
+              onChanged: (_) => _updateExerciseFromFields(),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -1381,12 +1389,7 @@ class _TrainingPageState extends State<TrainingPage> {
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: _saveExercise,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Übung speichern'),
+              onChanged: (_) => _updateExerciseFromFields(),
             ),
           ],
         ),
