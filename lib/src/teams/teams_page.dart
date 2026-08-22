@@ -375,6 +375,21 @@ class _TeamsPageState extends State<TeamsPage> {
     });
   }
 
+  Widget _buildTeamIcon(BuildContext context, Team team) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final backgroundColor = team.primaryColorValue == null
+        ? colorScheme.primary
+        : Color(team.primaryColorValue!);
+    final iconColor = team.secondaryColorValue == null
+        ? colorScheme.surfaceContainerHighest
+        : Color(team.secondaryColorValue!);
+
+    return CircleAvatar(
+      backgroundColor: backgroundColor,
+      child: Icon(Icons.groups_outlined, color: iconColor),
+    );
+  }
+
   void _closeTeam() => setState(() {
         _selectedTeamId = null;
         _activeSection = null;
@@ -719,6 +734,7 @@ class _TeamsPageState extends State<TeamsPage> {
                 Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
+                    leading: _buildTeamIcon(context, team),
                     title: Text(
                         team.name.isEmpty ? 'Unbenanntes Team' : team.name),
                     subtitle: Text(
