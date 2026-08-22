@@ -5,7 +5,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - Punktetafel - Verlauf und Auswertungen, inkl. Stop-Uhr, Auszeiten
 - Taktiktafel - Mehrere Seiten, speichern/teilen
 - Teams - Spieler und Trainer verwalten, Teamstatistiken einsehen
-- Training - Trainingspläne erstellen, Teilnahme erfassen, Statistiken einsehen und Bewertungen erfassen
+- Training - Trainings durchführen, Teilnahme erfassen, Statistiken einsehen und Bewertungen erfassen
+- Trainingspläne - Trainingsabläufe mit Übungen zusammenstellen
+- Trainingsübungen - Einzelne Übungen verwalten und konfigurieren
 - Punktewertung - Bewerten wie Punkte erzielt oder verloren werden
 
 ![Vorstellungsgrafik](.notes/vorstellungsgrafik.png)
@@ -162,31 +164,44 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [ ] Aufklappbare Details pro Spieler
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
 - [x] Training
-  - [x] Mehrere Trainings speichern
-  - [x] Trainings teilen
-  - [x] Trainings importieren
-  - [x] Infos
-    - [x] Name
-    - [x] Datum / Uhrzeit
-    - [x] Ort
-    - [x] Dauer
-    - [x] Beschreibung
-    - [x] Team
-  - [x] Trainingsteilnahme (Trainer, Spieler)
-    - [x] Teilnahme
-      - [x] Manuell Trainer und Spieler hinzufügen
-    - [x] Entschuldigt
-    - [x] Unentschuldigt
-  - [x] Trainingsplan mit Übungen, Sortierung, Abschluss und Überspringen
-    - [x] Übungen
-      - [x] Typ (Aufwärmen, Technik, Taktik, Spiel, Kraft, Ausdauer, Koordination, Dehnen, Cooldown)
-      - [x] Ziel
+  - [x] Training
+    - [x] Mehrere Trainings speichern
+    - [x] Trainings teilen
+    - [x] Trainings importieren
+    - [x] Infos
+      - [x] Name
+      - [x] Datum / Uhrzeit
+      - [x] Ort
       - [x] Dauer
       - [x] Beschreibung
-  - [ ] Trainingsstatistik
-  - [ ] Trainingsbewertung
-- [ ] Trainingspläne
-- [ ] Trainingsübungen
+      - [x] Team
+    - [x] Trainingsteilnahme (Trainer, Spieler)
+      - [x] Teilnahme
+        - [x] Manuell Trainer und Spieler hinzufügen
+      - [x] Entschuldigt
+      - [x] Unentschuldigt
+    - [x] Trainingsplan mit Übungen, Sortierung, Abschluss und Überspringen
+      - [x] Übungen
+        - [x] Typ (Aufwärmen, Technik, Taktik, Spiel, Kraft, Ausdauer, Koordination, Dehnen, Cooldown)
+        - [x] Ziel
+        - [x] Dauer
+        - [x] Beschreibung
+    - [ ] Trainingsstatistik
+    - [ ] Trainingsbewertung
+  - [ ] Trainingspläne
+    - [ ] Trainingsplan erstellen
+      - [ ] Thema
+      - [ ] Dauer
+      - [ ] Beschreibung
+      - [ ] Übungen aus den Trainingsübungen hinzufügen
+      - [x] Übungen sortieren
+      - [x] Übungen abschließen und überspringen
+  - [ ] Trainingsübungen
+    - [ ] Einzelne Übungen erstellen und konfigurieren
+      - [ ] Typ (Aufwärmen, Technik, Taktik, Spiel, Kraft, Ausdauer, Koordination, Dehnen, Cooldown)
+      - [ ] Ziel
+      - [ ] Dauer
+      - [ ] Beschreibung
 - [ ] Volley-Arcade
 
 ## ToDo
