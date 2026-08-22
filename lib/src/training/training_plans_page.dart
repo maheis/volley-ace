@@ -7,6 +7,7 @@ import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
 import 'training_page.dart';
+import 'training_exercises_page.dart';
 
 class TrainingPlan {
   const TrainingPlan({
@@ -358,6 +359,13 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
     });
   }
 
+  Future<void> _saveAvailableExercises() => _exerciseStore
+          .record(_exerciseRecordKey)
+          .put(widget.database, <String, dynamic>{
+        'exercises':
+            _availableExercises.map((exercise) => exercise.toJson()).toList(),
+      });
+
   void _notifyChanged() {
     widget.onChanged(
       TrainingPlan(
@@ -371,20 +379,118 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
   }
 
   Future<void> _addExercise() async {
+    var nameFilter = '';
+    var typeFilter = '';
     final selected = await showDialog<TrainingExercise>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Übung hinzufügen'),
-        children: _availableExercises
-            .where(
-                (exercise) => !_exercises.any((item) => item.id == exercise.id))
-            .map(
-              (exercise) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, exercise),
-                child: Text(exercise.title.isEmpty ? 'Übung' : exercise.title),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final filteredExercises = _availableExercises.where((exercise) {
+            final alreadyAdded =
+                _exercises.any((item) => item.id == exercise.id);
+            final matchesName = nameFilter.isEmpty ||
+                exercise.title.toLowerCase().contains(nameFilter.toLowerCase());
+            final matchesType =
+                typeFilter.isEmpty || exercise.type == typeFilter;
+            return !alreadyAdded && matchesName && matchesType;
+          }).toList();
+
+          return AlertDialog(
+            title: const Text('Übung hinzufügen'),
+            content: SizedBox(
+              width: 480,
+              height: 440,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Nach Name filtern',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (value) =>
+                        setDialogState(() => nameFilter = value.trim()),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: typeFilter.isEmpty ? null : typeFilter,
+                    decoration: const InputDecoration(
+                      labelText: 'Nach Typ filtern',
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: '',
+                        child: Text('Alle Typen'),
+                      ),
+                      ...TrainingExercise.types.map(
+                        (type) => DropdownMenuItem<String>(
+                          value: type,
+                          child: Text(type),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => typeFilter = value ?? ''),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filteredExercises.isEmpty
+                        ? const Center(child: Text('Keine Übungen gefunden.'))
+                        : ListView.builder(
+                            itemCount: filteredExercises.length,
+                            itemBuilder: (context, index) {
+                              final exercise = filteredExercises[index];
+                              return ListTile(
+                                title: Text(exercise.title.isEmpty
+                                    ? 'Übung'
+                                    : exercise.title),
+                                subtitle: Text(
+                                    '${exercise.type} · ${exercise.duration}'),
+                                onTap: () =>
+                                    Navigator.pop(dialogContext, exercise),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            )
-            .toList(),
+            ),
+            actions: [
+              TextButton.icon(
+                onPressed: () async {
+                  final exercise = TrainingExercise(
+                    id: DateTime.now().microsecondsSinceEpoch,
+                    title: '',
+                    type: TrainingExercise.types.first,
+                    goal: '',
+                    duration: '',
+                    description: '',
+                    status: '',
+                  );
+                  var updatedExercise = exercise;
+                  await Navigator.of(dialogContext).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TrainingExerciseEditPage(
+                        exercise: exercise,
+                        onChanged: (updated) => updatedExercise = updated,
+                      ),
+                    ),
+                  );
+                  if (!mounted || !dialogContext.mounted) return;
+                  _availableExercises.add(updatedExercise);
+                  await _saveAvailableExercises();
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.pop(dialogContext, updatedExercise);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Neue Übung anlegen'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Abbrechen'),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (!mounted || selected == null) return;
