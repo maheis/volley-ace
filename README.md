@@ -235,7 +235,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Punktetafel Verlauf wird nicht korrekt geteilt (nach Import hab ich nur 1 Satz!)
       -> Nein, Sätze werden im Verlauf nicht korrekt gespeichert/angezeigt!
 - [ ] Teams-Kachel vorne das Teams Icon in den Farben des Teams
-- [ ] Training-Kachel vorne das Trainings Icon
+- [x] Training-Kachel vorne das Trainings Icon
 - [ ] Trainingsplan-Kachel vorne das Trainingsplan Icon
 - [ ] Punktewertung-Kachel vorne das Punktewertung Icon
 - [ ] Alle Icons in Highlight-Color

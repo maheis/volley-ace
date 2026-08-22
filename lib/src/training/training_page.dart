@@ -1031,6 +1031,7 @@ class _TrainingPageState extends State<TrainingPage> {
               for (final session in _sessions)
                 Card(
                   child: ListTile(
+                    leading: const Icon(Icons.event_note_outlined),
                     title: Text(session.name),
                     subtitle: Text(
                       _sessionSummary(session),
