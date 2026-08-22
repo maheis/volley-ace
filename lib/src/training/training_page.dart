@@ -8,6 +8,7 @@ import 'package:sembast/sembast.dart';
 import '../backup/app_backup_service.dart';
 import '../teams/teams_page.dart';
 import '../theme/app_palette.dart';
+import 'training_plans_page.dart';
 
 class TrainingAttendance {
   const TrainingAttendance._();
@@ -94,6 +95,7 @@ class TrainingSession {
     required this.attendance,
     required this.comments,
     this.guests = const <String>[],
+    this.trainingPlanId,
   });
 
   final int id;
@@ -107,6 +109,7 @@ class TrainingSession {
   final Map<String, String> attendance;
   final Map<String, String> comments;
   final List<String> guests;
+  final int? trainingPlanId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -120,6 +123,7 @@ class TrainingSession {
         'attendance': attendance,
         'comments': comments,
         'guests': guests,
+        'trainingPlanId': trainingPlanId,
       };
 
   static TrainingSession fromJson(Map<String, dynamic> data) {
@@ -162,6 +166,9 @@ class TrainingSession {
       guests: storedGuests is List
           ? storedGuests.whereType<String>().toList()
           : <String>[],
+      trainingPlanId: data['trainingPlanId'] is num
+          ? (data['trainingPlanId'] as num).toInt()
+          : null,
     );
   }
 }
@@ -214,6 +221,9 @@ class _TrainingPageState extends State<TrainingPage> {
       TeamsRepository(widget.database);
   final List<Team> _teams = <Team>[];
   final List<TrainingSession> _sessions = <TrainingSession>[];
+  static final StoreRef<String, Map<String, dynamic>> _plansStore =
+      StoreRef<String, Map<String, dynamic>>('training_plans');
+  final List<TrainingPlan> _plans = <TrainingPlan>[];
   TrainingSession? _activeSession;
   String _activeView = 'list';
   Map<String, String> _attendance = <String, String>{};
@@ -244,6 +254,7 @@ class _TrainingPageState extends State<TrainingPage> {
   void initState() {
     super.initState();
     unawaited(_load());
+    unawaited(_loadPlans());
   }
 
   @override
@@ -284,6 +295,23 @@ class _TrainingPageState extends State<TrainingPage> {
                   .reduce((a, b) => a > b ? a : b) +
               1;
       _isLoaded = true;
+    });
+  }
+
+  Future<void> _loadPlans() async {
+    final data = await _plansStore.record('plans').get(widget.database);
+    final stored = data?['plans'];
+    if (!mounted) return;
+    setState(() {
+      _plans
+        ..clear()
+        ..addAll(stored is List
+            ? stored
+                .whereType<Map>()
+                .map((item) =>
+                    TrainingPlan.fromJson(Map<String, dynamic>.from(item)))
+                .toList()
+            : <TrainingPlan>[]);
     });
   }
 
@@ -336,6 +364,7 @@ class _TrainingPageState extends State<TrainingPage> {
             ),
           )
           .toList(),
+      trainingPlanId: source.trainingPlanId,
     );
     setState(() {
       _sessions.add(copied);
@@ -423,6 +452,7 @@ class _TrainingPageState extends State<TrainingPage> {
         comments: source.comments,
         guests: source.guests,
         exercises: source.exercises,
+        trainingPlanId: source.trainingPlanId,
       );
 
   void _openTraining(TrainingSession session) {
@@ -515,6 +545,7 @@ class _TrainingPageState extends State<TrainingPage> {
       comments: session.comments,
       guests: session.guests,
       exercises: session.exercises,
+      trainingPlanId: session.trainingPlanId,
     );
     setState(() {
       _replaceSession(updated);
@@ -543,6 +574,7 @@ class _TrainingPageState extends State<TrainingPage> {
       comments: _comments,
       guests: _guests,
       exercises: session.exercises,
+      trainingPlanId: session.trainingPlanId,
     );
     setState(() {
       _replaceSession(updated);
@@ -571,6 +603,7 @@ class _TrainingPageState extends State<TrainingPage> {
       comments: session.comments,
       guests: session.guests,
       exercises: session.exercises,
+      trainingPlanId: session.trainingPlanId,
     );
     _replaceSession(updated);
     _activeSession = updated;
@@ -581,6 +614,122 @@ class _TrainingPageState extends State<TrainingPage> {
         _activeSession = session;
         _activeView = 'plan';
       });
+
+  Future<void> _selectTrainingPlan(TrainingSession session) async {
+    if (_plans.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Noch keine Trainingspläne angelegt.')),
+      );
+      return;
+    }
+    var nameFilter = '';
+    var topicFilter = '';
+    var selectionMade = false;
+    final selected = await showDialog<TrainingPlan>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final filteredPlans = _plans.where((plan) {
+            final name = plan.topic.toLowerCase();
+            final topic = plan.description.toLowerCase();
+            return (nameFilter.isEmpty ||
+                    name.contains(nameFilter.toLowerCase())) &&
+                (topicFilter.isEmpty ||
+                    topic.contains(topicFilter.toLowerCase()));
+          }).toList();
+
+          return AlertDialog(
+            title: const Text('Trainingsplan auswählen'),
+            content: SizedBox(
+              width: 480,
+              height: 440,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Nach Name filtern',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (value) =>
+                        setDialogState(() => nameFilter = value.trim()),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Nach Thema filtern',
+                      prefixIcon: Icon(Icons.topic_outlined),
+                    ),
+                    onChanged: (value) =>
+                        setDialogState(() => topicFilter = value.trim()),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filteredPlans.isEmpty
+                        ? const Center(
+                            child: Text('Keine Trainingspläne gefunden.'))
+                        : ListView.builder(
+                            itemCount: filteredPlans.length,
+                            itemBuilder: (context, index) {
+                              final plan = filteredPlans[index];
+                              return ListTile(
+                                leading: const Icon(Icons.view_list_outlined),
+                                title: Text(plan.topic.isEmpty
+                                    ? 'Trainingsplan'
+                                    : plan.topic),
+                                subtitle:
+                                    Text('${plan.exercises.length} Übungen'),
+                                onTap: () {
+                                  selectionMade = true;
+                                  Navigator.pop(dialogContext, plan);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              if (session.trainingPlanId != null)
+                TextButton(
+                  onPressed: () {
+                    selectionMade = true;
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Keinen Trainingsplan verwenden'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Abbrechen'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted || !selectionMade) return;
+    final exercises = selected?.exercises ?? const <TrainingExercise>[];
+    final updated = TrainingSession(
+      id: session.id,
+      name: session.name,
+      teamId: session.teamId,
+      date: session.date,
+      location: session.location,
+      duration: session.duration,
+      description: session.description,
+      attendance: session.attendance,
+      comments: session.comments,
+      guests: session.guests,
+      exercises: exercises,
+      trainingPlanId: selected?.id,
+    );
+    setState(() {
+      _replaceSession(updated);
+      _activeSession = updated;
+    });
+    await _persist();
+  }
 
   void _openAddExercise() {
     final session = _activeSession;
@@ -666,6 +815,7 @@ class _TrainingPageState extends State<TrainingPage> {
         comments: session.comments,
         guests: session.guests,
         exercises: exercises,
+        trainingPlanId: session.trainingPlanId,
       );
 
   Future<void> _setExerciseStatus(
@@ -779,6 +929,7 @@ class _TrainingPageState extends State<TrainingPage> {
       comments: session.comments,
       guests: session.guests,
       exercises: session.exercises,
+      trainingPlanId: session.trainingPlanId,
     );
     setState(() {
       _trainingDate = dateTime;
@@ -1096,6 +1247,25 @@ class _TrainingPageState extends State<TrainingPage> {
                 title: const Text('Übung hinzufügen'),
                 subtitle: const Text('Ziel, Dauer und Beschreibung anlegen'),
                 onTap: _openAddExercise,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.view_list_outlined),
+                title: const Text('Trainingsplan auswählen'),
+                subtitle: Text(
+                  session.trainingPlanId == null
+                      ? 'Kein Trainingsplan ausgewählt'
+                      : (_plans
+                              .where(
+                                  (plan) => plan.id == session.trainingPlanId)
+                              .firstOrNull
+                              ?.topic ??
+                          'Trainingsplan nicht gefunden'),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _selectTrainingPlan(session),
               ),
             ),
             const SizedBox(height: 12),
