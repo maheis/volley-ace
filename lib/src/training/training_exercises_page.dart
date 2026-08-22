@@ -23,7 +23,28 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
       StoreRef<String, Map<String, dynamic>>('training_exercises');
 
   final List<TrainingExercise> _exercises = <TrainingExercise>[];
+  String _nameFilter = '';
+  String _typeFilter = '';
   bool _loading = true;
+
+  List<TrainingExercise> get _visibleExercises {
+    final filtered = _exercises.where((exercise) {
+      final matchesName = _nameFilter.isEmpty ||
+          exercise.title.toLowerCase().contains(_nameFilter.toLowerCase());
+      final matchesType = _typeFilter.isEmpty || exercise.type == _typeFilter;
+      return matchesName && matchesType;
+    }).toList();
+    filtered.sort((first, second) {
+      final firstIndex = TrainingExercise.types.indexOf(first.type);
+      final secondIndex = TrainingExercise.types.indexOf(second.type);
+      final normalizedFirstIndex =
+          firstIndex == -1 ? TrainingExercise.types.length : firstIndex;
+      final normalizedSecondIndex =
+          secondIndex == -1 ? TrainingExercise.types.length : secondIndex;
+      return normalizedFirstIndex.compareTo(normalizedSecondIndex);
+    });
+    return filtered;
+  }
 
   @override
   void initState() {
@@ -222,16 +243,50 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Nach Name filtern',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) =>
+                      setState(() => _nameFilter = value.trim()),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _typeFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Nach Typ filtern',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: '',
+                      child: Text('Alle Typen'),
+                    ),
+                    ...TrainingExercise.types.map(
+                      (type) => DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _typeFilter = value ?? ''),
+                ),
+                const SizedBox(height: 16),
                 if (_exercises.isEmpty)
                   const Center(child: Text('Noch keine Übungen angelegt.'))
+                else if (_visibleExercises.isEmpty)
+                  const Center(child: Text('Keine Übungen gefunden.'))
                 else
-                  for (var index = 0; index < _exercises.length; index++)
+                  for (final exercise in _visibleExercises)
                     _ExerciseListTile(
-                      exercise: _exercises[index],
-                      onEdit: () => _editExercise(_exercises[index]),
-                      onShare: () => _shareExercise(_exercises[index]),
-                      onCopy: () => _copyExercise(_exercises[index]),
-                      onDelete: () => _deleteExercise(_exercises[index]),
+                      exercise: exercise,
+                      onEdit: () => _editExercise(exercise),
+                      onShare: () => _shareExercise(exercise),
+                      onCopy: () => _copyExercise(exercise),
+                      onDelete: () => _deleteExercise(exercise),
                     ),
               ],
             ),
