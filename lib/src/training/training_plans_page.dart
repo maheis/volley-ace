@@ -605,7 +605,10 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
                 return Card(
                   key: ValueKey(exercise.id),
                   child: ListTile(
-                    leading: const Icon(Icons.drag_handle),
+                    leading: Icon(
+                      Icons.fitness_center_outlined,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
                     title: Text(exercise.title),
                     subtitle: Text('${exercise.type} · ${exercise.duration}'),
                     trailing: IconButton(
