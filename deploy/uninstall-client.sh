@@ -2,10 +2,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET_DIR="$HOME/.local/share/simplepresent"
-DATA_DIR="$HOME/Documents/simplepresent"
+TARGET_DIR="$HOME/.local/share/volleyace"
+DATA_DIR="$HOME/Documents/volleyace"
 
-APP_ID="be.heister.simplepresent"
+APP_ID="be.heister.volleyace"
 DESKTOP_ENTRY_NAME="$APP_ID.desktop"
 APPS_DIR="$HOME/.local/share/applications"
 ICON_DIR_128="$HOME/.local/share/icons/hicolor/128x128/apps"

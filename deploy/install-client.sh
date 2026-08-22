@@ -3,8 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="${1:-$SCRIPT_DIR}"
-TARGET_DIR="$HOME/.local/share/simplepresent"
-DATA_DIR="$HOME/Documents/simplepresent"
+TARGET_DIR="$HOME/.local/share/volleyace"
+DATA_DIR="$HOME/Documents/volleyace"
 
 echo "Source: $SRC_DIR"
 echo "Target: $TARGET_DIR"
@@ -33,13 +33,13 @@ echo "Copying files (excluding .git)..."
 rsync -a --delete --exclude='.git' --exclude='build' "$SRC_DIR/" "$TARGET_DIR/"
 
 echo "Creating launcher script..."
-LAUNCHER="$TARGET_DIR/launch-simplepresent.sh"
+LAUNCHER="$TARGET_DIR/launch-volleyace.sh"
 cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd "${TARGET_DIR}"
-if [ -x "./simplepresent" ]; then
-  exec "./simplepresent" "${@-}"
+if [ -x "./volleyace" ]; then
+  exec "./volleyace" "${@-}"
 fi
 if command -v flutter >/dev/null 2>&1; then
   echo "No native binary found; attempting to run with flutter (requires SDK)."
@@ -88,15 +88,15 @@ else
   DESKTOP_ICON_VALUE=""
 fi
 
-APP_ID="be.heister.simplepresent"
+APP_ID="be.heister.volleyace"
 DESKTOP_ENTRY_NAME="$APP_ID.desktop"
-DESKTOP_CONTENT="[Desktop Entry]\nName=SimplePresent\nComment=SimplePresent client\nExec=$LAUNCHER\nIcon=$DESKTOP_ICON_VALUE\nTerminal=false\nType=Application\nCategories=Utility;\nStartupNotify=true\nStartupWMClass=SimplePresent\nX-GNOME-WMClass=SimplePresent"
+DESKTOP_CONTENT="[Desktop Entry]\nName=volleyace\nComment=volleyace client\nExec=$LAUNCHER\nIcon=$DESKTOP_ICON_VALUE\nTerminal=false\nType=Application\nCategories=Utility;\nStartupNotify=true\nStartupWMClass=volleyace\nX-GNOME-WMClass=volleyace"
 
 if [ "$CREATE_MENU" -eq 1 ]; then
   APPS_DIR="$HOME/.local/share/applications"
   mkdir -p "$APPS_DIR"
   # Remove legacy desktop filename to avoid duplicate launcher entries.
-  rm -f "$APPS_DIR/SimplePresent.desktop"
+  rm -f "$APPS_DIR/volleyace.desktop"
   printf "%b" "$DESKTOP_CONTENT" > "$APPS_DIR/$DESKTOP_ENTRY_NAME"
   chmod 0644 "$APPS_DIR/$DESKTOP_ENTRY_NAME"
   echo "Installed menu entry: $APPS_DIR/$DESKTOP_ENTRY_NAME"
@@ -111,6 +111,6 @@ if [ "$CREATE_DESKTOP" -eq 1 ]; then
 fi
 
 echo "Install complete. Launch with: $LAUNCHER"
-echo "If you installed the menu entry, you can search for 'SimplePresent' in your application launcher."
+echo "If you installed the menu entry, you can search for 'volleyace' in your application launcher."
 
 exit 0
