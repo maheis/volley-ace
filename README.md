@@ -205,6 +205,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [x] Beschreibung
     - [x] Import / Teilen von Trainingsübungen
     - [x] Trainingsübungen kopieren und löschen
+    - [ ] Filterung nach Typ, Ziel, Dauer, Beschreibung
 - [ ] Volley-Arcade
 
 ## ToDo

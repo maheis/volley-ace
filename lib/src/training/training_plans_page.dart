@@ -331,6 +331,7 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
   late final TextEditingController _descriptionController;
   late List<TrainingExercise> _exercises;
   List<TrainingExercise> _availableExercises = <TrainingExercise>[];
+  late bool _durationWasEdited;
 
   @override
   void initState() {
@@ -340,7 +341,29 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
     _descriptionController =
         TextEditingController(text: widget.plan.description);
     _exercises = List<TrainingExercise>.from(widget.plan.exercises);
+    _durationWasEdited = widget.plan.duration.trim().isNotEmpty;
+    _updateDurationFromExercises();
     _loadExercises();
+  }
+
+  int? _parseDurationMinutes(String value) {
+    final duration = value.trim().toLowerCase();
+    final clockMatch = RegExp(r'^(\d+)\s*:\s*([0-5]\d)$').firstMatch(duration);
+    if (clockMatch != null) {
+      return int.parse(clockMatch.group(1)!) * 60 +
+          int.parse(clockMatch.group(2)!);
+    }
+    final minutesMatch =
+        RegExp(r'^(\d+)\s*(?:min|mins|minute|minuten)?$').firstMatch(duration);
+    return minutesMatch == null ? null : int.parse(minutesMatch.group(1)!);
+  }
+
+  void _updateDurationFromExercises() {
+    if (_durationWasEdited) return;
+    final totalMinutes = _exercises.fold<int>(0, (total, exercise) {
+      return total + (_parseDurationMinutes(exercise.duration) ?? 0);
+    });
+    _durationController.text = totalMinutes == 0 ? '' : '$totalMinutes min';
   }
 
   Future<void> _loadExercises() async {
@@ -495,6 +518,7 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
     );
     if (!mounted || selected == null) return;
     setState(() => _exercises.add(selected));
+    _updateDurationFromExercises();
     _notifyChanged();
   }
 
@@ -529,7 +553,10 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
               labelText: 'Dauer',
               border: OutlineInputBorder(),
             ),
-            onChanged: (_) => _notifyChanged(),
+            onChanged: (_) {
+              _durationWasEdited = true;
+              _notifyChanged();
+            },
           ),
           const SizedBox(height: 12),
           TextField(
@@ -571,6 +598,7 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
                   final exercise = _exercises.removeAt(oldIndex);
                   _exercises.insert(newIndex, exercise);
                 });
+                _updateDurationFromExercises();
                 _notifyChanged();
               },
               itemBuilder: (context, index) {
@@ -586,6 +614,7 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
                       icon: const Icon(Icons.remove_circle_outline),
                       onPressed: () {
                         setState(() => _exercises.removeAt(index));
+                        _updateDurationFromExercises();
                         _notifyChanged();
                       },
                     ),
