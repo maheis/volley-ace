@@ -240,8 +240,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Punktewertung-Kachel vorne das Punktewertung Icon
 - [ ] Taktiktafel mit Trainingsübungen Verknüpfen
 - [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
-- [x] Aktives bzw. nächstes Training auf Startseite anzeigen
-- [ ] Im Training mehrere Mannschaften hinzufügen (wenn U13 und U15 z.B. zusammen trainieren)
+- [x] Aktives bzw. nächstes Training / Punktewertung auf Startseite anzeigen
+- [x] Im Training mehrere Mannschaften hinzufügen (wenn U13 und U15 z.B. zusammen trainieren)
 - [x] Buttons in Burgermenü
 - [x] Training sortieren nach Datum desc
 - [ ] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann

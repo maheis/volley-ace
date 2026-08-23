@@ -87,6 +87,7 @@ class TrainingSession {
     required this.id,
     required this.name,
     required this.teamId,
+    this.teamIds,
     required this.date,
     required this.location,
     required this.duration,
@@ -101,6 +102,7 @@ class TrainingSession {
   final int id;
   final String name;
   final int? teamId;
+  final List<int>? teamIds;
   final DateTime date;
   final String location;
   final String duration;
@@ -115,6 +117,7 @@ class TrainingSession {
         'id': id,
         'name': name,
         'teamId': teamId,
+        'teamIds': teamIds ?? (teamId == null ? <int>[] : <int>[teamId!]),
         'dateMillis': date.millisecondsSinceEpoch,
         'location': location,
         'duration': duration,
@@ -141,10 +144,18 @@ class TrainingSession {
 
     final storedExercises = data['exercises'];
 
+    final storedTeamIds = data['teamIds'];
+    final teamIds = storedTeamIds is List
+        ? storedTeamIds.whereType<num>().map((id) => id.toInt()).toList()
+        : data['teamId'] is num
+            ? <int>[(data['teamId'] as num).toInt()]
+            : <int>[];
+
     return TrainingSession(
       id: data['id'] is num ? (data['id'] as num).toInt() : 1,
       name: data['name'] is String ? data['name'] as String : 'Training',
       teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
+      teamIds: teamIds,
       date: data['dateMillis'] is num
           ? DateTime.fromMillisecondsSinceEpoch(
               (data['dateMillis'] as num).toInt(),
@@ -364,6 +375,7 @@ class _TrainingPageState extends State<TrainingPage> {
       id: _nextSessionId++,
       name: '${source.name} (Kopie)',
       teamId: source.teamId,
+      teamIds: source.teamIds,
       date: DateTime.now(),
       location: source.location,
       duration: source.duration,
@@ -464,6 +476,7 @@ class _TrainingPageState extends State<TrainingPage> {
         id: _nextSessionId++,
         name: source.name,
         teamId: source.teamId,
+        teamIds: source.teamIds,
         date: source.date,
         location: source.location,
         duration: source.duration,
@@ -543,20 +556,35 @@ class _TrainingPageState extends State<TrainingPage> {
   }
 
   Team? _teamFor(TrainingSession session) {
-    if (session.teamId == null) return null;
+    final teamIds = _teamIds(session);
+    if (teamIds.isEmpty) return null;
     return _teams.cast<Team?>().firstWhere(
-          (team) => team?.id == session.teamId,
+          (team) => team != null && teamIds.contains(team.id),
           orElse: () => null,
         );
+  }
+
+  List<int> _teamIds(TrainingSession session) =>
+      session.teamIds ??
+      (session.teamId == null ? <int>[] : <int>[session.teamId!]);
+
+  List<Team> _teamsFor(TrainingSession session) {
+    final teamIds = _teamIds(session).toSet();
+    return _teams.where((team) => teamIds.contains(team.id)).toList();
   }
 
   Future<void> _selectTeam(Team team) async {
     final session = _activeSession;
     if (session == null) return;
+    final teamIds = _teamIds(session).toSet();
+    if (!teamIds.add(team.id)) {
+      teamIds.remove(team.id);
+    }
     final updated = TrainingSession(
       id: session.id,
       name: session.name,
-      teamId: team.id,
+      teamId: teamIds.isEmpty ? null : teamIds.first,
+      teamIds: teamIds.toList(),
       date: session.date,
       location: session.location,
       duration: session.duration,
@@ -586,6 +614,7 @@ class _TrainingPageState extends State<TrainingPage> {
       id: session.id,
       name: session.name,
       teamId: session.teamId,
+      teamIds: session.teamIds,
       date: _trainingDate,
       location: session.location,
       duration: session.duration,
@@ -615,6 +644,7 @@ class _TrainingPageState extends State<TrainingPage> {
       id: session.id,
       name: name ?? session.name,
       teamId: session.teamId,
+      teamIds: session.teamIds,
       date: session.date,
       location: location ?? session.location,
       duration: duration ?? session.duration,
@@ -734,6 +764,7 @@ class _TrainingPageState extends State<TrainingPage> {
       id: session.id,
       name: session.name,
       teamId: session.teamId,
+      teamIds: session.teamIds,
       date: session.date,
       location: session.location,
       duration: session.duration,
@@ -837,6 +868,7 @@ class _TrainingPageState extends State<TrainingPage> {
         id: session.id,
         name: session.name,
         teamId: session.teamId,
+        teamIds: session.teamIds,
         date: session.date,
         location: session.location,
         duration: session.duration,
@@ -951,6 +983,7 @@ class _TrainingPageState extends State<TrainingPage> {
       id: session.id,
       name: session.name,
       teamId: session.teamId,
+      teamIds: session.teamIds,
       date: dateTime,
       location: session.location,
       duration: session.duration,
@@ -1238,9 +1271,9 @@ class _TrainingPageState extends State<TrainingPage> {
               Card(
                 child: ListTile(
                   leading: Icon(
-                    _teamFor(session)?.id == team.id
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
+                    _teamIds(session).contains(team.id)
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
                   ),
                   title:
                       Text(team.name.isEmpty ? 'Unbenanntes Team' : team.name),
@@ -1557,11 +1590,13 @@ class _TrainingPageState extends State<TrainingPage> {
       );
 
   Widget _buildMatrix(TrainingSession session) {
-    final team = _teamFor(session)!;
+    final teams = _teamsFor(session);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Teilnahme - ${team.name.isEmpty ? 'Team' : team.name}'),
+        title: Text(
+          'Teilnahme - ${teams.map((team) => team.name.isEmpty ? 'Team' : team.name).join(', ')}',
+        ),
         leading: IconButton(
           tooltip: 'Zurück',
           icon: const Icon(Icons.arrow_back),
@@ -1623,14 +1658,24 @@ class _TrainingPageState extends State<TrainingPage> {
                               ),
                               _tableText('Kommentar', bold: true),
                             ]),
-                            if (team.coaches.isNotEmpty) _sectionRow('Trainer'),
-                            for (final coach in team.coaches)
-                              _attendanceRow(
-                                  'coach:${coach.id}', coach.name, null),
-                            if (team.players.isNotEmpty) _sectionRow('Spieler'),
-                            for (final player in team.players)
-                              _attendanceRow('player:${player.id}', player.name,
-                                  player.number),
+                            if (teams.any((team) => team.coaches.isNotEmpty))
+                              _sectionRow('Trainer'),
+                            for (final team in teams)
+                              for (final coach in team.coaches)
+                                _attendanceRow(
+                                  'coach:${coach.id}',
+                                  coach.name,
+                                  null,
+                                ),
+                            if (teams.any((team) => team.players.isNotEmpty))
+                              _sectionRow('Spieler'),
+                            for (final team in teams)
+                              for (final player in team.players)
+                                _attendanceRow(
+                                  'player:${player.id}',
+                                  player.name,
+                                  player.number,
+                                ),
                             if (_guests.isNotEmpty) _sectionRow('Gäste'),
                             for (var index = 0; index < _guests.length; index++)
                               _attendanceRow(
