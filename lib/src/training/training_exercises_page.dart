@@ -465,70 +465,76 @@ class _TrainingExerciseEditPageState extends State<TrainingExerciseEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Übung bearbeiten')),
-      body: ListView(
+      body: Padding(
         padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _titleController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (_) {
-              setState(() {});
-              _notifyChanged();
-            },
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _type,
-            decoration: const InputDecoration(
-              labelText: 'Typ',
-              border: OutlineInputBorder(),
-            ),
-            items: TrainingExercise.types
-                .map((type) => DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _type = value);
+        child: Column(
+          children: [
+            TextField(
+              controller: _titleController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) {
+                setState(() {});
                 _notifyChanged();
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _goalController,
-            decoration: const InputDecoration(
-              labelText: 'Ziel',
-              border: OutlineInputBorder(),
+              },
             ),
-            onChanged: (_) => _notifyChanged(),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _durationController,
-            decoration: const InputDecoration(
-              labelText: 'Dauer',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _type,
+              decoration: const InputDecoration(
+                labelText: 'Typ',
+                border: OutlineInputBorder(),
+              ),
+              items: TrainingExercise.types
+                  .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _type = value);
+                  _notifyChanged();
+                }
+              },
             ),
-            onChanged: (_) => _notifyChanged(),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _descriptionController,
-            maxLines: 6,
-            decoration: const InputDecoration(
-              labelText: 'Beschreibung',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _goalController,
+              decoration: const InputDecoration(
+                labelText: 'Ziel',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => _notifyChanged(),
             ),
-            onChanged: (_) => _notifyChanged(),
-          ),
-        ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _durationController,
+              decoration: const InputDecoration(
+                labelText: 'Dauer',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => _notifyChanged(),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: TextField(
+                controller: _descriptionController,
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: const InputDecoration(
+                  labelText: 'Beschreibung',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => _notifyChanged(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
