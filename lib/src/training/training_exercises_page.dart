@@ -311,37 +311,96 @@ class _ExerciseListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.fitness_center_outlined),
-        title: Text(exercise.title),
-        subtitle: Text(
-          '${exercise.type} · ${exercise.duration}\n${exercise.goal}',
-        ),
-        isThreeLine: true,
-        onTap: onEdit,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Übung teilen',
-              icon: const Icon(Icons.share_outlined),
-              onPressed: onShare,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactActions = constraints.maxWidth < 1000;
+        return Card(
+          child: ListTile(
+            leading: const Icon(Icons.fitness_center_outlined),
+            title: Text(exercise.title),
+            subtitle: Text(
+              '${exercise.type} · ${exercise.duration}\n${exercise.goal}',
             ),
-            IconButton(
-              tooltip: 'Übung kopieren',
-              icon: const Icon(Icons.copy_outlined),
-              onPressed: onCopy,
+            isThreeLine: true,
+            onTap: onEdit,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (compactActions)
+                  PopupMenuButton<String>(
+                    tooltip: 'Weitere Aktionen',
+                    onSelected: (action) {
+                      switch (action) {
+                        case 'share':
+                          onShare();
+                        case 'copy':
+                          onCopy();
+                        case 'delete':
+                          onDelete();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'share',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.share_outlined,
+                                color: Theme.of(context).iconTheme.color),
+                            const SizedBox(width: 12),
+                            Text('Übung teilen'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'copy',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.copy_outlined,
+                                color: Theme.of(context).iconTheme.color),
+                            const SizedBox(width: 12),
+                            Text('Übung kopieren'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.delete_outline,
+                                color: Theme.of(context).iconTheme.color),
+                            const SizedBox(width: 12),
+                            Text('Übung löschen'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  IconButton(
+                    tooltip: 'Übung teilen',
+                    icon: const Icon(Icons.share_outlined),
+                    onPressed: onShare,
+                  ),
+                  IconButton(
+                    tooltip: 'Übung kopieren',
+                    icon: const Icon(Icons.copy_outlined),
+                    onPressed: onCopy,
+                  ),
+                  IconButton(
+                    tooltip: 'Übung löschen',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: onDelete,
+                  ),
+                ],
+                const Icon(Icons.chevron_right),
+              ],
             ),
-            IconButton(
-              tooltip: 'Übung löschen',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: onDelete,
-            ),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

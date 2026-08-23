@@ -1091,58 +1091,86 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: ListTile(
-                key: const ValueKey('new-game-button'),
-                leading: const CircleAvatar(
-                  child: Icon(Icons.add),
-                ),
-                title: const Text('Neues Spiel erfassen'),
-                subtitle: const Text('Spielinfos anlegen'),
-                onTap: _openNewMatchForm,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (matches.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text('Noch keine Spiele erfasst.'),
-                ),
-              )
-            else
-              for (final match in matches)
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compactActions = constraints.maxWidth < 1000;
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
                 Card(
-                  margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
-                    leading: _buildMatchIcon(context, match),
-                    title: Text(
-                      match.opponentTeam.isEmpty
-                          ? 'Neues Spiel'
-                          : 'vs. ${match.opponentTeam}',
+                    key: const ValueKey('new-game-button'),
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.add),
                     ),
-                    subtitle: Text(
-                      '${match.matchType} • ${_formatDateTime(match.matchDateTime)} • ${match.matchTag.isEmpty ? 'Ohne Stichwort' : match.matchTag} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Spiel teilen',
-                          icon: const Icon(Icons.share_outlined),
-                          onPressed: () =>
-                              AppBackupService.shareMatch(context, match),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    onTap: () => _showMatchDetail(match.id),
+                    title: const Text('Neues Spiel erfassen'),
+                    subtitle: const Text('Spielinfos anlegen'),
+                    onTap: _openNewMatchForm,
                   ),
                 ),
-          ],
+                const SizedBox(height: 12),
+                if (matches.isEmpty)
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Noch keine Spiele erfasst.'),
+                    ),
+                  )
+                else
+                  for (final match in matches)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: _buildMatchIcon(context, match),
+                        title: Text(
+                          match.opponentTeam.isEmpty
+                              ? 'Neues Spiel'
+                              : 'vs. ${match.opponentTeam}',
+                        ),
+                        subtitle: Text(
+                          '${match.matchType} • ${_formatDateTime(match.matchDateTime)} • ${match.matchTag.isEmpty ? 'Ohne Stichwort' : match.matchTag} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (compactActions)
+                              PopupMenuButton<String>(
+                                tooltip: 'Weitere Aktionen',
+                                onSelected: (_) =>
+                                    AppBackupService.shareMatch(context, match),
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'share',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.share_outlined,
+                                            color: Theme.of(context)
+                                                .iconTheme
+                                                .color),
+                                        const SizedBox(width: 12),
+                                        Text('Spiel teilen'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              IconButton(
+                                tooltip: 'Spiel teilen',
+                                icon: const Icon(Icons.share_outlined),
+                                onPressed: () =>
+                                    AppBackupService.shareMatch(context, match),
+                              ),
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                        onTap: () => _showMatchDetail(match.id),
+                      ),
+                    ),
+              ],
+            );
+          },
         ),
       ),
     );

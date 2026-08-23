@@ -1010,60 +1010,125 @@ class _TrainingPageState extends State<TrainingPage> {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: ListTile(
-                key: const ValueKey('new-training-content-button'),
-                leading: const CircleAvatar(
-                  child: Icon(Icons.add),
-                ),
-                title: const Text('Neues Training erfassen'),
-                subtitle: const Text('Trainingsinfos anlegen'),
-                onTap: _createTraining,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_sessions.isEmpty)
-              const Center(child: Text('Noch keine Trainings angelegt.'))
-            else
-              for (final session in _sessions)
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final compactActions = constraints.maxWidth < 1000;
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.event_note_outlined),
-                    title: Text(session.name),
-                    subtitle: Text(
-                      _sessionSummary(session),
+                    key: const ValueKey('new-training-content-button'),
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.add),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          key: ValueKey('share-training-${session.id}'),
-                          tooltip: 'Training teilen',
-                          icon: const Icon(Icons.share_outlined),
-                          onPressed: () => _shareTraining(session),
-                        ),
-                        IconButton(
-                          key: ValueKey('copy-training-${session.id}'),
-                          tooltip: 'Training kopieren',
-                          icon: const Icon(Icons.copy_outlined),
-                          onPressed: () => _copyTraining(session),
-                        ),
-                        IconButton(
-                          key: ValueKey('delete-training-${session.id}'),
-                          tooltip: 'Training löschen',
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _deleteTraining(session),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    onTap: () => _openTraining(session),
+                    title: const Text('Neues Training erfassen'),
+                    subtitle: const Text('Trainingsinfos anlegen'),
+                    onTap: _createTraining,
                   ),
                 ),
-          ],
+                const SizedBox(height: 16),
+                if (_sessions.isEmpty)
+                  const Center(child: Text('Noch keine Trainings angelegt.'))
+                else
+                  for (final session in _sessions)
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.event_note_outlined),
+                        title: Text(session.name),
+                        subtitle: Text(
+                          _sessionSummary(session),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (compactActions)
+                              PopupMenuButton<String>(
+                                tooltip: 'Weitere Aktionen',
+                                onSelected: (action) {
+                                  switch (action) {
+                                    case 'share':
+                                      _shareTraining(session);
+                                    case 'copy':
+                                      _copyTraining(session);
+                                    case 'delete':
+                                      _deleteTraining(session);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'share',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.share_outlined,
+                                            color: Theme.of(context)
+                                                .iconTheme
+                                                .color),
+                                        const SizedBox(width: 12),
+                                        Text('Training teilen'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'copy',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.copy_outlined,
+                                            color: Theme.of(context)
+                                                .iconTheme
+                                                .color),
+                                        const SizedBox(width: 12),
+                                        Text('Training kopieren'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.delete_outline,
+                                            color: Theme.of(context)
+                                                .iconTheme
+                                                .color),
+                                        const SizedBox(width: 12),
+                                        Text('Training löschen'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else ...[
+                              IconButton(
+                                key: ValueKey('share-training-${session.id}'),
+                                tooltip: 'Training teilen',
+                                icon: const Icon(Icons.share_outlined),
+                                onPressed: () => _shareTraining(session),
+                              ),
+                              IconButton(
+                                key: ValueKey('copy-training-${session.id}'),
+                                tooltip: 'Training kopieren',
+                                icon: const Icon(Icons.copy_outlined),
+                                onPressed: () => _copyTraining(session),
+                              ),
+                              IconButton(
+                                key: ValueKey('delete-training-${session.id}'),
+                                tooltip: 'Training löschen',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _deleteTraining(session),
+                              ),
+                            ],
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                        onTap: () => _openTraining(session),
+                      ),
+                    ),
+              ],
+            );
+          },
         ),
       );
 

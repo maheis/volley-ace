@@ -239,58 +239,124 @@ class _TrainingPlansPageState extends State<TrainingPlansPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.add)),
-                    title: const Text('Neuen Trainingsplan anlegen'),
-                    subtitle: const Text('Thema, Dauer und Übungen festlegen'),
-                    onTap: _createPlan,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (_plans.isEmpty)
-                  const Center(
-                      child: Text('Noch keine Trainingspläne angelegt.'))
-                else
-                  for (final plan in _plans)
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final compactActions = constraints.maxWidth < 1000;
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
                     Card(
                       child: ListTile(
-                        leading: const Icon(Icons.view_list_outlined),
-                        title: Text(plan.topic.isEmpty
-                            ? 'Neuer Trainingsplan'
-                            : plan.topic),
-                        subtitle: Text(
-                          '${plan.duration} · ${plan.exercises.length} Übungen\n${plan.description}',
-                        ),
-                        isThreeLine: true,
-                        onTap: () => _openEditor(plan),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Trainingsplan teilen',
-                              icon: const Icon(Icons.share_outlined),
-                              onPressed: () => _sharePlan(plan),
-                            ),
-                            IconButton(
-                              tooltip: 'Trainingsplan kopieren',
-                              icon: const Icon(Icons.copy_outlined),
-                              onPressed: () => _copyPlan(plan),
-                            ),
-                            IconButton(
-                              tooltip: 'Trainingsplan löschen',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _deletePlan(plan),
-                            ),
-                            const Icon(Icons.chevron_right),
-                          ],
-                        ),
+                        leading: const CircleAvatar(child: Icon(Icons.add)),
+                        title: const Text('Neuen Trainingsplan anlegen'),
+                        subtitle:
+                            const Text('Thema, Dauer und Übungen festlegen'),
+                        onTap: _createPlan,
                       ),
                     ),
-              ],
+                    const SizedBox(height: 16),
+                    if (_plans.isEmpty)
+                      const Center(
+                          child: Text('Noch keine Trainingspläne angelegt.'))
+                    else
+                      for (final plan in _plans)
+                        Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.view_list_outlined),
+                            title: Text(plan.topic.isEmpty
+                                ? 'Neuer Trainingsplan'
+                                : plan.topic),
+                            subtitle: Text(
+                              '${plan.duration} · ${plan.exercises.length} Übungen\n${plan.description}',
+                            ),
+                            isThreeLine: true,
+                            onTap: () => _openEditor(plan),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (compactActions)
+                                  PopupMenuButton<String>(
+                                    tooltip: 'Weitere Aktionen',
+                                    onSelected: (action) {
+                                      switch (action) {
+                                        case 'share':
+                                          _sharePlan(plan);
+                                        case 'copy':
+                                          _copyPlan(plan);
+                                        case 'delete':
+                                          _deletePlan(plan);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(
+                                        value: 'share',
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.share_outlined,
+                                                color: Theme.of(context)
+                                                    .iconTheme
+                                                    .color),
+                                            const SizedBox(width: 12),
+                                            Text('Trainingsplan teilen'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'copy',
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.copy_outlined,
+                                                color: Theme.of(context)
+                                                    .iconTheme
+                                                    .color),
+                                            const SizedBox(width: 12),
+                                            Text('Trainingsplan kopieren'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.delete_outline,
+                                                color: Theme.of(context)
+                                                    .iconTheme
+                                                    .color),
+                                            const SizedBox(width: 12),
+                                            Text('Trainingsplan löschen'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else ...[
+                                  IconButton(
+                                    tooltip: 'Trainingsplan teilen',
+                                    icon: const Icon(Icons.share_outlined),
+                                    onPressed: () => _sharePlan(plan),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Trainingsplan kopieren',
+                                    icon: const Icon(Icons.copy_outlined),
+                                    onPressed: () => _copyPlan(plan),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Trainingsplan löschen',
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () => _deletePlan(plan),
+                                  ),
+                                ],
+                                const Icon(Icons.chevron_right),
+                              ],
+                            ),
+                          ),
+                        ),
+                  ],
+                );
+              },
             ),
     );
   }

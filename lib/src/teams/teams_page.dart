@@ -711,50 +711,78 @@ class _TeamsPageState extends State<TeamsPage> {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: ListTile(
-                key: const ValueKey('new-team-button'),
-                leading: const CircleAvatar(child: Icon(Icons.add)),
-                title: const Text('Team anlegen'),
-                subtitle: const Text('Team, Spieler und Trainer erfassen'),
-                onTap: _createTeam,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_teams.isEmpty)
-              const Card(
-                  child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text('Noch keine Teams angelegt.')))
-            else
-              for (final team in _teams)
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final compactActions = constraints.maxWidth < 1000;
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
                 Card(
-                  margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
-                    leading: _buildTeamIcon(context, team),
-                    title: Text(
-                        team.name.isEmpty ? 'Unbenanntes Team' : team.name),
-                    subtitle: Text(
-                        '${team.players.length} Spieler • ${team.coaches.length} Trainer'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Team teilen',
-                          icon: const Icon(Icons.share_outlined),
-                          onPressed: () =>
-                              AppBackupService.shareTeam(context, team),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    onTap: () => _openTeam(team),
+                    key: const ValueKey('new-team-button'),
+                    leading: const CircleAvatar(child: Icon(Icons.add)),
+                    title: const Text('Team anlegen'),
+                    subtitle: const Text('Team, Spieler und Trainer erfassen'),
+                    onTap: _createTeam,
                   ),
                 ),
-          ],
+                const SizedBox(height: 12),
+                if (_teams.isEmpty)
+                  const Card(
+                      child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text('Noch keine Teams angelegt.')))
+                else
+                  for (final team in _teams)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: _buildTeamIcon(context, team),
+                        title: Text(
+                            team.name.isEmpty ? 'Unbenanntes Team' : team.name),
+                        subtitle: Text(
+                            '${team.players.length} Spieler • ${team.coaches.length} Trainer'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (compactActions)
+                              PopupMenuButton<String>(
+                                tooltip: 'Weitere Aktionen',
+                                onSelected: (_) =>
+                                    AppBackupService.shareTeam(context, team),
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'share',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.share_outlined,
+                                            color: Theme.of(context)
+                                                .iconTheme
+                                                .color),
+                                        const SizedBox(width: 12),
+                                        Text('Team teilen'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              IconButton(
+                                tooltip: 'Team teilen',
+                                icon: const Icon(Icons.share_outlined),
+                                onPressed: () =>
+                                    AppBackupService.shareTeam(context, team),
+                              ),
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                        onTap: () => _openTeam(team),
+                      ),
+                    ),
+              ],
+            );
+          },
         ),
       );
 
