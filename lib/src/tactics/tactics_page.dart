@@ -189,9 +189,18 @@ class _SavedTactic {
 }
 
 class TacticsPage extends StatefulWidget {
-  const TacticsPage({super.key, required this.database});
+  const TacticsPage({
+    super.key,
+    required this.database,
+    this.embeddedBoard,
+    this.onEmbeddedBoardChanged,
+    this.embeddedTitle,
+  });
 
   final Database database;
+  final Map<String, dynamic>? embeddedBoard;
+  final ValueChanged<Map<String, dynamic>>? onEmbeddedBoardChanged;
+  final String? embeddedTitle;
 
   @override
   State<TacticsPage> createState() => _TacticsPageState();
@@ -244,11 +253,13 @@ class _TacticsPageState extends State<TacticsPage> {
   @override
   void initState() {
     super.initState();
+    _showBoard = widget.embeddedBoard != null;
     _load();
   }
 
   Future<void> _load() async {
-    final data = await _store.record(_recordKey).get(widget.database);
+    final data = widget.embeddedBoard ??
+        await _store.record(_recordKey).get(widget.database);
     if (!mounted) return;
     final storedPoints = data?['points'];
     final storedLines = data?['lines'];
@@ -364,6 +375,16 @@ class _TacticsPageState extends State<TacticsPage> {
           pages: _pages.map((page) => page.copy()).toList(),
         );
       }
+    }
+    final payload = <String, dynamic>{
+      'pages': _pages.map((page) => page.toJson()).toList(),
+      'isRotated': _isRotated,
+      'showPointNumbers': _showPointNumbers,
+      'showPageNote': _showPageNote,
+    };
+    if (widget.embeddedBoard != null) {
+      widget.onEmbeddedBoardChanged?.call(payload);
+      return Future<void>.value();
     }
     return _store.record(_recordKey).put(
       widget.database,
@@ -908,7 +929,7 @@ class _TacticsPageState extends State<TacticsPage> {
       appBar: isAndroidLandscape
           ? null
           : AppBar(
-              title: const Text('Taktiktafel'),
+              title: Text(widget.embeddedTitle ?? 'Taktiktafel'),
               leading: IconButton(
                 tooltip: 'Zurück zur Taktikübersicht',
                 onPressed: _closeBoard,
@@ -1367,6 +1388,10 @@ class _TacticsPageState extends State<TacticsPage> {
   void _closeBoard() {
     _syncCurrentPage();
     _persist();
+    if (widget.embeddedBoard != null) {
+      Navigator.of(context).pop();
+      return;
+    }
     setState(() => _showBoard = false);
   }
 }

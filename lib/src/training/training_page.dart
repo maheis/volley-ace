@@ -39,6 +39,7 @@ class TrainingExercise {
     required this.duration,
     required this.description,
     required this.status,
+    this.tacticBoard,
   });
 
   final int id;
@@ -48,6 +49,7 @@ class TrainingExercise {
   final String duration;
   final String description;
   final String status;
+  final Map<String, dynamic>? tacticBoard;
 
   TrainingExercise copyWith({String? status}) => TrainingExercise(
         id: id,
@@ -57,6 +59,7 @@ class TrainingExercise {
         duration: duration,
         description: description,
         status: status ?? this.status,
+        tacticBoard: tacticBoard,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -67,6 +70,7 @@ class TrainingExercise {
         'duration': duration,
         'description': description,
         'status': status,
+        if (tacticBoard != null) 'tacticBoard': tacticBoard,
       };
 
   static TrainingExercise fromJson(Map<String, dynamic> data) =>
@@ -79,6 +83,9 @@ class TrainingExercise {
         description:
             data['description'] is String ? data['description'] as String : '',
         status: data['status'] is String ? data['status'] as String : '',
+        tacticBoard: data['tacticBoard'] is Map
+            ? Map<String, dynamic>.from(data['tacticBoard'] as Map)
+            : null,
       );
 }
 
@@ -393,6 +400,7 @@ class _TrainingPageState extends State<TrainingPage> {
               duration: exercise.duration,
               description: exercise.description,
               status: '',
+              tacticBoard: exercise.tacticBoard,
             ),
           )
           .toList(),
@@ -838,6 +846,10 @@ class _TrainingPageState extends State<TrainingPage> {
               .firstOrNull
               ?.status ??
           '',
+      tacticBoard: session.exercises
+          .where((exercise) => exercise.id == exerciseId)
+          .firstOrNull
+          ?.tacticBoard,
     );
     final exercises = session.exercises
         .map((entry) => entry.id == exerciseId ? updatedExercise : entry)

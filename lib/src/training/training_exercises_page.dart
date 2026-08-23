@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
+import '../tactics/tactics_page.dart';
 import 'training_page.dart';
 
 class TrainingExercisesPage extends StatefulWidget {
@@ -100,6 +101,7 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => TrainingExerciseEditPage(
+          database: widget.database,
           exercise: exercise,
           onChanged: _updateExercise,
         ),
@@ -147,6 +149,7 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
       duration: source.duration,
       description: source.description,
       status: '',
+      tacticBoard: source.tacticBoard,
     );
     setState(() => _exercises.add(copied));
     await _save();
@@ -200,6 +203,7 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
                 duration: exercise.duration,
                 description: exercise.description,
                 status: '',
+                tacticBoard: exercise.tacticBoard,
               ))
           .toList();
       if (imported.isEmpty) {
@@ -408,10 +412,12 @@ class _ExerciseListTile extends StatelessWidget {
 class TrainingExerciseEditPage extends StatefulWidget {
   const TrainingExerciseEditPage({
     super.key,
+    required this.database,
     required this.exercise,
     required this.onChanged,
   });
 
+  final Database database;
   final TrainingExercise exercise;
   final ValueChanged<TrainingExercise> onChanged;
 
@@ -426,6 +432,7 @@ class _TrainingExerciseEditPageState extends State<TrainingExerciseEditPage> {
   late final TextEditingController _durationController;
   late final TextEditingController _descriptionController;
   late String _type;
+  Map<String, dynamic>? _tacticBoard;
 
   @override
   void initState() {
@@ -436,6 +443,7 @@ class _TrainingExerciseEditPageState extends State<TrainingExerciseEditPage> {
     _durationController = TextEditingController(text: exercise.duration);
     _descriptionController = TextEditingController(text: exercise.description);
     _type = exercise.type;
+    _tacticBoard = exercise.tacticBoard;
   }
 
   @override
@@ -457,6 +465,23 @@ class _TrainingExerciseEditPageState extends State<TrainingExerciseEditPage> {
         duration: _durationController.text.trim(),
         description: _descriptionController.text.trim(),
         status: '',
+        tacticBoard: _tacticBoard,
+      ),
+    );
+  }
+
+  Future<void> _editTacticBoard() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TacticsPage(
+          database: widget.database,
+          embeddedBoard: _tacticBoard ?? <String, dynamic>{},
+          embeddedTitle: 'Taktiktafel für Übung',
+          onEmbeddedBoardChanged: (board) {
+            _tacticBoard = board;
+            _notifyChanged();
+          },
+        ),
       ),
     );
   }
@@ -464,7 +489,16 @@ class _TrainingExerciseEditPageState extends State<TrainingExerciseEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Übung bearbeiten')),
+      appBar: AppBar(
+        title: const Text('Übung bearbeiten'),
+        actions: [
+          IconButton(
+            tooltip: 'Taktiktafel bearbeiten',
+            icon: const Icon(Icons.sports_volleyball),
+            onPressed: _editTacticBoard,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

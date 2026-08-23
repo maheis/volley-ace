@@ -560,6 +560,7 @@ class _TrainingPlanEditPageState extends State<TrainingPlanEditPage> {
                   await Navigator.of(dialogContext).push<void>(
                     MaterialPageRoute<void>(
                       builder: (_) => TrainingExerciseEditPage(
+                        database: widget.database,
                         exercise: exercise,
                         onChanged: (updated) => updatedExercise = updated,
                       ),
