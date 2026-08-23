@@ -7,6 +7,7 @@ import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
 import '../teams/teams_page.dart';
+import '../tactics/tactics_page.dart';
 import '../theme/app_palette.dart';
 import 'training_plans_page.dart';
 
@@ -243,6 +244,9 @@ class _TrainingPageState extends State<TrainingPage> {
   final List<TrainingSession> _sessions = <TrainingSession>[];
   static final StoreRef<String, Map<String, dynamic>> _plansStore =
       StoreRef<String, Map<String, dynamic>>('training_plans');
+  static final StoreRef<String, Map<String, dynamic>> _exercisesStore =
+      StoreRef<String, Map<String, dynamic>>('training_exercises');
+  static const String _exercisesRecordKey = 'exercises';
   final List<TrainingPlan> _plans = <TrainingPlan>[];
   TrainingSession? _activeSession;
   String _activeView = 'list';
@@ -767,7 +771,25 @@ class _TrainingPageState extends State<TrainingPage> {
       ),
     );
     if (!mounted || !selectionMade) return;
-    final exercises = selected?.exercises ?? const <TrainingExercise>[];
+    final exerciseData =
+        await _exercisesStore.record(_exercisesRecordKey).get(widget.database);
+    final storedExercises = exerciseData?['exercises'];
+    final originalExercises = storedExercises is List
+        ? <int, TrainingExercise>{
+            for (final item in storedExercises.whereType<Map>())
+              (TrainingExercise.fromJson(Map<String, dynamic>.from(item))).id:
+                  TrainingExercise.fromJson(Map<String, dynamic>.from(item)),
+          }
+        : const <int, TrainingExercise>{};
+    final exercises = selected?.exercises
+            .map((exercise) =>
+                originalExercises[exercise.id] ??
+                originalExercises.values
+                    .where((original) => original.title == exercise.title)
+                    .firstOrNull ??
+                exercise)
+            .toList() ??
+        const <TrainingExercise>[];
     final updated = TrainingSession(
       id: session.id,
       name: session.name,
@@ -834,6 +856,9 @@ class _TrainingPageState extends State<TrainingPage> {
     final session = _activeSession;
     final exerciseId = _editingExerciseId;
     if (session == null || exerciseId == null) return;
+    final originalExercise = session.exercises
+        .where((exercise) => exercise.id == exerciseId)
+        .firstOrNull;
     final updatedExercise = TrainingExercise(
       id: exerciseId,
       title: _exerciseTitleController.text.trim(),
@@ -859,6 +884,92 @@ class _TrainingPageState extends State<TrainingPage> {
       _replaceSession(updated);
       _activeSession = updated;
     });
+    unawaited(_updateOriginalExercise(updatedExercise, originalExercise));
+    unawaited(_persist());
+  }
+
+  Future<void> _updateOriginalExercise(
+    TrainingExercise updatedExercise,
+    TrainingExercise? originalExercise,
+  ) async {
+    final data =
+        await _exercisesStore.record(_exercisesRecordKey).get(widget.database);
+    final stored = data?['exercises'];
+    if (stored is! List) return;
+    final exercises = stored
+        .whereType<Map>()
+        .map((item) =>
+            TrainingExercise.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+    var index =
+        exercises.indexWhere((exercise) => exercise.id == updatedExercise.id);
+    if (index == -1 && originalExercise != null) {
+      index = exercises.indexWhere(
+        (exercise) => exercise.title == originalExercise.title,
+      );
+    }
+    if (index == -1) return;
+    exercises[index] = updatedExercise;
+    await _exercisesStore.record(_exercisesRecordKey).put(widget.database, {
+      'exercises': exercises.map((exercise) => exercise.toJson()).toList(),
+    });
+    final plansData = await _plansStore.record('plans').get(widget.database);
+    final storedPlans = plansData?['plans'];
+    if (storedPlans is! List) return;
+    final updatedPlans = storedPlans.whereType<Map>().map((planData) {
+      final plan = TrainingPlan.fromJson(Map<String, dynamic>.from(planData));
+      return TrainingPlan(
+        id: plan.id,
+        topic: plan.topic,
+        duration: plan.duration,
+        description: plan.description,
+        exercises: plan.exercises
+            .map((exercise) =>
+                exercise.id == updatedExercise.id ? updatedExercise : exercise)
+            .toList(),
+      ).toJson();
+    }).toList();
+    await _plansStore.record('plans').put(widget.database, {
+      'plans': updatedPlans,
+    });
+  }
+
+  Future<void> _openExerciseTacticBoard(TrainingExercise exercise) async {
+    Map<String, dynamic>? updatedBoard;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TacticsPage(
+          database: widget.database,
+          embeddedBoard: exercise.tacticBoard ?? <String, dynamic>{},
+          embeddedTitle: 'Taktiktafel für Übung',
+          onEmbeddedBoardChanged: (board) => updatedBoard = board,
+        ),
+      ),
+    );
+    if (!mounted || updatedBoard == null) return;
+    final updatedExercise = TrainingExercise(
+      id: exercise.id,
+      title: exercise.title,
+      type: exercise.type,
+      goal: exercise.goal,
+      duration: exercise.duration,
+      description: exercise.description,
+      status: exercise.status,
+      tacticBoard: updatedBoard,
+    );
+    final session = _activeSession;
+    if (session == null) return;
+    final updated = _withExercises(
+      session,
+      session.exercises
+          .map((entry) => entry.id == exercise.id ? updatedExercise : entry)
+          .toList(),
+    );
+    setState(() {
+      _replaceSession(updated);
+      _activeSession = updated;
+    });
+    unawaited(_updateOriginalExercise(updatedExercise, exercise));
     unawaited(_persist());
   }
 
@@ -1449,80 +1560,85 @@ class _TrainingPageState extends State<TrainingPage> {
             onPressed: () => _openPlan(session),
           ),
         ),
-        body: ListView(
+        body: Padding(
           padding: const EdgeInsets.all(16),
-          children: [
-            TextField(
-              key: const ValueKey('training-exercise-title-input'),
-              controller: _exerciseTitleController,
-              autofocus: true,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Übung',
-                border: OutlineInputBorder(),
+          child: Column(
+            children: [
+              TextField(
+                key: const ValueKey('training-exercise-title-input'),
+                controller: _exerciseTitleController,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Übung',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => _updateExerciseFromFields(),
               ),
-              onChanged: (_) => _updateExerciseFromFields(),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              key: const ValueKey('training-exercise-type-input'),
-              initialValue: _exerciseType,
-              decoration: const InputDecoration(
-                labelText: 'Typ',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('training-exercise-type-input'),
+                initialValue: _exerciseType,
+                decoration: const InputDecoration(
+                  labelText: 'Typ',
+                  border: OutlineInputBorder(),
+                ),
+                items: TrainingExercise.types
+                    .map(
+                      (type) => DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (type) {
+                  if (type != null) {
+                    setState(() => _exerciseType = type);
+                    _updateExerciseFromFields();
+                  }
+                },
               ),
-              items: TrainingExercise.types
-                  .map(
-                    (type) => DropdownMenuItem<String>(
-                      value: type,
-                      child: Text(type),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (type) {
-                if (type != null) {
-                  setState(() => _exerciseType = type);
-                  _updateExerciseFromFields();
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('training-exercise-goal-input'),
-              controller: _exerciseGoalController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Ziel',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('training-exercise-goal-input'),
+                controller: _exerciseGoalController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Ziel',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => _updateExerciseFromFields(),
               ),
-              onChanged: (_) => _updateExerciseFromFields(),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('training-exercise-duration-input'),
-              controller: _exerciseDurationController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Dauer',
-                hintText: 'z. B. 10 Minuten',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('training-exercise-duration-input'),
+                controller: _exerciseDurationController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Dauer',
+                  hintText: 'z. B. 10 Minuten',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => _updateExerciseFromFields(),
               ),
-              onChanged: (_) => _updateExerciseFromFields(),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('training-exercise-description-input'),
-              controller: _exerciseDescriptionController,
-              minLines: 4,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Beschreibung',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+              const SizedBox(height: 12),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('training-exercise-description-input'),
+                  controller: _exerciseDescriptionController,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: const InputDecoration(
+                    labelText: 'Beschreibung',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  onChanged: (_) => _updateExerciseFromFields(),
+                ),
               ),
-              onChanged: (_) => _updateExerciseFromFields(),
-            ),
-          ],
+            ],
+          ),
         ),
       );
 
@@ -1553,6 +1669,12 @@ class _TrainingPageState extends State<TrainingPage> {
                   tooltip: 'Übung bearbeiten',
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => _openEditExercise(exercise),
+                ),
+                IconButton(
+                  key: ValueKey('tactic-training-exercise-${exercise.id}'),
+                  tooltip: 'Taktiktafel öffnen',
+                  icon: const Icon(Icons.sports_volleyball),
+                  onPressed: () => _openExerciseTacticBoard(exercise),
                 ),
                 IconButton(
                   tooltip: isSkipped
