@@ -250,6 +250,15 @@ class _TrainingPageState extends State<TrainingPage> {
   final ScrollController _attendanceHorizontalController = ScrollController();
   bool _isLoaded = false;
 
+  List<TrainingSession> get _sortedSessions => List<TrainingSession>.of(
+        _sessions,
+      )..sort((first, second) {
+          final dateComparison = second.date.compareTo(first.date);
+          return dateComparison != 0
+              ? dateComparison
+              : second.id.compareTo(first.id);
+        });
+
   @override
   void initState() {
     super.initState();
@@ -1031,7 +1040,7 @@ class _TrainingPageState extends State<TrainingPage> {
                 if (_sessions.isEmpty)
                   const Center(child: Text('Noch keine Trainings angelegt.'))
                 else
-                  for (final session in _sessions)
+                  for (final session in _sortedSessions)
                     Card(
                       child: ListTile(
                         leading: const Icon(Icons.event_note_outlined),
