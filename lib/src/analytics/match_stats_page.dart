@@ -351,9 +351,14 @@ class MatchStatsRepository {
 }
 
 class MatchStatsPage extends StatefulWidget {
-  const MatchStatsPage({super.key, required this.database});
+  const MatchStatsPage({
+    super.key,
+    required this.database,
+    this.initialMatchId,
+  });
 
   final Database database;
+  final int? initialMatchId;
 
   @override
   State<MatchStatsPage> createState() => _MatchStatsPageState();
@@ -460,6 +465,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           : _matches.map((match) => match.id).reduce((a, b) => a > b ? a : b) +
               1;
     });
+    if (widget.initialMatchId != null &&
+        _matches.any((match) => match.id == widget.initialMatchId)) {
+      _showMatchDetail(widget.initialMatchId!);
+    }
   }
 
   Future<void> _persist() async {

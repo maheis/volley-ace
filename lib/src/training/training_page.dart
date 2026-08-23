@@ -206,9 +206,11 @@ class TrainingRepository {
 }
 
 class TrainingPage extends StatefulWidget {
-  const TrainingPage({super.key, required this.database});
+  const TrainingPage(
+      {super.key, required this.database, this.initialSessionId});
 
   final Database database;
+  final int? initialSessionId;
 
   @override
   State<TrainingPage> createState() => _TrainingPageState();
@@ -305,6 +307,15 @@ class _TrainingPageState extends State<TrainingPage> {
               1;
       _isLoaded = true;
     });
+    final initialSession = widget.initialSessionId == null
+        ? null
+        : _sessions.cast<TrainingSession?>().firstWhere(
+              (session) => session?.id == widget.initialSessionId,
+              orElse: () => null,
+            );
+    if (initialSession != null) {
+      _openPlan(initialSession);
+    }
   }
 
   Future<void> _loadPlans() async {
@@ -1147,7 +1158,7 @@ class _TrainingPageState extends State<TrainingPage> {
           leading: IconButton(
             tooltip: 'Zurück',
             icon: const Icon(Icons.arrow_back),
-            onPressed: _closeTraining,
+            onPressed: () => _openTraining(session),
           ),
         ),
         body: ListView(

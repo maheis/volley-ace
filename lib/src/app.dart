@@ -69,6 +69,7 @@ class VolleyAceApp extends StatelessWidget {
           },
           home: Builder(
             builder: (homeContext) => HomePage(
+              database: database,
               onOpenSettings: () => _openSettings(homeContext, settings),
               onOpenArcade: () => _openArcade(homeContext),
               onOpenScoreboard: () => _openScoreboard(homeContext),
@@ -76,6 +77,10 @@ class VolleyAceApp extends StatelessWidget {
               onOpenTeams: () => _openTeams(homeContext),
               onOpenTactics: () => _openTactics(homeContext),
               onOpenTraining: () => _openTrainingMenu(homeContext),
+              onOpenTrainingSession: (session) =>
+                  _openTrainingSession(homeContext, session),
+              onOpenMatchSession: (match) =>
+                  _openMatchSession(homeContext, match.id),
             ),
           ),
         );
@@ -95,6 +100,17 @@ class VolleyAceApp extends StatelessWidget {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => MatchStatsPage(database: database),
+      ),
+    );
+  }
+
+  Future<void> _openMatchSession(BuildContext context, int matchId) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MatchStatsPage(
+          database: database,
+          initialMatchId: matchId,
+        ),
       ),
     );
   }
@@ -134,6 +150,20 @@ class VolleyAceApp extends StatelessWidget {
   Future<void> _openTraining(BuildContext context) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => TrainingPage(database: database)),
+    );
+  }
+
+  Future<void> _openTrainingSession(
+    BuildContext context,
+    TrainingSession session,
+  ) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TrainingPage(
+          database: database,
+          initialSessionId: session.id,
+        ),
+      ),
     );
   }
 
