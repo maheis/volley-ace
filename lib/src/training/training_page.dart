@@ -105,6 +105,7 @@ class TrainingSession {
     required this.comments,
     this.guests = const <String>[],
     this.trainingPlanId,
+    this.trainingPlanIds,
   });
 
   final int id;
@@ -120,6 +121,7 @@ class TrainingSession {
   final Map<String, String> comments;
   final List<String> guests;
   final int? trainingPlanId;
+  final List<int>? trainingPlanIds;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -135,6 +137,8 @@ class TrainingSession {
         'comments': comments,
         'guests': guests,
         'trainingPlanId': trainingPlanId,
+        'trainingPlanIds': trainingPlanIds ??
+            (trainingPlanId == null ? <int>[] : <int>[trainingPlanId!]),
       };
 
   static TrainingSession fromJson(Map<String, dynamic> data) {
@@ -157,6 +161,13 @@ class TrainingSession {
         ? storedTeamIds.whereType<num>().map((id) => id.toInt()).toList()
         : data['teamId'] is num
             ? <int>[(data['teamId'] as num).toInt()]
+            : <int>[];
+
+    final storedPlanIds = data['trainingPlanIds'];
+    final planIds = storedPlanIds is List
+        ? storedPlanIds.whereType<num>().map((id) => id.toInt()).toList()
+        : data['trainingPlanId'] is num
+            ? <int>[(data['trainingPlanId'] as num).toInt()]
             : <int>[];
 
     return TrainingSession(
@@ -188,6 +199,7 @@ class TrainingSession {
       trainingPlanId: data['trainingPlanId'] is num
           ? (data['trainingPlanId'] as num).toInt()
           : null,
+      trainingPlanIds: planIds,
     );
   }
 }
@@ -409,6 +421,7 @@ class _TrainingPageState extends State<TrainingPage> {
           )
           .toList(),
       trainingPlanId: source.trainingPlanId,
+      trainingPlanIds: source.trainingPlanIds,
     );
     setState(() {
       _sessions.add(copied);
@@ -498,6 +511,7 @@ class _TrainingPageState extends State<TrainingPage> {
         guests: source.guests,
         exercises: source.exercises,
         trainingPlanId: source.trainingPlanId,
+        trainingPlanIds: source.trainingPlanIds,
       );
 
   void _openTraining(TrainingSession session) {
@@ -606,6 +620,7 @@ class _TrainingPageState extends State<TrainingPage> {
       guests: session.guests,
       exercises: session.exercises,
       trainingPlanId: session.trainingPlanId,
+      trainingPlanIds: session.trainingPlanIds,
     );
     setState(() {
       _replaceSession(updated);
@@ -636,6 +651,7 @@ class _TrainingPageState extends State<TrainingPage> {
       guests: _guests,
       exercises: session.exercises,
       trainingPlanId: session.trainingPlanId,
+      trainingPlanIds: session.trainingPlanIds,
     );
     setState(() {
       _replaceSession(updated);
@@ -666,6 +682,7 @@ class _TrainingPageState extends State<TrainingPage> {
       guests: session.guests,
       exercises: session.exercises,
       trainingPlanId: session.trainingPlanId,
+      trainingPlanIds: session.trainingPlanIds,
     );
     _replaceSession(updated);
     _activeSession = updated;
@@ -677,37 +694,66 @@ class _TrainingPageState extends State<TrainingPage> {
         _activeView = 'plan';
       });
 
-  Future<void> _selectTrainingPlan(TrainingSession session) async {
-    if (_plans.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Noch keine Trainingspläne angelegt.')),
-      );
-      return;
-    }
+  Future<void> _openCatalogSelection(TrainingSession session) async {
+    final exerciseData =
+        await _exercisesStore.record(_exercisesRecordKey).get(widget.database);
+    final storedExercises = exerciseData?['exercises'];
+    final catalogExercises = storedExercises is List
+        ? storedExercises
+            .whereType<Map>()
+            .map((item) =>
+                TrainingExercise.fromJson(Map<String, dynamic>.from(item)))
+            .toList()
+        : <TrainingExercise>[];
+    if (!mounted) return;
+    var mode = 'plan';
     var nameFilter = '';
-    var topicFilter = '';
-    var selectionMade = false;
-    final selected = await showDialog<TrainingPlan>(
+    var typeFilter = '';
+    final selectedPlanIds = <int>{};
+    final selectedExerciseIds = <int>{};
+    final result = await showDialog<
+        ({List<TrainingPlan> plans, List<TrainingExercise> exercises})>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
-          final filteredPlans = _plans.where((plan) {
-            final name = plan.topic.toLowerCase();
-            final topic = plan.description.toLowerCase();
-            return (nameFilter.isEmpty ||
-                    name.contains(nameFilter.toLowerCase())) &&
-                (topicFilter.isEmpty ||
-                    topic.contains(topicFilter.toLowerCase()));
-          }).toList();
+          final normalizedName = nameFilter.toLowerCase();
+          final filteredPlans = _plans
+              .where((plan) =>
+                  normalizedName.isEmpty ||
+                  plan.topic.toLowerCase().contains(normalizedName))
+              .toList();
+          final filteredExercises = catalogExercises
+              .where((exercise) =>
+                  (normalizedName.isEmpty ||
+                      exercise.title.toLowerCase().contains(normalizedName)) &&
+                  (typeFilter.isEmpty || exercise.type == typeFilter))
+              .toList();
 
           return AlertDialog(
-            title: const Text('Trainingsplan auswählen'),
+            title: const Text('Zum Training hinzufügen'),
             content: SizedBox(
               width: 480,
-              height: 440,
+              height: 520,
               child: Column(
                 children: [
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment<String>(
+                        value: 'plan',
+                        label: Text('Trainingsplan'),
+                        icon: Icon(Icons.view_list_outlined),
+                      ),
+                      ButtonSegment<String>(
+                        value: 'exercise',
+                        label: Text('Übung'),
+                        icon: Icon(Icons.fitness_center_outlined),
+                      ),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (selection) =>
+                        setDialogState(() => mode = selection.first),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     decoration: const InputDecoration(
                       labelText: 'Nach Name filtern',
@@ -716,35 +762,78 @@ class _TrainingPageState extends State<TrainingPage> {
                     onChanged: (value) =>
                         setDialogState(() => nameFilter = value.trim()),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Nach Thema filtern',
-                      prefixIcon: Icon(Icons.topic_outlined),
+                  if (mode == 'exercise') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: typeFilter.isEmpty ? null : typeFilter,
+                      decoration: const InputDecoration(
+                        labelText: 'Typ filtern',
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('Alle Typen'),
+                        ),
+                        ...TrainingExercise.types.map(
+                          (type) => DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => typeFilter = value ?? ''),
                     ),
-                    onChanged: (value) =>
-                        setDialogState(() => topicFilter = value.trim()),
-                  ),
+                  ],
                   const SizedBox(height: 12),
                   Expanded(
-                    child: filteredPlans.isEmpty
-                        ? const Center(
-                            child: Text('Keine Trainingspläne gefunden.'))
+                    child: (mode == 'plan'
+                            ? filteredPlans.isEmpty
+                            : filteredExercises.isEmpty)
+                        ? const Center(child: Text('Keine Einträge gefunden.'))
                         : ListView.builder(
-                            itemCount: filteredPlans.length,
+                            itemCount: mode == 'plan'
+                                ? filteredPlans.length
+                                : filteredExercises.length,
                             itemBuilder: (context, index) {
-                              final plan = filteredPlans[index];
-                              return ListTile(
-                                leading: const Icon(Icons.view_list_outlined),
-                                title: Text(plan.topic.isEmpty
-                                    ? 'Trainingsplan'
-                                    : plan.topic),
-                                subtitle:
-                                    Text('${plan.exercises.length} Übungen'),
-                                onTap: () {
-                                  selectionMade = true;
-                                  Navigator.pop(dialogContext, plan);
-                                },
+                              if (mode == 'plan') {
+                                final plan = filteredPlans[index];
+                                return CheckboxListTile(
+                                  value: selectedPlanIds.contains(plan.id),
+                                  secondary:
+                                      const Icon(Icons.view_list_outlined),
+                                  title: Text(plan.topic.isEmpty
+                                      ? 'Trainingsplan'
+                                      : plan.topic),
+                                  subtitle:
+                                      Text('${plan.exercises.length} Übungen'),
+                                  onChanged: (selected) => setDialogState(() {
+                                    if (selected == true) {
+                                      selectedPlanIds.add(plan.id);
+                                    } else {
+                                      selectedPlanIds.remove(plan.id);
+                                    }
+                                  }),
+                                );
+                              }
+                              final exercise = filteredExercises[index];
+                              return CheckboxListTile(
+                                value:
+                                    selectedExerciseIds.contains(exercise.id),
+                                secondary:
+                                    const Icon(Icons.fitness_center_outlined),
+                                title: Text(exercise.title.isEmpty
+                                    ? 'Übung'
+                                    : exercise.title),
+                                subtitle: Text(exercise.type),
+                                onChanged: (selected) => setDialogState(() {
+                                  if (selected == true) {
+                                    selectedExerciseIds.add(exercise.id);
+                                  } else {
+                                    selectedExerciseIds.remove(exercise.id);
+                                  }
+                                }),
                               );
                             },
                           ),
@@ -753,27 +842,31 @@ class _TrainingPageState extends State<TrainingPage> {
               ),
             ),
             actions: [
-              if (session.trainingPlanId != null)
-                TextButton(
-                  onPressed: () {
-                    selectionMade = true;
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text('Keinen Trainingsplan verwenden'),
-                ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Abbrechen'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(
+                  dialogContext,
+                  (
+                    plans: _plans
+                        .where((plan) => selectedPlanIds.contains(plan.id))
+                        .toList(),
+                    exercises: catalogExercises
+                        .where((exercise) =>
+                            selectedExerciseIds.contains(exercise.id))
+                        .toList(),
+                  ),
+                ),
+                child: const Text('Hinzufügen'),
               ),
             ],
           );
         },
       ),
     );
-    if (!mounted || !selectionMade) return;
-    final exerciseData =
-        await _exercisesStore.record(_exercisesRecordKey).get(widget.database);
-    final storedExercises = exerciseData?['exercises'];
+    if (!mounted || result == null) return;
     final originalExercises = storedExercises is List
         ? <int, TrainingExercise>{
             for (final item in storedExercises.whereType<Map>())
@@ -781,15 +874,31 @@ class _TrainingPageState extends State<TrainingPage> {
                   TrainingExercise.fromJson(Map<String, dynamic>.from(item)),
           }
         : const <int, TrainingExercise>{};
-    final exercises = selected?.exercises
-            .map((exercise) =>
-                originalExercises[exercise.id] ??
-                originalExercises.values
-                    .where((original) => original.title == exercise.title)
-                    .firstOrNull ??
-                exercise)
-            .toList() ??
-        const <TrainingExercise>[];
+    final exercisesToAdd = [
+      ...result.plans.expand((plan) => plan.exercises),
+      ...result.exercises,
+    ].map((exercise) =>
+        originalExercises[exercise.id] ??
+        originalExercises.values
+            .where((original) => original.title == exercise.title)
+            .firstOrNull ??
+        exercise);
+    final exercises = [...session.exercises];
+    for (final exercise in exercisesToAdd) {
+      if (exercises.every((existing) => existing.id != exercise.id)) {
+        exercises.add(exercise);
+      }
+    }
+    if (exercises.length == session.exercises.length &&
+        result.plans.isEmpty &&
+        result.exercises.isEmpty) {
+      return;
+    }
+    final planIds = <int>{
+      ...?session.trainingPlanIds,
+      if (session.trainingPlanId != null) session.trainingPlanId!,
+      ...result.plans.map((plan) => plan.id),
+    }.toList();
     final updated = TrainingSession(
       id: session.id,
       name: session.name,
@@ -803,7 +912,8 @@ class _TrainingPageState extends State<TrainingPage> {
       comments: session.comments,
       guests: session.guests,
       exercises: exercises,
-      trainingPlanId: selected?.id,
+      trainingPlanId: planIds.isEmpty ? null : planIds.first,
+      trainingPlanIds: planIds,
     );
     setState(() {
       _replaceSession(updated);
@@ -1001,6 +1111,7 @@ class _TrainingPageState extends State<TrainingPage> {
         guests: session.guests,
         exercises: exercises,
         trainingPlanId: session.trainingPlanId,
+        trainingPlanIds: session.trainingPlanIds,
       );
 
   Future<void> _setExerciseStatus(
@@ -1116,6 +1227,7 @@ class _TrainingPageState extends State<TrainingPage> {
       guests: session.guests,
       exercises: session.exercises,
       trainingPlanId: session.trainingPlanId,
+      trainingPlanIds: session.trainingPlanIds,
     );
     setState(() {
       _trainingDate = dateTime;
@@ -1505,19 +1617,23 @@ class _TrainingPageState extends State<TrainingPage> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.view_list_outlined),
-                title: const Text('Trainingsplan auswählen'),
-                subtitle: Text(
-                  session.trainingPlanId == null
-                      ? 'Kein Trainingsplan ausgewählt'
-                      : (_plans
-                              .where(
-                                  (plan) => plan.id == session.trainingPlanId)
-                              .firstOrNull
-                              ?.topic ??
-                          'Trainingsplan nicht gefunden'),
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _selectTrainingPlan(session),
+                title: const Text('Aus Katalog hinzufügen'),
+                subtitle: Text(() {
+                  final selectedIds = <int>{
+                    ...?session.trainingPlanIds,
+                    if (session.trainingPlanId != null) session.trainingPlanId!,
+                  };
+                  final names = _plans
+                      .where((plan) => selectedIds.contains(plan.id))
+                      .map((plan) =>
+                          plan.topic.isEmpty ? 'Trainingsplan' : plan.topic)
+                      .toList();
+                  return names.isEmpty
+                      ? 'Trainingsplan oder Übung auswählen'
+                      : '${names.length} Trainingspläne ausgewählt';
+                }()),
+                trailing: const Icon(Icons.add_circle_outline),
+                onTap: () => _openCatalogSelection(session),
               ),
             ),
             const SizedBox(height: 12),

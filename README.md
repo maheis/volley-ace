@@ -244,5 +244,5 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Im Training mehrere Mannschaften hinzufügen (wenn U13 und U15 z.B. zusammen trainieren)
 - [x] Buttons in Burgermenü
 - [x] Training sortieren nach Datum desc
-- [ ] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann
-- [ ] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
+- [ ] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann, welche Eindeutigkeit?
+- [x] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
