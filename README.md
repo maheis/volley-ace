@@ -122,7 +122,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Punkt / Fehler
           Zwei Buttons Grün und Rot die je für Punkt / Fehler stehen und dann zur Abfrage des Spielers scrollen.
           Spielstand / Uhrzeit / Stopuhr
-          - [ ] Auszeiten pro Team anzeigen
+          - [x] Auszeiten pro Team anzeigen
           - [ ] Spielerwechsel pro Team anzeigen
           - [ ] Rotation für unsere Spieler anzeigen
     - [x] Wertung
@@ -247,3 +247,5 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann
 - [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [x] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
+- [ ] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
+- [ ] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!

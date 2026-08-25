@@ -881,6 +881,16 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Future<void> _recordTimeout(MatchGame match) async {
+    final teamTimeouts = match.events
+        .where(
+            (event) => event.kind == _timeoutKind && event.category == 'Team')
+        .length;
+    final opponentTimeouts = match.events
+        .where(
+            (event) => event.kind == _timeoutKind && event.category == 'Gegner')
+        .length;
+    final teamAvailable = teamTimeouts < 2;
+    final opponentAvailable = opponentTimeouts < 2;
     final side = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -893,12 +903,24 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop('Team'),
-            child: const Text('Team'),
+            onPressed: teamAvailable
+                ? () => Navigator.of(dialogContext).pop('Team')
+                : null,
+            style: FilledButton.styleFrom(
+              disabledForegroundColor: Colors.red,
+              disabledBackgroundColor: Colors.grey.shade300,
+            ),
+            child: Text('Team ($teamTimeouts/2)'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop('Gegner'),
-            child: const Text('Gegner'),
+            onPressed: opponentAvailable
+                ? () => Navigator.of(dialogContext).pop('Gegner')
+                : null,
+            style: FilledButton.styleFrom(
+              disabledForegroundColor: Colors.red,
+              disabledBackgroundColor: Colors.grey.shade300,
+            ),
+            child: Text('Gegner ($opponentTimeouts/2)'),
           ),
         ],
       ),
@@ -1630,6 +1652,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Widget _buildScoringView(MatchGame match) {
     final sets = _computeSets(match);
+    final teamTimeouts = match.events
+        .where(
+            (event) => event.kind == _timeoutKind && event.category == 'Team')
+        .length;
+    final opponentTimeouts = match.events
+        .where(
+            (event) => event.kind == _timeoutKind && event.category == 'Gegner')
+        .length;
+    final timeoutsAvailable = teamTimeouts < 2 || opponentTimeouts < 2;
     final scoreSets = sets.isEmpty
         ? const <_SetScore>[
             _SetScore(us: 0, opponent: 0, isFinished: false),
@@ -1725,10 +1756,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 height: 92,
                 child: FilledButton.icon(
                   key: const ValueKey('record-timeout-button'),
-                  onPressed: () => _recordTimeout(match),
+                  onPressed:
+                      timeoutsAvailable ? () => _recordTimeout(match) : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFfff176),
                     foregroundColor: Colors.black,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledForegroundColor: Colors.red,
                     textStyle: TextStyle(
                       fontFamily:
                           Theme.of(context).textTheme.labelLarge?.fontFamily,
@@ -1740,7 +1774,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                     ),
                   ),
                   icon: const Icon(Icons.schedule, size: 32),
-                  label: const Text('Auszeit'),
+                  label: Text(
+                    'Auszeit\n$teamTimeouts:$opponentTimeouts',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
