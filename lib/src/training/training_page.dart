@@ -252,7 +252,10 @@ class _TrainingPageState extends State<TrainingPage> {
       TrainingRepository(widget.database);
   late final TeamsRepository _teamsRepository =
       TeamsRepository(widget.database);
+  late final PeopleRepository _peopleRepository =
+      PeopleRepository(widget.database);
   final List<Team> _teams = <Team>[];
+  final List<LocalPerson> _people = <LocalPerson>[];
   final List<TrainingSession> _sessions = <TrainingSession>[];
   static final StoreRef<String, Map<String, dynamic>> _plansStore =
       StoreRef<String, Map<String, dynamic>>('training_plans');
@@ -322,10 +325,12 @@ class _TrainingPageState extends State<TrainingPage> {
     final results = await Future.wait<Object?>([
       _teamsRepository.load(),
       _repository.load(),
+      _peopleRepository.load(),
     ]);
     if (!mounted) return;
     final teams = results[0] as List<Team>;
     final sessions = results[1] as List<TrainingSession>;
+    final people = results[2] as List<LocalPerson>;
     setState(() {
       _teams
         ..clear()
@@ -333,6 +338,9 @@ class _TrainingPageState extends State<TrainingPage> {
       _sessions
         ..clear()
         ..addAll(sessions);
+      _people
+        ..clear()
+        ..addAll(people);
       _nextSessionId = _sessions.isEmpty
           ? 1
           : _sessions
@@ -1158,9 +1166,27 @@ class _TrainingPageState extends State<TrainingPage> {
     await _persistMatrix();
   }
 
-  Future<void> _addGuest() async {
+  Future<void> _addGuest({LocalPerson? selectedPerson}) async {
     final trimmedName = _guestNameController.text.trim();
     if (trimmedName.isEmpty) return;
+    if (selectedPerson == null) {
+      final nextNumber = _people.isEmpty
+          ? 1
+          : _people
+                  .map((entry) => entry.memberNumber)
+                  .reduce((a, b) => a > b ? a : b) +
+              1;
+      final nextId = _people.isEmpty
+          ? 1
+          : _people.map((entry) => entry.id).reduce((a, b) => a > b ? a : b) +
+              1;
+      _people.add(LocalPerson(
+        id: nextId,
+        memberNumber: nextNumber,
+        name: trimmedName,
+      ));
+      await _peopleRepository.save(_people);
+    }
     setState(() => _guests.add(trimmedName));
     _guestNameController.clear();
     await _persistMatrix();
@@ -1916,6 +1942,7 @@ class _TrainingPageState extends State<TrainingPage> {
                                   'coach:${coach.id}',
                                   coach.name,
                                   null,
+                                  memberNumber: coach.memberNumber,
                                 ),
                             if (teams.any((team) => team.players.isNotEmpty))
                               _sectionRow('Spieler'),
@@ -1925,11 +1952,23 @@ class _TrainingPageState extends State<TrainingPage> {
                                   'player:${player.id}',
                                   player.name,
                                   player.number,
+                                  memberNumber: player.memberNumber,
                                 ),
                             if (_guests.isNotEmpty) _sectionRow('Gäste'),
                             for (var index = 0; index < _guests.length; index++)
                               _attendanceRow(
-                                  'guest:$index', _guests[index], null),
+                                'guest:$index',
+                                _guests[index],
+                                null,
+                                memberNumber: _people
+                                    .cast<LocalPerson?>()
+                                    .firstWhere(
+                                      (person) =>
+                                          person?.name == _guests[index],
+                                      orElse: () => null,
+                                    )
+                                    ?.memberNumber,
+                              ),
                           ],
                         ),
                       ),
@@ -1939,16 +1978,45 @@ class _TrainingPageState extends State<TrainingPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          key: const ValueKey('guest-name-input'),
-                          controller: _guestNameController,
-                          textCapitalization: TextCapitalization.words,
-                          onSubmitted: (_) => _addGuest(),
-                          decoration: const InputDecoration(
-                            labelText: 'Gastspieler',
-                            hintText: 'Name eingeben',
-                            border: OutlineInputBorder(),
-                          ),
+                        child: Autocomplete<LocalPerson>(
+                          displayStringForOption: (person) => person.name,
+                          optionsBuilder: (value) {
+                            final query = value.text.trim().toLowerCase();
+                            if (query.isEmpty) {
+                              return const Iterable<LocalPerson>.empty();
+                            }
+                            return _people.where((person) =>
+                                person.name.toLowerCase().contains(query));
+                          },
+                          optionsViewBuilder: (context, onSelected, options) =>
+                              _personOptionsView(context, onSelected, options),
+                          onSelected: (person) {
+                            _guestNameController.text = person.name;
+                            unawaited(_addGuest(selectedPerson: person));
+                          },
+                          fieldViewBuilder:
+                              (context, controller, focusNode, onSubmitted) {
+                            controller.text = _guestNameController.text;
+                            controller.addListener(() {
+                              _guestNameController.text = controller.text;
+                            });
+                            return TextField(
+                              key: const ValueKey('guest-name-input'),
+                              controller: controller,
+                              focusNode: focusNode,
+                              textCapitalization: TextCapitalization.words,
+                              onSubmitted: (_) {
+                                onSubmitted();
+                                unawaited(_addGuest());
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Gastspieler',
+                                hintText:
+                                    'Name eingeben oder vorhandene Person wählen',
+                                border: OutlineInputBorder(),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1973,10 +2041,15 @@ class _TrainingPageState extends State<TrainingPage> {
     );
   }
 
-  TableRow _attendanceRow(String key, String name, int? number) {
+  TableRow _attendanceRow(
+    String key,
+    String name,
+    int? number, {
+    int? memberNumber,
+  }) {
     final currentValue = _attendance[key];
     return TableRow(children: [
-      _tableText(number == null ? name : '$number  $name'),
+      _tablePersonText(name, number: number, memberNumber: memberNumber),
       _attendanceCell(key, currentValue, TrainingAttendance.participating),
       _attendanceCell(key, currentValue, TrainingAttendance.excused),
       _attendanceCell(key, currentValue, TrainingAttendance.unexcused),
@@ -2022,6 +2095,71 @@ class _TrainingPageState extends State<TrainingPage> {
           ),
         ),
       );
+
+  Widget _tablePersonText(
+    String name, {
+    int? number,
+    int? memberNumber,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: name),
+                if (memberNumber != null)
+                  TextSpan(
+                    text: ' $memberNumber',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                if (number != null) TextSpan(text: '  $number'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _personOptionsView(
+    BuildContext context,
+    AutocompleteOnSelected<LocalPerson> onSelected,
+    Iterable<LocalPerson> options,
+  ) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Material(
+        elevation: 4,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            itemCount: options.length,
+            itemBuilder: (context, index) {
+              final person = options.elementAt(index);
+              return ListTile(
+                dense: true,
+                key: ValueKey('person-option-${person.id}'),
+                onTap: () => onSelected(person),
+                title: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: person.name),
+                      TextSpan(
+                        text: ' ${person.memberNumber}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _attendanceCell(String key, String? currentValue, String value) {
     final color = switch (value) {

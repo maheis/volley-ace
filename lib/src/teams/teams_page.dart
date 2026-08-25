@@ -8,6 +8,61 @@ import 'package:sembast/sembast.dart';
 import '../backup/app_backup_service.dart';
 import '../theme/app_palette.dart';
 
+class LocalPerson {
+  const LocalPerson({
+    required this.id,
+    required this.memberNumber,
+    required this.name,
+  });
+
+  final int id;
+  final int memberNumber;
+  final String name;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'memberNumber': memberNumber,
+        'name': name,
+      };
+
+  static LocalPerson fromJson(Map<String, dynamic> data) => LocalPerson(
+        id: data['id'] is num ? (data['id'] as num).toInt() : 0,
+        memberNumber: data['memberNumber'] is num
+            ? (data['memberNumber'] as num).toInt()
+            : 0,
+        name: data['name'] is String ? data['name'] as String : '',
+      );
+}
+
+class PeopleRepository {
+  PeopleRepository(Database database) : _database = database;
+
+  static const String _recordKey = 'all';
+  static final StoreRef<String, Map<String, dynamic>> _store =
+      StoreRef<String, Map<String, dynamic>>('people');
+
+  final Database _database;
+
+  Future<List<LocalPerson>> load() async {
+    final data = await _store.record(_recordKey).get(_database);
+    final stored = data?['people'];
+    return stored is List
+        ? stored
+            .whereType<Map>()
+            .map(
+                (item) => LocalPerson.fromJson(Map<String, dynamic>.from(item)))
+            .toList()
+        : <LocalPerson>[];
+  }
+
+  Future<void> save(List<LocalPerson> people) => _store.record(_recordKey).put(
+        _database,
+        <String, dynamic>{
+          'people': people.map((person) => person.toJson()).toList(),
+        },
+      );
+}
+
 class TeamPlayer {
   const TeamPlayer({
     required this.id,
@@ -16,6 +71,8 @@ class TeamPlayer {
     required this.birthDate,
     required this.position,
     required this.profile,
+    this.personId,
+    this.memberNumber,
   });
 
   final int id;
@@ -24,6 +81,8 @@ class TeamPlayer {
   final DateTime? birthDate;
   final String position;
   final String profile;
+  final int? personId;
+  final int? memberNumber;
 
   TeamPlayer copyWith({
     String? name,
@@ -33,6 +92,8 @@ class TeamPlayer {
     bool clearBirthDate = false,
     String? position,
     String? profile,
+    int? personId,
+    int? memberNumber,
   }) =>
       TeamPlayer(
         id: id,
@@ -41,6 +102,8 @@ class TeamPlayer {
         birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
         position: position ?? this.position,
         profile: profile ?? this.profile,
+        personId: personId ?? this.personId,
+        memberNumber: memberNumber ?? this.memberNumber,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -50,6 +113,8 @@ class TeamPlayer {
         'birthDateMillis': birthDate?.millisecondsSinceEpoch,
         'position': position,
         'profile': profile,
+        'personId': personId,
+        'memberNumber': memberNumber,
       };
 
   static TeamPlayer fromJson(Map<String, dynamic> data) {
@@ -63,6 +128,11 @@ class TeamPlayer {
           : null,
       position: data['position'] is String ? data['position'] as String : '',
       profile: data['profile'] is String ? data['profile'] as String : '',
+      personId:
+          data['personId'] is num ? (data['personId'] as num).toInt() : null,
+      memberNumber: data['memberNumber'] is num
+          ? (data['memberNumber'] as num).toInt()
+          : null,
     );
   }
 }
@@ -74,6 +144,8 @@ class TeamCoach {
     required this.profile,
     required this.birthDate,
     required this.position,
+    this.personId,
+    this.memberNumber,
   });
 
   final int id;
@@ -81,6 +153,8 @@ class TeamCoach {
   final String profile;
   final DateTime? birthDate;
   final String position;
+  final int? personId;
+  final int? memberNumber;
 
   TeamCoach copyWith({
     String? name,
@@ -88,6 +162,8 @@ class TeamCoach {
     DateTime? birthDate,
     bool clearBirthDate = false,
     String? position,
+    int? personId,
+    int? memberNumber,
   }) =>
       TeamCoach(
         id: id,
@@ -95,6 +171,8 @@ class TeamCoach {
         profile: profile ?? this.profile,
         birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
         position: position ?? this.position,
+        personId: personId ?? this.personId,
+        memberNumber: memberNumber ?? this.memberNumber,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -103,6 +181,8 @@ class TeamCoach {
         'profile': profile,
         'birthDateMillis': birthDate?.millisecondsSinceEpoch,
         'position': position,
+        'personId': personId,
+        'memberNumber': memberNumber,
       };
 
   static TeamCoach fromJson(Map<String, dynamic> data) {
@@ -115,6 +195,11 @@ class TeamCoach {
           ? DateTime.fromMillisecondsSinceEpoch(birthDateMillis.toInt())
           : null,
       position: data['position'] is String ? data['position'] as String : '',
+      personId:
+          data['personId'] is num ? (data['personId'] as num).toInt() : null,
+      memberNumber: data['memberNumber'] is num
+          ? (data['memberNumber'] as num).toInt()
+          : null,
     );
   }
 }
@@ -245,7 +330,10 @@ class TeamsPage extends StatefulWidget {
 
 class _TeamsPageState extends State<TeamsPage> {
   late final TeamsRepository _repository = TeamsRepository(widget.database);
+  late final PeopleRepository _peopleRepository =
+      PeopleRepository(widget.database);
   final List<Team> _teams = <Team>[];
+  final List<LocalPerson> _people = <LocalPerson>[];
   static final StoreRef<String, Map<String, dynamic>> _matchStatsStore =
       StoreRef<String, Map<String, dynamic>>('analytics');
   final List<Map<String, dynamic>> _matches = <Map<String, dynamic>>[];
@@ -271,6 +359,8 @@ class _TeamsPageState extends State<TeamsPage> {
   DateTime? _coachBirthDate;
   TeamPlayer? _editingPlayer;
   TeamCoach? _editingCoach;
+  LocalPerson? _selectedPlayerPerson;
+  LocalPerson? _selectedCoachPerson;
   int? _selectedPlayerId;
   int? _selectedCoachId;
   int _nextTeamId = 1;
@@ -313,16 +403,75 @@ class _TeamsPageState extends State<TeamsPage> {
   Future<void> _load() async {
     final results = await Future.wait<Object?>([
       _repository.load(),
+      _peopleRepository.load(),
       _matchStatsStore.record('match_stats').get(widget.database),
     ]);
     final teams = results[0] as List<Team>;
-    final matchStats = results[1] as Map<String, dynamic>?;
+    final people = results[1] as List<LocalPerson>;
+    final matchStats = results[2] as Map<String, dynamic>?;
     final storedMatches = matchStats?['matches'];
+    var nextPersonId = people.isEmpty
+        ? 1
+        : people.map((person) => person.id).reduce((a, b) => a > b ? a : b) + 1;
+    var nextMemberNumber = people.isEmpty
+        ? 1
+        : people
+                .map((person) => person.memberNumber)
+                .reduce((a, b) => a > b ? a : b) +
+            1;
+    final migratedPeople = [...people];
+    final knownNames = <String, LocalPerson>{
+      for (final person in migratedPeople) person.name.toLowerCase(): person,
+    };
+    final migratedTeams = teams.map((team) {
+      final players = team.players.map((player) {
+        final nameKey = player.name.toLowerCase();
+        final person = player.personId == null
+            ? (knownNames[nameKey] ??
+                LocalPerson(
+                  id: nextPersonId++,
+                  memberNumber: nextMemberNumber++,
+                  name: player.name,
+                ))
+            : null;
+        if (person != null && !knownNames.containsKey(nameKey)) {
+          migratedPeople.add(person);
+          knownNames[nameKey] = person;
+        }
+        return person == null
+            ? player
+            : player.copyWith(
+                personId: person.id, memberNumber: person.memberNumber);
+      }).toList();
+      final coaches = team.coaches.map((coach) {
+        final nameKey = coach.name.toLowerCase();
+        final person = coach.personId == null
+            ? (knownNames[nameKey] ??
+                LocalPerson(
+                  id: nextPersonId++,
+                  memberNumber: nextMemberNumber++,
+                  name: coach.name,
+                ))
+            : null;
+        if (person != null && !knownNames.containsKey(nameKey)) {
+          migratedPeople.add(person);
+          knownNames[nameKey] = person;
+        }
+        return person == null
+            ? coach
+            : coach.copyWith(
+                personId: person.id, memberNumber: person.memberNumber);
+      }).toList();
+      return team.copyWith(players: players, coaches: coaches);
+    }).toList();
     if (!mounted) return;
     setState(() {
       _teams
         ..clear()
-        ..addAll(teams);
+        ..addAll(migratedTeams);
+      _people
+        ..clear()
+        ..addAll(migratedPeople);
       _matches
         ..clear()
         ..addAll(
@@ -337,6 +486,10 @@ class _TeamsPageState extends State<TeamsPage> {
           : _teams.map((team) => team.id).reduce((a, b) => a > b ? a : b) + 1;
       _isLoaded = true;
     });
+    if (migratedPeople.length != people.length || migratedTeams != teams) {
+      await _peopleRepository.save(migratedPeople);
+      await _repository.save(migratedTeams);
+    }
   }
 
   Future<void> _importBackup() async {
@@ -348,6 +501,31 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 
   Future<void> _persist() => _repository.save(_teams);
+
+  Future<LocalPerson> _getOrCreatePerson(
+    String name, {
+    LocalPerson? selectedPerson,
+  }) async {
+    if (selectedPerson != null) return selectedPerson;
+    final nextNumber = _people.isEmpty
+        ? 1
+        : _people
+                .map((person) => person.memberNumber)
+                .reduce((a, b) => a > b ? a : b) +
+            1;
+    final nextId = _people.isEmpty
+        ? 1
+        : _people.map((person) => person.id).reduce((a, b) => a > b ? a : b) +
+            1;
+    final created = LocalPerson(
+      id: nextId,
+      memberNumber: nextNumber,
+      name: name.trim(),
+    );
+    _people.add(created);
+    await _peopleRepository.save(_people);
+    return created;
+  }
 
   Team? get _selectedTeam {
     for (final team in _teams) {
@@ -534,6 +712,7 @@ class _TeamsPageState extends State<TeamsPage> {
     _playerProfileController.clear();
     _playerBirthDate = null;
     _editingPlayer = null;
+    _selectedPlayerPerson = null;
   }
 
   void _clearCoachForm() {
@@ -542,9 +721,10 @@ class _TeamsPageState extends State<TeamsPage> {
     _coachPositionController.clear();
     _coachBirthDate = null;
     _editingCoach = null;
+    _selectedCoachPerson = null;
   }
 
-  void _savePlayer(Team team) {
+  Future<void> _savePlayer(Team team) async {
     final name = _playerNameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -561,6 +741,10 @@ class _TeamsPageState extends State<TeamsPage> {
       return;
     }
     final editingPlayer = _editingPlayer;
+    final person = await _getOrCreatePerson(
+      name,
+      selectedPerson: _selectedPlayerPerson,
+    );
     final nextId = team.players.isEmpty
         ? 1
         : team.players
@@ -573,6 +757,8 @@ class _TeamsPageState extends State<TeamsPage> {
           clearNumber: numberText.isEmpty,
           birthDate: _playerBirthDate,
           clearBirthDate: _playerBirthDate == null,
+          personId: person.id,
+          memberNumber: person.memberNumber,
           position: _playerPositionController.text.trim(),
           profile: _playerProfileController.text.trim(),
         ) ??
@@ -583,6 +769,8 @@ class _TeamsPageState extends State<TeamsPage> {
           birthDate: _playerBirthDate,
           position: _playerPositionController.text.trim(),
           profile: _playerProfileController.text.trim(),
+          personId: person.id,
+          memberNumber: person.memberNumber,
         );
     _replaceTeam(team.copyWith(
       players: editingPlayer == null
@@ -594,7 +782,7 @@ class _TeamsPageState extends State<TeamsPage> {
     setState(_clearPlayerForm);
   }
 
-  void _saveCoach(Team team) {
+  Future<void> _saveCoach(Team team) async {
     final name = _coachNameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -603,6 +791,10 @@ class _TeamsPageState extends State<TeamsPage> {
       return;
     }
     final editingCoach = _editingCoach;
+    final person = await _getOrCreatePerson(
+      name,
+      selectedPerson: _selectedCoachPerson,
+    );
     final nextId = team.coaches.isEmpty
         ? 1
         : team.coaches
@@ -616,6 +808,8 @@ class _TeamsPageState extends State<TeamsPage> {
           birthDate: _coachBirthDate,
           clearBirthDate: _coachBirthDate == null,
           position: _coachPositionController.text.trim(),
+          personId: person.id,
+          memberNumber: person.memberNumber,
         ) ??
         TeamCoach(
           id: nextId,
@@ -623,6 +817,8 @@ class _TeamsPageState extends State<TeamsPage> {
           profile: profile,
           birthDate: _coachBirthDate,
           position: _coachPositionController.text.trim(),
+          personId: person.id,
+          memberNumber: person.memberNumber,
         );
     _replaceTeam(team.copyWith(
       coaches: editingCoach == null
@@ -638,6 +834,10 @@ class _TeamsPageState extends State<TeamsPage> {
     setState(() {
       _editingPlayer = player;
       _playerNameController.text = player.name;
+      _selectedPlayerPerson = _people.cast<LocalPerson?>().firstWhere(
+            (person) => person?.id == player.personId,
+            orElse: () => null,
+          );
       _playerNumberController.text = player.number?.toString() ?? '';
       _playerPositionController.text = player.position;
       _playerProfileController.text = player.profile;
@@ -649,6 +849,10 @@ class _TeamsPageState extends State<TeamsPage> {
     setState(() {
       _editingCoach = coach;
       _coachNameController.text = coach.name;
+      _selectedCoachPerson = _people.cast<LocalPerson?>().firstWhere(
+            (person) => person?.id == coach.personId,
+            orElse: () => null,
+          );
       _coachProfileController.text = coach.profile;
       _coachPositionController.text = coach.position;
       _coachBirthDate = coach.birthDate;
@@ -989,16 +1193,118 @@ class _TeamsPageState extends State<TeamsPage> {
         ),
       );
 
+  Widget _personAutocomplete({
+    required Key key,
+    required TextEditingController controller,
+    required String label,
+    required ValueChanged<LocalPerson?> onPersonChanged,
+  }) {
+    return Autocomplete<LocalPerson>(
+      displayStringForOption: (person) => person.name,
+      optionsBuilder: (value) {
+        final query = value.text.trim().toLowerCase();
+        if (query.isEmpty) return const Iterable<LocalPerson>.empty();
+        return _people.where(
+          (person) => person.name.toLowerCase().contains(query),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) =>
+          _personOptionsView(context, onSelected, options),
+      onSelected: (person) {
+        controller.text = person.name;
+        onPersonChanged(person);
+      },
+      fieldViewBuilder: (context, fieldController, focusNode, onSubmitted) {
+        final selectedPerson = controller == _playerNameController
+            ? _selectedPlayerPerson
+            : _selectedCoachPerson;
+        if (fieldController.text != controller.text) {
+          fieldController.value = controller.value;
+        }
+        fieldController.addListener(() {
+          if (controller.text != fieldController.text) {
+            controller.value = fieldController.value;
+          }
+        });
+        return TextField(
+          key: key,
+          controller: fieldController,
+          focusNode: focusNode,
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (_) => onSubmitted(),
+          onChanged: (_) => onPersonChanged(null),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: 'Vorhandene Person suchen oder neuen Namen eingeben',
+            border: const OutlineInputBorder(),
+            suffix: selectedPerson == null
+                ? null
+                : Transform.translate(
+                    offset: const Offset(0, 3),
+                    child: Text(
+                      '${selectedPerson.memberNumber}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _personOptionsView(
+    BuildContext context,
+    AutocompleteOnSelected<LocalPerson> onSelected,
+    Iterable<LocalPerson> options,
+  ) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Material(
+        elevation: 4,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            itemCount: options.length,
+            itemBuilder: (context, index) {
+              final person = options.elementAt(index);
+              return ListTile(
+                dense: true,
+                key: ValueKey('person-option-${person.id}'),
+                onTap: () => onSelected(person),
+                title: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: person.name),
+                      TextSpan(
+                        text: ' ${person.memberNumber}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlayers(Team team) => Scaffold(
         appBar: _sectionAppBar('Spieler', team),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextField(
-                key: const ValueKey('team-player-name-input'),
-                controller: _playerNameController,
-                decoration: const InputDecoration(
-                    labelText: 'Name', border: OutlineInputBorder())),
+            _personAutocomplete(
+              key: const ValueKey('team-player-name-input'),
+              controller: _playerNameController,
+              label: 'Name',
+              onPersonChanged: (person) => setState(
+                () => _selectedPlayerPerson = person,
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
                 key: const ValueKey('team-player-number-input'),
@@ -1071,14 +1377,33 @@ class _TeamsPageState extends State<TeamsPage> {
               for (final player in team.players)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(player.name),
-                  subtitle: Text([
-                    if (player.number != null) 'Trikot ${player.number}',
-                    if (player.position.isNotEmpty) player.position,
-                    if (player.birthDate != null)
-                      _formatDate(player.birthDate!),
-                    if (player.profile.isNotEmpty) player.profile,
-                  ].join(' • ')),
+                  title: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: player.name),
+                        if (player.memberNumber != null)
+                          TextSpan(
+                            text: ' ${player.memberNumber}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                      ],
+                    ),
+                  ),
+                  subtitle: Text.rich(
+                    TextSpan(
+                      children: [
+                        if (player.number != null)
+                          TextSpan(text: 'Trikot ${player.number}'),
+                        if (player.position.isNotEmpty)
+                          TextSpan(text: ' • ${player.position}'),
+                        if (player.birthDate != null)
+                          TextSpan(
+                              text: ' • ${_formatDate(player.birthDate!)}'),
+                        if (player.profile.isNotEmpty)
+                          TextSpan(text: ' • ${player.profile}'),
+                      ],
+                    ),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1208,11 +1533,14 @@ class _TeamsPageState extends State<TeamsPage> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextField(
-                key: const ValueKey('team-coach-name-input'),
-                controller: _coachNameController,
-                decoration: const InputDecoration(
-                    labelText: 'Name', border: OutlineInputBorder())),
+            _personAutocomplete(
+              key: const ValueKey('team-coach-name-input'),
+              controller: _coachNameController,
+              label: 'Name',
+              onPersonChanged: (person) => setState(
+                () => _selectedCoachPerson = person,
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               key: const ValueKey('team-coach-position-input'),
@@ -1284,12 +1612,30 @@ class _TeamsPageState extends State<TeamsPage> {
               for (final coach in team.coaches)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(coach.name),
-                  subtitle: Text([
-                    if (coach.position.isNotEmpty) coach.position,
-                    if (coach.birthDate != null) _formatDate(coach.birthDate!),
-                    if (coach.profile.isNotEmpty) coach.profile,
-                  ].join(' • ')),
+                  title: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: coach.name),
+                        if (coach.memberNumber != null)
+                          TextSpan(
+                            text: ' ${coach.memberNumber}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                      ],
+                    ),
+                  ),
+                  subtitle: Text.rich(
+                    TextSpan(
+                      children: [
+                        if (coach.position.isNotEmpty)
+                          TextSpan(text: coach.position),
+                        if (coach.birthDate != null)
+                          TextSpan(text: ' • ${_formatDate(coach.birthDate!)}'),
+                        if (coach.profile.isNotEmpty)
+                          TextSpan(text: ' • ${coach.profile}'),
+                      ],
+                    ),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
