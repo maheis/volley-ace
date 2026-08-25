@@ -1773,7 +1773,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  icon: const Icon(Icons.schedule, size: 32),
+                  icon: const Icon(Icons.schedule, size: 40),
                   label: Text(
                     'Auszeit\n$teamTimeouts:$opponentTimeouts',
                     textAlign: TextAlign.center,
