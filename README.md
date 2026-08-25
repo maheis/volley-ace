@@ -245,3 +245,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Buttons in Burgermenü
 - [x] Training sortieren nach Datum desc
 - [ ] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann
+- [ ] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 Color _normalizeScoreboardColor(Color color) {
-  if (color.value == 0xff1976d2) {
+  if (color.toARGB32() == 0xff1976d2) {
     return const Color(0xFF64b5f6);
   }
-  if (color.value == 0xffe53935) {
+  if (color.toARGB32() == 0xffe53935) {
     return const Color(0xFFe57373);
   }
   return color;
