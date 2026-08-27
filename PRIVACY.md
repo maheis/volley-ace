@@ -7,7 +7,7 @@ Stand: 14.08.2026
 Verantwortlich für die Verarbeitung personenbezogener Daten im Zusammenhang mit Volley Ace ist:
 
 - Name/Handle: maheis
-- Kontakt: [maheis](mailto:ma@heister.email)
+- Kontakt: [maheis](mailto:maheis@heister.be)
 
 ## 2. Über die App
 
