@@ -24,6 +24,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.10.0
+  msix: ^0.2.1-nullsafety.0
 
 flutter:
   uses-material-design: true
@@ -63,3 +64,14 @@ flutter_icons:
   image_path: assets/icons/color_transparent_icon.png
   adaptive_icon_background: "#e57373"
   adaptive_icon_foreground: assets/icons/color_transparent_icon.png
+
+msix_config:
+  display_name: Volley Ace
+  publisher_display_name: maheis
+  identity_name: maheis.VolleyAce
+  msix_version: 0.1.35.0
+  publisher: CN=E0A07F93-8FA0-45A8-9F42-A5CA10AFDF6F
+  logo_path: assets/icons/color_transparent_icon.png
+  icons_background_color: transparent
+  architecture: x64
+  capabilities: internetClient
