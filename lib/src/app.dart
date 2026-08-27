@@ -35,15 +35,15 @@ class VolleyAceApp extends StatelessWidget {
         final settings = settingsController.settings;
         return MaterialApp(
           title: 'Volley Ace',
-          locale: const Locale('en', 'US'),
+          locale: const Locale('de', 'DE'),
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [
-            Locale('en', 'US'),
-            Locale('en', 'GB'),
+            // Locale('en', 'US'),
+            // Locale('en', 'GB'),
             Locale('de', 'DE'),
           ],
           theme: _buildTheme(
