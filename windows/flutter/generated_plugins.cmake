@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  msix
   share_plus
   url_launcher_windows
 )

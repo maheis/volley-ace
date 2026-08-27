@@ -405,7 +405,10 @@
        height="30.427084"
        x="-1.7763568e-15"
        y="-1.7763568e-15"
-       inkscape:label="Background" /><g
+       inkscape:label="Background"
+       inkscape:export-filename="microsoft-store/microsoft-store_icon.png"
+       inkscape:export-xdpi="854.81738"
+       inkscape:export-ydpi="854.81738" /><g
        inkscape:groupmode="layer"
        id="layer1"
        inkscape:label="icon"><path
