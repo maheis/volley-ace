@@ -38,6 +38,9 @@ jobs:
           }
           $msixVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
           $pubspec = $pubspec -replace '(?m)^\s*msix_version:\s*.*$', "  msix_version: $msixVersion"
+          if ($pubspec -notmatch '(?m)^\s*msix_version:') {
+            $pubspec = $pubspec -replace '(?m)^(\s*publisher:.*)$', "`$1`r`n  msix_version: $msixVersion"
+          }
           Set-Content -Path pubspec.yaml -Value $pubspec -NoNewline
           "MSIX version: $msixVersion"
           "version=$msixVersion" >> $env:GITHUB_OUTPUT
@@ -78,7 +81,7 @@ jobs:
         if: ${{ steps.signing.outputs.enabled == 'true' }}
         env:
           MSIX_CERTIFICATE_PASSWORD: ${{ secrets['MSIX_CERTIFICATE_PASSWORD'] }}
-        run: dart run msix:create --certificate-password "$env:MSIX_CERTIFICATE_PASSWORD"
+        run: dart run msix:create --store --certificate-password "$env:MSIX_CERTIFICATE_PASSWORD"
 
       - name: Create unsigned MSIX package for Microsoft Store
         if: ${{ steps.signing.outputs.enabled != 'true' }}
@@ -99,7 +102,7 @@ jobs:
       - name: Upload MSIX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: volleyace-msix
+          name: volleyace-msix-${{ steps.version.outputs.version }}
           path: release_dist/*.msix
 
       - name: Upload MSIX artifact to Release
