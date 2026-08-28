@@ -69,7 +69,6 @@ msix_config:
   display_name: Volley Ace
   publisher_display_name: maheis
   identity_name: maheis.VolleyAce
-  msix_version: 0.1.35.0
   publisher: CN=E0A07F93-8FA0-45A8-9F42-A5CA10AFDF6F
   logo_path: assets/icons/color_transparent_icon.png
   icons_background_color: transparent
