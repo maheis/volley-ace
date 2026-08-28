@@ -16,7 +16,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 
 - [x] Flutter/Dart
   - [x] Android
-  - [ ] Web
+  - [ ] Web Applikation (Notizen in simple present)
   - [x] Windows/Linux
 - Lokaler Storage: Sembast
   - Datei: `volley_ace.db` auf Desktop/Android
@@ -249,4 +249,4 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
 - [ ] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
 - [ ] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
-- [ ] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist. 
+- [ ] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.

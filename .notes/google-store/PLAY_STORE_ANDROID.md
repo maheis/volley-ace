@@ -7,8 +7,8 @@ Kurz und präzise Anleitung, um eine Android-Version in den Google Play Store zu
 - in `android/app/build.gradle.kts`
 
 ```bash
-namespace = "de.deinname.volleyace"
-applicationId = "de.deinname.volleyace"
+namespace = "be.heister.volleyace"
+applicationId = "be.heister.volleyace"
 ```
 
 ## 1) Versioning
