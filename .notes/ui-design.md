@@ -1,12 +1,25 @@
-# UI-Design-Richtlinie: SimplePresent
+# UI-Design-Richtlinie: VolleyAce
 
-Diese Richtlinie beschreibt das visuelle Design von SimplePresent als Referenz für neue Apps und als Anweisung zur konsistenten Umsetzung.
+Diese Richtlinie beschreibt den aktuell überprüften visuellen Stand von VolleyAce. Sie dient als Referenz für weitere UI-Arbeiten.
+
+## Implementierungsabgleich (2026-09)
+
+| Bereich | Status | Tatsächlicher Stand |
+|---|---|---|
+| Material 3 | umgesetzt | `ThemeData(useMaterial3: true)` |
+| Dark/Light-Theme | umgesetzt | Dark ist Standard; Light kann in den Einstellungen aktiviert werden |
+| Farben | umgesetzt | Akzent- und Highlightfarbe sind konfigurierbar; Teamfarben enthalten zusätzlich Schwarz und Weiß |
+| Typografie | umgesetzt | Ubuntu als Standard; OpenDyslexic, NotoSans, CourierPrime und Ubuntu Mono verfügbar |
+| Schriftgröße | umgesetzt | Global über `MediaQuery.textScaler` skalierbar |
+| Module | umgesetzt | Punktetafel, Taktiktafel, Teams, Training, Statistik und Arcade vorhanden |
+| Responsive Design | teilweise | Zentrale Ansichten reagieren auf verfügbare Fläche; vollständiger Unterseiten-Abgleich offen |
+| Accessibility | teilweise | Mehrere `Semantics`- und Tooltip-Beschriftungen vorhanden; vollständige Prüfung offen |
 
 ---
 
 ## Leitbild
 
-Minimalistisch, dunkel, zugänglich. Die App tritt visuell zurück — Inhalte (Aufgaben, Text) stehen im Vordergrund. Farbe wird sparsam eingesetzt und trägt ausschließlich semantische Bedeutung (Status, Dringlichkeit).
+Eine fokussierte Sport- und Assistenz-App für Trainer, Spieler und Schiedsrichter. Die Bedienung muss während eines Spiels schnell erfassbar sein; Spielstand, Daten und nächste Aktion stehen im Vordergrund.
 
 ---
 
@@ -14,12 +27,12 @@ Minimalistisch, dunkel, zugänglich. Die App tritt visuell zurück — Inhalte (
 
 | Eigenschaft | Wert |
 |---|---|
-| Helligkeit | Dark only (`Brightness.dark`) |
-| Seed-Farbe | `Colors.teal` |
-| Erzeugung | `ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark)` |
+| Helligkeit | Dark standardmäßig, Light optional (`Brightness.dark` / `Brightness.light`) |
+| Seed-Farbe | konfigurierbare Akzentfarbe, standardmäßig Rot (`#e57373`) |
+| Erzeugung | `ColorScheme.fromSeed` mit dynamischer Helligkeit, Orange als `secondary` und Mint als `tertiary` |
 | Flutter-Widget | `ThemeData` mit `colorScheme`, kein `primarySwatch` |
 
-Das Theme wird komplett über `ColorScheme.fromSeed` generiert — keine einzelnen Farb-Overrides. Die App hat keinen Light Mode.
+Das Theme basiert auf `ColorScheme.fromSeed` und ergänzt semantische sowie konfigurierbare Farben. Die App unterstützt Dark und Light.
 
 ---
 
@@ -52,14 +65,11 @@ Diese Farben haben eine feste Bedeutung und werden konsistent über die ganze Ap
 
 | Bedeutung | Farbe | Flutter-Wert |
 |---|---|---|
-| Aufgabe: wichtig | Amber | `Colors.amber` |
-| Aufgabe: in Bearbeitung | Hellgrün | `Color(0xFF9EEB9E)` |
-| Aufgabe: erledigt | Gedimmt | `cs.onSurface.withAlpha((0.6 * 255).round())` |
-| Status: OK / Sync erfolgreich | Hellgrün | `Colors.lightGreenAccent` / `Colors.greenAccent` |
-| Status: Warnung / Beschäftigt | Amber/Orange | `Colors.amberAccent` / `Colors.orangeAccent` |
-| Status: Fehler | Rot | `Color(0xFFe57373)` |
-| Termin: rechtzeitig | Grün | `Colors.green` |
-| Termin: überfällig | Rot | `Color(0xFFe57373)` |
+| Punkteteam links | Blau | `Color(0xFF64B5F6)` |
+| Punkteteam rechts | Rot | `Color(0xFFE57373)` |
+| Positive Zustände | Grün | `Color(0xFFAED581)` |
+| Hervorhebung | Gelb / Orange | `Color(0xFFFFF176)` / `Color(0xFFFFB74D)` |
+| Fehler / destruktive Aktion | Rot | `Color(0xFFE57373)` |
 | Transparent / kein Hintergrund | — | `Colors.transparent` |
 
 **Regel:** Statusfarben niemals als Hintergrundfarbe — immer als Textfarbe oder Icon-Farbe einsetzen.
@@ -70,15 +80,17 @@ Diese Farben haben eine feste Bedeutung und werden konsistent über die ganze Ap
 
 ### Schriftarten
 
-Die App bietet drei Fonts zur Auswahl — OpenDyslexic ist Standard (Barrierefreiheit first):
+Die App bietet fünf Fonts zur Auswahl — Ubuntu ist Standard; OpenDyslexic bleibt als zugängliche Alternative verfügbar:
 
 | Font | Einsatz |
 |---|---|
-| **OpenDyslexic** | Standard — verbesserte Lesbarkeit für Dyslexiker |
+| OpenDyslexic | Alternative — verbesserte Lesbarkeit für Dyslexiker |
 | NotoSans | Saubere Alternative, System-nah |
 | CourierPrime | Monospace-Option |
+| Ubuntu | Standard |
+| Ubuntu Mono | Monospace-Option |
 
-Alle Fonts werden über `pubspec.yaml` als Asset eingebunden (`assets/fonts/`). Der gewählte Font wird via `_fontFamily` State-Variable global durchgereicht und auf das `ThemeData.textTheme` angewendet.
+Alle Fonts werden über `pubspec.yaml` als Asset eingebunden (`assets/fonts/`). Der gewählte Font wird über die Einstellungen global auf das `ThemeData` angewendet.
 
 ```dart
 // Font auf das gesamte Theme anwenden
@@ -181,17 +193,24 @@ Wichtige Icons und ihre Bedeutung in der App:
 
 ## Layout
 
-- **3-Panel-Struktur:** Today | Backlog | Done (horizontal scrollbar / Navigation)
-- Kein AppBar im klassischen Sinne — Titel steht als Text im Panel
-- Kein Floating Action Button auf Hauptebene
+- **Modulstruktur:** Startseite | Punktetafel | Taktiktafel | Teams | Training | Statistik
+- AppBars sind Bestandteil der aktuellen Navigation und enthalten kontextbezogene Aktionen.
+- FloatingActionButtons können für kontextbezogene Primäraktionen verwendet werden.
 - Statuszeile (Sync-Status, Uhrzeit) oben im Panel, klein (fontSize 11)
 
 ---
 
 ## Barrierefreiheit
 
-- **OpenDyslexic als Standard-Font** — aktiv als erstes Accessibility-Feature
+- **OpenDyslexic als verfügbare Alternative** — Ubuntu ist aktuell die Standardschrift
 - Schriftgröße benutzerkonfigurierbar (Settings)
 - Kontraste folgen dem generierten Dark ColorScheme (Material Design-konform)
 - Alle `IconButton`s haben `tooltip`
-- Keine reinen Farbsignale — Icons begleiten immer Farbänderungen
+- Keine reinen Farbsignale — Icons, Zahlen oder Text begleiten Farbänderungen
+
+## Noch zu prüfen
+
+- Vollständiges Responsive-Design aller Unterseiten.
+- Vollständige Tastaturnavigation und Screenreader-Beschriftungen.
+- Kontrastprüfung beider Themes und der Teamfarben.
+- Einheitliche Übersetzung aller Texte, falls weitere Sprachen angeboten werden.
