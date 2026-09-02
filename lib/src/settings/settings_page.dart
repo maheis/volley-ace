@@ -112,6 +112,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
               const SizedBox(height: 12),
+              Text(
+                'Schriftgröße: ${(_textScaleFactor * 100).round()} %',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Slider(
+                value: _textScaleFactor,
+                min: 0.5,
+                max: 1.6,
+                divisions: 22,
+                label: '${(_textScaleFactor * 100).round()}%',
+                onChanged: (value) {
+                  setState(() => _textScaleFactor = value);
+                },
+              ),
+              const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
@@ -193,23 +208,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   }
                 },
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Schriftgröße: ${(_textScaleFactor * 100).round()} %',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Slider(
-                value: _textScaleFactor,
-                min: 0.5,
-                max: 1.6,
-                divisions: 22,
-                label: '${(_textScaleFactor * 100).round()}%',
-                onChanged: (value) {
-                  setState(() => _textScaleFactor = value);
-                },
-              ),
-              const Text('Bereich: 50 % bis 160 %'),
-              const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 12),
               Card(
