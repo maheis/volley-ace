@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sembast/sembast.dart';
 
 import '../analytics/match_stats_page.dart';
@@ -201,10 +202,14 @@ class _HomePageState extends State<HomePage> {
         leading: Padding(
           padding:
               const EdgeInsets.only(left: 16, top: 16, right: 4, bottom: 4),
-          child: Image.asset(
-            'assets/icons/color_transparent_icon.png',
+          child: SvgPicture.asset(
+            'assets/icons/white_transparent_icon.svg',
             width: 75,
             height: 75,
+            colorFilter: ColorFilter.mode(
+              Theme.of(context).colorScheme.primary,
+              BlendMode.srcIn,
+            ),
           ),
         ),
         title: const Text('VolleyAce'),
