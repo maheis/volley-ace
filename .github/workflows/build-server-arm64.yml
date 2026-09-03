@@ -56,7 +56,7 @@ jobs:
           cd release_dist && zip -r volleyace-server-arm64.zip volleyace-server
 
       - name: Upload server artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: volleyace-server-arm64
           path: release_dist/volleyace-server-arm64.zip
