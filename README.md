@@ -250,3 +250,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
 - [ ] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
 - [ ] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.
+
+## footnote
+
+Developed with the kind support of Copilot
