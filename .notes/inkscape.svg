@@ -30,9 +30,9 @@
      inkscape:deskcolor="#2f2f2f"
      inkscape:document-units="px"
      showgrid="true"
-     inkscape:zoom="4"
-     inkscape:cx="-46.875"
-     inkscape:cy="23.25"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="8.131728"
+     inkscape:cy="103.23759"
      inkscape:window-width="3440"
      inkscape:window-height="1359"
      inkscape:window-x="0"
@@ -72,7 +72,7 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="colors"
-     style="display:inline"><rect
+     style="display:none"><rect
        style="display:inline;fill:#ffb74d;fill-opacity:1;stroke:#ffffff;stroke-width:0.239463;stroke-miterlimit:0"
        id="rect2-3-1-1-3"
        width="26.218872"
