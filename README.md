@@ -251,6 +251,14 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
 - [ ] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.
 
+## Datenschutz
+
+Volley Ace speichert Teams, Spieler, Trainingsdaten, Taktiken, Spielstaende und Statistiken lokal auf dem Geraet. Es gibt derzeit keine Cloud-Synchronisierung und keine automatische Serveruebertragung. Details stehen in `PRIVACY.md`.
+
+## Rechtliches
+
+Der Source Code steht unter MIT-Lizenz. Name, Logo, Icons und sonstige Brand Assets sind separat geschuetzt. Details stehen in `LICENSE`, `TRADEMARK.md` und `THIRD_PARTY_LICENSES.md`.
+
 ## footnote
 
 Developed with the kind support of Copilot
