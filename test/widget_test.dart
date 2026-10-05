@@ -81,7 +81,38 @@ void main() {
     await tester.tap(find.text('U13 · 3 Spieler'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('U13 · 3 Spieler'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-court')), findsOneWidget);
+    for (var side = 0; side < 2; side++) {
+      for (var position = 0; position < 3; position++) {
+        expect(
+          find.byKey(ValueKey('rotation-position-$side-$position')),
+          findsOneWidget,
+        );
+      }
+      expect(find.byKey(ValueKey('rotation-position-$side-3')), findsNothing);
+    }
     expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
+
+    for (var index = 0; index < 4; index++) {
+      final name = index == 3 ? 'Reserve' : 'Spieler $index';
+      final nameField = find.byKey(const ValueKey('rotation-player-name-0'));
+      await tester.ensureVisible(nameField);
+      await tester.enterText(
+        nameField,
+        name,
+      );
+      await tester.ensureVisible(find.byTooltip('Spieler hinzufügen').first);
+      await tester.tap(find.byTooltip('Spieler hinzufügen').first);
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Reserve'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-bank-0')), findsOneWidget);
+
+    await tester.binding.setSurfaceSize(const Size(1024, 768));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('rotation-court')), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-position-0-2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-position-1-2')), findsOneWidget);
   });
 
   test('scoreboard persists the rotation setup and its progress', () async {

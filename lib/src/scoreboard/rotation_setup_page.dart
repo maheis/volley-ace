@@ -192,6 +192,18 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     _replaceTeam(side, current.copyWith(positions: positions));
   }
 
+  void _moveToBench(int side, RotationPlayer player) {
+    final current = _teamAt(side);
+    if (!current.positions.contains(player.id)) return;
+    _replaceTeam(
+      side,
+      current.copyWith(
+        positions:
+            current.positions.map((id) => id == player.id ? null : id).toList(),
+      ),
+    );
+  }
+
   void _rotate(int side) {
     setState(() {
       if (side == 0) {
@@ -293,18 +305,39 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                 if (constraints.maxWidth < 760) {
                   return Column(
                     children: [
-                      _buildTeamEditor(0, count),
+                      _buildTeamHeader(0),
                       const SizedBox(height: 12),
-                      _buildTeamEditor(1, count),
+                      _buildTeamHeader(1),
+                      const SizedBox(height: 16),
+                      _buildFullCourt(count),
+                      const SizedBox(height: 16),
+                      _buildRosterEditor(0, count),
+                      const SizedBox(height: 12),
+                      _buildRosterEditor(1, count),
                     ],
                   );
                 }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                return Column(
                   children: [
-                    Expanded(child: _buildTeamEditor(0, count)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildTeamEditor(1, count)),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildTeamHeader(0)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildTeamHeader(1)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFullCourt(count),
+                    const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildRosterEditor(0, count)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildRosterEditor(1, count)),
+                      ],
+                    ),
                   ],
                 );
               },
@@ -339,11 +372,8 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     return name.isEmpty ? fallback : name;
   }
 
-  Widget _buildTeamEditor(int side, int count) {
+  Widget _buildTeamHeader(int side) {
     final team = _teamAt(side);
-    final activeIds = team.positions.take(count).whereType<String>().toSet();
-    final bench =
-        team.players.where((player) => !activeIds.contains(player.id)).toList();
     final name = side == 0 ? 'Team A · Blau' : 'Team B · Rot';
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -387,24 +417,67 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildCourt(side, count),
-            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRosterEditor(int side, int count) {
+    final team = _teamAt(side);
+    final activeIds = team.positions.take(count).whereType<String>().toSet();
+    final bench =
+        team.players.where((player) => !activeIds.contains(player.id)).toList();
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Text('Bank · ${bench.length}',
                 style: Theme.of(context).textTheme.titleSmall),
-            if (bench.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: bench
-                    .map((player) => _playerToken(side, player, bench: true))
-                    .toList(),
+            DragTarget<RotationPlayer>(
+              key: ValueKey('rotation-bank-$side'),
+              onWillAcceptWithDetails: (details) =>
+                  activeIds.contains(details.data.id),
+              onAcceptWithDetails: (details) =>
+                  _moveToBench(side, details.data),
+              builder: (context, candidates, rejected) => Container(
+                constraints: const BoxConstraints(minHeight: 42),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: candidates.isNotEmpty
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: candidates.isNotEmpty
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+                child: bench.isEmpty
+                    ? team.players.isEmpty
+                        ? const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Text('Noch keine Spieler erfasst.'),
+                            ),
+                          )
+                        : const SizedBox(height: 32)
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: bench
+                            .map((player) =>
+                                _playerToken(side, player, bench: true))
+                            .toList(),
+                      ),
               ),
-            if (team.players.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text('Noch keine Spieler erfasst.'),
-              ),
-            const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -441,122 +514,80 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                 ),
               ],
             ),
-            if (team.players.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: team.players
-                    .map(
-                      (player) => InputChip(
-                        key: ValueKey('rotation-player-${side}-${player.id}'),
-                        label: Text(_playerLabel(player)),
-                        onDeleted: () => _removePlayer(side, player),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCourt(int side, int count) {
-    final positions = _teamAt(side).positions;
-    final positionOrder = count == 6
-        ? const <int>[3, 2, 1, 4, 5, 0]
-        : List<int>.generate(count, (index) => index);
-    final court = Container(
-      key: ValueKey('rotation-court-$side'),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 8,
-        runSpacing: 8,
-        children: positionOrder
-            .map(
-              (position) => _positionTarget(
-                side,
-                position,
-                position < positions.length ? positions[position] : null,
-              ),
-            )
-            .toList(),
-      ),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Spielfeld · ${activeCount(side, count)}/$count',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ),
-            IconButton(
-              tooltip: 'Manuell rotieren',
-              onPressed: () => _rotate(side),
-              icon: const Icon(Icons.rotate_right),
-            ),
-          ],
-        ),
-        court,
-      ],
-    );
-  }
+  Widget _buildFullCourt(int count) {
+    final layout = _courtLayout(count);
 
-  int activeCount(int side, int count) =>
-      _teamAt(side).positions.take(count).whereType<String>().toSet().length;
-
-  Widget _positionTarget(int side, int position, String? playerId) {
-    final team = _teamAt(side);
-    final player =
-        team.players.where((entry) => entry.id == playerId).firstOrNull;
-    return DragTarget<RotationPlayer>(
-      key: ValueKey('rotation-position-$side-$position'),
-      onWillAcceptWithDetails: (details) =>
-          team.players.any((entry) => entry.id == details.data.id),
-      onAcceptWithDetails: (details) =>
-          _assignPlayer(side, position, details.data),
-      builder: (context, candidates, rejected) {
-        final highlighted = candidates.isNotEmpty;
-        return SizedBox(
-          width: 104,
-          height: 78,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: highlighted
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: highlighted
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outlineVariant,
-                width: highlighted ? 2 : 1,
-              ),
-            ),
-            child: Stack(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
               children: [
-                Positioned(
-                  left: 6,
-                  top: 4,
-                  child: Text('${position + 1}',
-                      style: Theme.of(context).textTheme.labelSmall),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Spielfeld · ${activeCount(0, count)}/$count',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Team Blau manuell rotieren',
+                      onPressed: () => _rotate(0),
+                      icon: const Icon(Icons.rotate_left),
+                    ),
+                    IconButton(
+                      tooltip: 'Team Rot manuell rotieren',
+                      onPressed: () => _rotate(1),
+                      icon: const Icon(Icons.rotate_right),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${activeCount(1, count)}/$count · Spielfeld',
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                  ],
                 ),
-                Center(
-                  child: player == null
-                      ? const Icon(Icons.add, size: 20)
-                      : _playerToken(side, player),
+                AspectRatio(
+                  aspectRatio: 2,
+                  child: Container(
+                    key: const ValueKey('rotation-court'),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD89B5B),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: CustomPaint(
+                      painter: const _VolleyballCourtPainter(),
+                      child: Stack(
+                        children: [
+                          for (final slot in layout) ...[
+                            _courtPosition(
+                              side: 0,
+                              position: slot.position,
+                              x: slot.x,
+                              y: slot.y,
+                            ),
+                            _courtPosition(
+                              side: 1,
+                              position: slot.position,
+                              x: 1 - slot.x,
+                              y: slot.y,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -566,12 +597,149 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     );
   }
 
+  List<({int position, double x, double y})> _courtLayout(int count) {
+    if (count == 6) {
+      return const [
+        (position: 4, x: 0.20, y: 0.18),
+        (position: 3, x: 0.43, y: 0.18),
+        (position: 5, x: 0.20, y: 0.5),
+        (position: 2, x: 0.43, y: 0.5),
+        (position: 0, x: 0.20, y: 0.82),
+        (position: 1, x: 0.43, y: 0.82),
+      ];
+    }
+    if (count == 4) {
+      return const [
+        (position: 0, x: 0.16, y: 0.3),
+        (position: 1, x: 0.36, y: 0.3),
+        (position: 2, x: 0.16, y: 0.7),
+        (position: 3, x: 0.36, y: 0.7),
+      ];
+    }
+    return const [
+      (position: 0, x: 0.27, y: 0.25),
+      (position: 1, x: 0.27, y: 0.5),
+      (position: 2, x: 0.27, y: 0.75),
+    ];
+  }
+
+  int activeCount(int side, int count) =>
+      _teamAt(side).positions.take(count).whereType<String>().toSet().length;
+
+  Widget _courtPosition({
+    required int side,
+    required int position,
+    required double x,
+    required double y,
+  }) {
+    final team = _teamAt(side);
+    final playerId =
+        position < team.positions.length ? team.positions[position] : null;
+    final player =
+        team.players.where((entry) => entry.id == playerId).firstOrNull;
+    final teamColor =
+        side == 0 ? const Color(0xFF1976D2) : const Color(0xFFC7434D);
+
+    return Align(
+      alignment: Alignment(x * 2 - 1, y * 2 - 1),
+      child: DragTarget<RotationPlayer>(
+        key: ValueKey('rotation-position-$side-$position'),
+        onWillAcceptWithDetails: (details) =>
+            team.players.any((entry) => entry.id == details.data.id),
+        onAcceptWithDetails: (details) =>
+            _assignPlayer(side, position, details.data),
+        builder: (context, candidates, rejected) {
+          final highlighted = candidates.isNotEmpty;
+          final ink = highlighted ? Colors.yellow : Colors.white;
+          return SizedBox(
+            width: 76,
+            height: 74,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: player == null ? Colors.white24 : teamColor,
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: ink, width: highlighted ? 3 : 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 3),
+                        ],
+                      ),
+                      child: player == null
+                          ? const Icon(Icons.add, color: Colors.white, size: 20)
+                          : Text(
+                              '${player.number ?? position + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                    if (player != null)
+                      SizedBox(
+                        width: 74,
+                        child: Text(
+                          player.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            shadows: [
+                              Shadow(color: Colors.black54, blurRadius: 2)
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                Positioned(
+                  top: 2,
+                  left: 5,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${position + 1}',
+                      style: TextStyle(
+                        color: teamColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _playerToken(int side, RotationPlayer player, {bool bench = false}) {
     final label = _playerLabel(player);
     final child = bench
         ? InputChip(
             label: Text(label, overflow: TextOverflow.ellipsis),
             avatar: const Icon(Icons.drag_indicator, size: 18),
+            onDeleted: () => _removePlayer(side, player),
           )
         : Container(
             width: 84,
@@ -609,4 +777,44 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
 
   String _playerLabel(RotationPlayer player) =>
       player.number == null ? player.name : '${player.number} · ${player.name}';
+}
+
+class _VolleyballCourtPainter extends CustomPainter {
+  const _VolleyballCourtPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final width = size.width;
+    final height = size.height;
+    canvas.drawRect(
+      Rect.fromLTWH(1, 1, width - 2, height - 2),
+      linePaint,
+    );
+    canvas.drawLine(Offset(width / 2, 0), Offset(width / 2, height), linePaint);
+    canvas.drawLine(
+      Offset(width * 0.25, 0),
+      Offset(width * 0.25, height),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(width * 0.75, 0),
+      Offset(width * 0.75, height),
+      linePaint,
+    );
+    final netPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 4;
+    canvas.drawLine(
+      Offset(width / 2, 0),
+      Offset(width / 2, height),
+      netPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _VolleyballCourtPainter oldDelegate) => false;
 }
