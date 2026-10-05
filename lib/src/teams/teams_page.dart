@@ -1430,6 +1430,14 @@ class _TeamsPageState extends State<TeamsPage> {
       );
 
   Widget _buildPlayerStats(Team team, TeamPlayer player) {
+    final linkedTeams = _teams.where((linkedTeam) {
+      return linkedTeam.players.any((linkedPlayer) {
+        if (player.personId != null && linkedPlayer.personId != null) {
+          return linkedPlayer.personId == player.personId;
+        }
+        return linkedTeam.id == team.id && linkedPlayer.id == player.id;
+      });
+    }).toList();
     final games = <_PlayerMatchStats>[];
     for (final match in _matches) {
       if (match['teamId'] is! num ||
@@ -1464,12 +1472,28 @@ class _TeamsPageState extends State<TeamsPage> {
         title: Text('Statistik: ${player.name}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Zurück zu Spielern',
           onPressed: () => _openTeam(team, section: 'players'),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.link_outlined),
+              title: const Text('Verknüpfungen'),
+              subtitle: Text(
+                linkedTeams.isEmpty
+                    ? 'Keinem Team zugeordnet'
+                    : linkedTeams.map((linkedTeam) {
+                        final name = linkedTeam.name.trim();
+                        return name.isEmpty ? 'Unbenanntes Team' : name;
+                      }).join(' • '),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           if (games.isEmpty)
             const Text(
                 'Für diesen Spieler wurden noch keine Punktewertungen erfasst.')

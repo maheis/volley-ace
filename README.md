@@ -247,9 +247,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann
 - [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [x] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
-- [ ] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
-- [ ] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
-- [ ] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.
+- [x] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
+- [x] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
+- [x] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.
 
 ## Datenschutz
 

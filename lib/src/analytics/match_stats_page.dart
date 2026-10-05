@@ -387,6 +387,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   static const String _opponentErrorCategory = 'Gegner Fehler';
   static const String _timeoutKind = 'timeout';
+  static const String _manualSetEndKind = 'manual_set_end';
   static const List<String> _pointTypes = <String>[
     'Ass',
     'Angriff',
@@ -555,8 +556,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     if (_selectedMatchId == null) return;
     setState(() {
       if (_activeSection == 'player-selection') {
-        _activeSection = 'category-selection';
+        _pendingEventKind = null;
+        _pendingCategory = null;
+        _activeSection = 'scoring';
       } else if (_activeSection == 'category-selection') {
+        _pendingEventKind = null;
+        _pendingCategory = null;
         _activeSection = 'scoring';
       } else if (_activeSection == 'info' ||
           _activeSection == 'scoring' ||
@@ -880,6 +885,36 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     });
   }
 
+  void _cancelEventSelection() {
+    setState(() {
+      _pendingEventKind = null;
+      _pendingCategory = null;
+      _activeSection = 'scoring';
+    });
+  }
+
+  void _endSetManually(MatchGame match) {
+    final sets = _computeSets(match);
+    final currentSet = sets.lastOrNull;
+    if (currentSet == null ||
+        (currentSet.us == 0 && currentSet.opponent == 0)) {
+      return;
+    }
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
+        MatchEvent(
+          id: match.events.length + 1,
+          playerId: null,
+          playerName: 'Satzende',
+          playerNumber: 0,
+          kind: _manualSetEndKind,
+          category: 'Manuell',
+          occurredAt: DateTime.now(),
+        ),
+      );
+    _replaceMatch(match.copyWith(events: events));
+  }
+
   Future<void> _recordTimeout(MatchGame match) async {
     final teamTimeouts = match.events
         .where(
@@ -1040,6 +1075,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         us++;
       } else if (event.kind == 'error') {
         opponent++;
+      }
+      if (event.kind == _manualSetEndKind && (us > 0 || opponent > 0)) {
+        sets.add(_SetScore(us: us, opponent: opponent, isFinished: true));
+        us = 0;
+        opponent = 0;
+        continue;
       }
       final usWon = us >= 25 && us - opponent >= 2;
       final opponentWon = opponent >= 25 && opponent - us >= 2;
@@ -1781,6 +1822,16 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ),
               ),
               const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('finish-set-button'),
+                  onPressed: () => _endSetManually(match),
+                  icon: const Icon(Icons.flag_outlined),
+                  label: const Text('Satz beenden'),
+                ),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: _SetsTile(sets: scoreSets)),
@@ -1809,8 +1860,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         title: const Text('Spieler auswählen'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () =>
-              setState(() => _activeSection = 'category-selection'),
+          onPressed: _cancelEventSelection,
         ),
       ),
       body: SafeArea(
@@ -1867,7 +1917,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         title: Text(isPoint ? 'Punktart auswählen' : 'Fehler auswählen'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => setState(() => _activeSection = 'player-selection'),
+          onPressed: _cancelEventSelection,
         ),
       ),
       body: SafeArea(
