@@ -610,16 +610,16 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     }
     if (count == 4) {
       return const [
-        (position: 0, x: 0.16, y: 0.3),
-        (position: 1, x: 0.36, y: 0.3),
-        (position: 2, x: 0.16, y: 0.7),
-        (position: 3, x: 0.36, y: 0.7),
+        (position: 0, x: 0.08, y: 0.5),
+        (position: 1, x: 0.24, y: 0.82),
+        (position: 2, x: 0.45, y: 0.5),
+        (position: 3, x: 0.24, y: 0.18),
       ];
     }
     return const [
-      (position: 0, x: 0.27, y: 0.25),
-      (position: 1, x: 0.27, y: 0.5),
-      (position: 2, x: 0.27, y: 0.75),
+      (position: 0, x: 0.19, y: 0.82),
+      (position: 1, x: 0.45, y: 0.5),
+      (position: 2, x: 0.17, y: 0.18),
     ];
   }
 

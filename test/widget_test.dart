@@ -76,12 +76,35 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Spielaufstellung'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('rotation-league-select')));
+    final leagueSelector = find.byKey(const ValueKey('rotation-league-select'));
+    await tester.ensureVisible(leagueSelector);
+    await tester.tap(leagueSelector);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('U13 · 3 Spieler'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('U13 · 3 Spieler'), findsOneWidget);
-    expect(find.byKey(const ValueKey('rotation-court')), findsOneWidget);
+
+    Offset normalizedPosition(int side, int position) {
+      final court =
+          tester.getRect(find.byKey(const ValueKey('rotation-court')));
+      final center = tester.getCenter(
+        find.byKey(ValueKey('rotation-position-$side-$position')),
+      );
+      return Offset(
+        (center.dx - court.left) / court.width,
+        (center.dy - court.top) / court.height,
+      );
+    }
+
+    final threePlayerTop = normalizedPosition(0, 2);
+    final threePlayerMiddle = normalizedPosition(0, 1);
+    final threePlayerBottom = normalizedPosition(0, 0);
+    expect(threePlayerTop.dx, lessThan(0.3));
+    expect(threePlayerTop.dy, lessThan(0.4));
+    expect(threePlayerMiddle.dx, greaterThan(0.4));
+    expect(threePlayerMiddle.dy, closeTo(0.5, 0.02));
+    expect(threePlayerBottom.dx, lessThan(0.3));
+    expect(threePlayerBottom.dy, greaterThan(0.6));
     for (var side = 0; side < 2; side++) {
       for (var position = 0; position < 3; position++) {
         expect(
@@ -92,6 +115,28 @@ void main() {
       expect(find.byKey(ValueKey('rotation-position-$side-3')), findsNothing);
     }
     expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
+
+    await tester.tap(leagueSelector);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('U14 · 4 Spieler'));
+    await tester.pump(const Duration(milliseconds: 300));
+    final fourPlayerLeft = normalizedPosition(0, 0);
+    final fourPlayerMiddleBottom = normalizedPosition(0, 1);
+    final fourPlayerNet = normalizedPosition(0, 2);
+    final fourPlayerMiddleTop = normalizedPosition(0, 3);
+    expect(fourPlayerLeft.dx, lessThan(0.2));
+    expect(fourPlayerLeft.dy, closeTo(0.5, 0.02));
+    expect(fourPlayerMiddleBottom.dx, closeTo(0.3, 0.08));
+    expect(fourPlayerMiddleBottom.dy, greaterThan(0.6));
+    expect(fourPlayerNet.dx, greaterThan(0.4));
+    expect(fourPlayerNet.dy, closeTo(0.5, 0.02));
+    expect(fourPlayerMiddleTop.dx, closeTo(0.3, 0.08));
+    expect(fourPlayerMiddleTop.dy, lessThan(0.4));
+
+    await tester.tap(leagueSelector);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('U13 · 3 Spieler'));
+    await tester.pump(const Duration(milliseconds: 300));
 
     for (var index = 0; index < 4; index++) {
       final name = index == 3 ? 'Reserve' : 'Spieler $index';
