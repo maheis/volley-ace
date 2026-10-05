@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'rotation_state.dart';
+
 Color _normalizeScoreboardColor(Color color) {
   if (color.toARGB32() == 0xff1976d2) {
     return const Color(0xFF64b5f6);
@@ -168,6 +170,7 @@ class ScoreboardState {
     required this.timeoutStartedAt,
     required this.completedSets,
     required this.historyEntries,
+    this.rotationState,
   });
 
   static const Color defaultLeftColor = Color(0xFF64b5f6);
@@ -189,6 +192,7 @@ class ScoreboardState {
     timeoutStartedAt: null,
     completedSets: <SetResult>[],
     historyEntries: <ScoreboardHistoryEntry>[],
+    rotationState: null,
   );
 
   final int leftPoints;
@@ -206,6 +210,7 @@ class ScoreboardState {
   final DateTime? timeoutStartedAt;
   final List<SetResult> completedSets;
   final List<ScoreboardHistoryEntry> historyEntries;
+  final ScoreboardRotationState? rotationState;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'leftPoints': leftPoints,
@@ -224,6 +229,7 @@ class ScoreboardState {
         'completedSets': completedSets.map((set) => set.toJson()).toList(),
         'historyEntries':
             historyEntries.map((entry) => entry.toJson()).toList(),
+        if (rotationState != null) 'rotationState': rotationState!.toJson(),
       };
 
   static ScoreboardState fromJson(Map<String, dynamic>? data) {
@@ -283,6 +289,7 @@ class ScoreboardState {
           : null,
       completedSets: completedSets,
       historyEntries: historyEntries,
+      rotationState: ScoreboardRotationState.fromJson(data['rotationState']),
     );
   }
 }

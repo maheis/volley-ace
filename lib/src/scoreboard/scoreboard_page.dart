@@ -9,6 +9,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../backup/app_backup_service.dart';
 import 'scoreboard_repository.dart';
+import 'rotation_setup_page.dart';
+import 'rotation_state.dart';
 import 'scoreboard_state.dart';
 import '../theme/app_palette.dart';
 
@@ -37,6 +39,7 @@ class _ScoreSnapshot {
     required this.stopwatchStartedAt,
     required this.timeoutSide,
     required this.timeoutStartedAt,
+    required this.rotationState,
   });
 
   final int leftPoints;
@@ -53,6 +56,7 @@ class _ScoreSnapshot {
   final DateTime? stopwatchStartedAt;
   final int? timeoutSide;
   final DateTime? timeoutStartedAt;
+  final ScoreboardRotationState? rotationState;
 }
 
 class _ScoreboardPageState extends State<ScoreboardPage> {
@@ -77,6 +81,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
   DateTime? _timeoutStartedAt;
   List<SetResult> _completedSets = <SetResult>[];
   List<ScoreboardHistoryEntry> _historyEntries = <ScoreboardHistoryEntry>[];
+  ScoreboardRotationState? _rotationState;
   late final ScoreboardRepository _repository = ScoreboardRepository(
     widget.database,
   );
@@ -198,6 +203,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _timeoutStartedAt = state.timeoutStartedAt;
       _completedSets = state.completedSets;
       _historyEntries = state.historyEntries;
+      _rotationState = state.rotationState;
       _isLoaded = true;
     });
   }
@@ -235,6 +241,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           timeoutStartedAt: _timeoutStartedAt,
           completedSets: _completedSets,
           historyEntries: _historyEntries,
+          rotationState: _rotationState,
         ),
       ),
     );
@@ -257,6 +264,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       timeoutStartedAt: _timeoutStartedAt,
       completedSets: _completedSets,
       historyEntries: _historyEntries,
+      rotationState: _rotationState,
     );
   }
 
@@ -423,6 +431,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                           _timeoutStartedAt = snapshot.state.timeoutStartedAt;
                           _completedSets = snapshot.state.completedSets;
                           _historyEntries = snapshot.state.historyEntries;
+                          _rotationState = snapshot.state.rotationState;
                         });
                         _persist();
                         if (!mounted) return;
@@ -567,6 +576,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         _timeoutStartedAt = imported.state.timeoutStartedAt;
         _completedSets = imported.state.completedSets;
         _historyEntries = imported.state.historyEntries;
+        _rotationState = imported.state.rotationState;
       });
       _persist();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -604,10 +614,12 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         stopwatchStartedAt: _stopwatchStartedAt,
         timeoutSide: _timeoutSide,
         timeoutStartedAt: _timeoutStartedAt,
+        rotationState: _rotationState,
       );
 
   void _addPoint({required bool left}) {
     _history.add(_snapshot);
+    final previousRotation = _rotationState;
     Color? finishedSetColor;
     setState(() {
       if (left) {
@@ -621,12 +633,28 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         _stopwatchRunning = true;
         _stopwatchStartedAt = _now;
       }
+      _rotationState = _rotationState?.afterPoint(left ? 0 : 1);
       finishedSetColor = _finishSetIfNeeded();
     });
     _recordHistory(
       left ? 'Punkt blau' : 'Punkt rot',
       color: left ? _leftColor : _rightColor,
     );
+    final currentRotation = _rotationState;
+    if (previousRotation != null && currentRotation != null) {
+      if (previousRotation.servingSide != currentRotation.servingSide) {
+        _recordHistory(
+          'Aufschlagwechsel zu ${currentRotation.servingSide == 0 ? 'blau' : 'rot'}',
+          color: currentRotation.servingSide == 0 ? _leftColor : _rightColor,
+        );
+      }
+      if (previousRotation.left.positions.join('|') !=
+              currentRotation.left.positions.join('|') ||
+          previousRotation.right.positions.join('|') !=
+              currentRotation.right.positions.join('|')) {
+        _recordHistory('Automatische Rotation');
+      }
+    }
     if (finishedSetColor != null) {
       _recordHistory(
         finishedSetColor == _leftColor
@@ -727,6 +755,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _stopwatchStartedAt = previous.stopwatchStartedAt;
       _timeoutSide = previous.timeoutSide;
       _timeoutStartedAt = previous.timeoutStartedAt;
+      _rotationState = previous.rotationState;
     });
     _persist();
   }
@@ -877,6 +906,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _rightSets = sets;
       _leftColor = _rightColor;
       _rightColor = color;
+      _rotationState = _rotationState?.swapSides();
       _history.clear();
     });
     _persist();
@@ -921,6 +951,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _timeoutSide = null;
       _timeoutStartedAt = null;
       _completedSets = <SetResult>[];
+      _rotationState = _rotationState?.copyWith(consecutiveServePoints: 0);
     });
     _persist();
   }
@@ -936,6 +967,38 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     );
   }
 
+  Future<void> _openRotationSetup() async {
+    final updated = await Navigator.of(context).push<ScoreboardRotationState>(
+      MaterialPageRoute<ScoreboardRotationState>(
+        builder: (_) => RotationSetupPage(
+          database: widget.database,
+          initial: _rotationState,
+        ),
+      ),
+    );
+    if (updated == null || !mounted) return;
+    if (jsonEncode(_rotationState?.toJson()) == jsonEncode(updated.toJson())) {
+      return;
+    }
+    _history.add(_snapshot);
+    setState(() => _rotationState = updated);
+    _recordHistory('Spielaufstellung geändert');
+    _persist();
+  }
+
+  Widget _rotationSetupButton() => IconButton(
+        key: const ValueKey('rotation-setup-button'),
+        tooltip: _rotationState == null
+            ? 'Spielinfos und Aufstellung'
+            : 'Aufstellung und Rotation',
+        onPressed: _openRotationSetup,
+        icon: Icon(
+          _rotationState == null
+              ? Icons.sports_volleyball_outlined
+              : Icons.sports_volleyball,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final isAndroidLandscape =
@@ -948,6 +1011,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
           : AppBar(
               title: const Text('Punktetafel'),
               actions: [
+                _rotationSetupButton(),
                 IconButton(
                   key: const ValueKey('save-scoreboard-button'),
                   tooltip: 'Stand speichern',
@@ -1052,7 +1116,10 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                       if (isLandscape)
                         Expanded(
                           flex: 1,
-                          child: const SizedBox.shrink(),
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: _rotationSetupButton(),
+                          ),
                         ),
                       Expanded(
                         flex: 5,

@@ -10,6 +10,8 @@ import 'package:volleyace/src/settings/settings_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_state.dart';
+import 'package:volleyace/src/scoreboard/rotation_state.dart';
+import 'package:volleyace/src/scoreboard/rotation_setup_page.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
 import 'package:volleyace/src/teams/teams_page.dart';
@@ -17,6 +19,116 @@ import 'package:volleyace/src/tactics/tactics_page.dart';
 import 'package:volleyace/src/training/training_page.dart';
 
 void main() {
+  test('rotation follows the selected youth and senior rules', () {
+    RotationTeamState team(String prefix) => RotationTeamState(
+          players: List<RotationPlayer>.generate(
+            6,
+            (index) =>
+                RotationPlayer(id: '$prefix$index', name: 'Spieler $index'),
+          ),
+          positions: List<String>.generate(6, (index) => '$prefix$index'),
+        );
+    final youth = ScoreboardRotationState(
+      league: 'U13',
+      left: team('l'),
+      right: team('r'),
+      servingSide: 0,
+    );
+    final seniors = ScoreboardRotationState(
+      league: 'Damen',
+      left: team('l'),
+      right: team('r'),
+      servingSide: 0,
+    );
+
+    expect(rotationPlayerCount('U12'), 3);
+    expect(rotationPlayerCount('U15'), 4);
+    expect(rotationPlayerCount('Herren'), 6);
+    expect(youth.afterPoint(0).left.positions, youth.left.positions);
+    expect(youth.afterPoint(0).afterPoint(0).left.positions, [
+      'l1',
+      'l2',
+      'l3',
+      'l4',
+      'l5',
+      'l0',
+    ]);
+    expect(youth.afterPoint(1).servingSide, 1);
+    expect(youth.afterPoint(1).right.positions.first, 'r1');
+    expect(seniors.afterPoint(0).left.positions, seniors.left.positions);
+    expect(seniors.afterPoint(1).left.positions, seniors.left.positions);
+    expect(seniors.afterPoint(1).right.positions.first, 'r1');
+  });
+
+  testWidgets('rotation setup selects a league and exposes save', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database =
+        await databaseFactoryMemory.openDatabase('rotation-setup.db');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: RotationSetupPage(database: database),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Spielaufstellung'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('rotation-league-select')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('U13 · 3 Spieler'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('U13 · 3 Spieler'), findsOneWidget);
+    expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
+  });
+
+  test('scoreboard persists the rotation setup and its progress', () async {
+    final database =
+        await databaseFactoryMemory.openDatabase('rotation-score.db');
+    RotationTeamState team(String prefix) => RotationTeamState(
+          players: List<RotationPlayer>.generate(
+            3,
+            (index) =>
+                RotationPlayer(id: '$prefix$index', name: '$prefix$index'),
+          ),
+          positions: List<String>.generate(3, (index) => '$prefix$index'),
+        );
+    final rotation = ScoreboardRotationState(
+      league: 'U13',
+      left: team('l'),
+      right: team('r'),
+      servingSide: 0,
+    );
+    final state = ScoreboardState.fromJson(
+      <String, dynamic>{
+        ...ScoreboardState.initial.toJson(),
+        'rotationState': rotation.toJson()
+      },
+    );
+    await ScoreboardRepository(database).save(
+      state,
+    );
+    final loaded = (await ScoreboardRepository(database).load()).rotationState!;
+    expect(loaded.left.positions, ['l0', 'l1', 'l2']);
+    final afterTwoPoints = loaded.afterPoint(0).afterPoint(0);
+    await ScoreboardRepository(database).save(
+      ScoreboardState.fromJson(
+        <String, dynamic>{
+          ...state.toJson(),
+          'leftPoints': 2,
+          'rotationState': afterTwoPoints.toJson(),
+        },
+      ),
+    );
+    final progressed =
+        (await ScoreboardRepository(database).load()).rotationState!;
+    expect(progressed.left.positions, ['l1', 'l2', 'l0']);
+    expect(progressed.consecutiveServePoints, 0);
+    expect(loaded.left.positions, ['l0', 'l1', 'l2']);
+  });
+
   testWidgets('Settings page shows typography controls', (
     WidgetTester tester,
   ) async {

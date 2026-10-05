@@ -49,7 +49,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         30 Sekunden Timer
         2 Stück pro Satz und Team
   - [ ] Rotation / Spielerwechsel (optional)
-    - [ ] Spielinfos
+    - [ ] Spielinfos [Eingabe/Erfassung]
       - [ ] Team A
         - [ ] Team (optional)
         - [ ] Spieler/Nummern
@@ -62,7 +62,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
             U12-U13: 3 Spieler, U14-U15: 4 Spieler, Rest: 6 Spieler
             U12-U15: Rotation nach 2 Aufschlägen und bei Aufschlagwechsel, Rest: Rotation nach Aufschlagwechsel
     - [ ] WAS?
-      - [ ] Startaufstellung (Positionsnummern)
+      - [ ] Startaufstellung (Positionsnummern 1-6) [per D&D auf Spielfeld]
       - [ ] Ersatzspieler
       - [ ] Spielerwechsel
     - [ ] Anzeige in einem Spielfeld auf den jeweiligen Positionen 1-6
