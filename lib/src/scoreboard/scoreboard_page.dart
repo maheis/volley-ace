@@ -918,7 +918,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Punktetafel zurücksetzen?'),
         content: const Text(
-          'Punkte, Sätze und die Stoppuhr werden auf den Anfangszustand zurückgesetzt.',
+          'Punkte, Sätze, Stoppuhr und die gespeicherte Spielaufstellung werden zurückgesetzt.',
         ),
         actions: [
           TextButton(
@@ -951,7 +951,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       _timeoutSide = null;
       _timeoutStartedAt = null;
       _completedSets = <SetResult>[];
-      _rotationState = _rotationState?.copyWith(consecutiveServePoints: 0);
+      _rotationState = null;
     });
     _persist();
   }
@@ -1009,9 +1009,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       appBar: isAndroidLandscape
           ? null
           : AppBar(
-              title: const Text('Punktetafel'),
+              centerTitle: true,
+              title: _rotationSetupButton(),
               actions: [
-                _rotationSetupButton(),
                 IconButton(
                   key: const ValueKey('save-scoreboard-button'),
                   tooltip: 'Stand speichern',
@@ -1117,7 +1117,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                         Expanded(
                           flex: 1,
                           child: Align(
-                            alignment: Alignment.topRight,
+                            alignment: Alignment.topCenter,
                             child: _rotationSetupButton(),
                           ),
                         ),

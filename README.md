@@ -250,6 +250,16 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
 - [x] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
 - [x] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.
+- [x] Spielernummern mit anzeigen
+- [x] Bänke benennen (Team)
+- [x] Wird ein Team mit gesetztem Spielbetrieb ausgewählt, soll der Spieltyp oben angepasst werden.
+- [x] Punkte weiter nach hinten und kleiner
+- [x] Mannschaftsauswahl und Spielklasse in eiegene Seite packe, so das Spielfeld nach eingabe oben
+- [x] Button zum Aufruf oben Mittig!
+- [x] Speichern/Abbrechen Button nach oben in die Leiste
+- [x] Zurücksetzen soll auch Spieler zurücksetzen
+- [ ] Tests dauern ewig?!
+- [ ]
 
 ## Datenschutz
 

@@ -14,6 +14,16 @@ const List<String> volleyballLeagueOptions = <String>[
   'Freizeit',
 ];
 
+const List<String> volleyballMatchTypeOptions = <String>[
+  'Liga',
+  'Turnier',
+  'Freundschaftsspiel',
+  'Trainingsspiel',
+];
+
+String matchTypeForTeamLeague(String league) =>
+    volleyballLeagueOptions.contains(league) ? 'Liga' : 'Freundschaftsspiel';
+
 int rotationPlayerCount(String league) {
   if (league == 'U12' || league == 'U13') return 3;
   if (league == 'U14' || league == 'U15') return 4;
@@ -116,6 +126,7 @@ class RotationTeamState {
 class ScoreboardRotationState {
   const ScoreboardRotationState({
     required this.league,
+    this.matchType = 'Freundschaftsspiel',
     required this.left,
     required this.right,
     required this.servingSide,
@@ -123,6 +134,7 @@ class ScoreboardRotationState {
   });
 
   final String league;
+  final String matchType;
   final RotationTeamState left;
   final RotationTeamState right;
   final int servingSide;
@@ -142,6 +154,7 @@ class ScoreboardRotationState {
 
   ScoreboardRotationState copyWith({
     String? league,
+    String? matchType,
     RotationTeamState? left,
     RotationTeamState? right,
     int? servingSide,
@@ -149,6 +162,7 @@ class ScoreboardRotationState {
   }) =>
       ScoreboardRotationState(
         league: league ?? this.league,
+        matchType: matchType ?? this.matchType,
         left: left ?? this.left,
         right: right ?? this.right,
         servingSide: servingSide ?? this.servingSide,
@@ -207,6 +221,7 @@ class ScoreboardRotationState {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'league': league,
+        'matchType': matchType,
         'left': left.toJson(),
         'right': right.toJson(),
         'servingSide': servingSide,
@@ -223,6 +238,9 @@ class ScoreboardRotationState {
     final servingSide = data['servingSide'];
     return ScoreboardRotationState(
       league: league,
+      matchType: volleyballMatchTypeOptions.contains(data['matchType'])
+          ? data['matchType'] as String
+          : 'Freundschaftsspiel',
       left: RotationTeamState.fromJson(data['left']),
       right: RotationTeamState.fromJson(data['right']),
       servingSide: servingSide == 1 ? 1 : 0,

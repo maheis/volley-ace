@@ -20,10 +20,12 @@ class RotationSetupPage extends StatefulWidget {
 
 class _RotationSetupPageState extends State<RotationSetupPage> {
   late String _league;
+  late String _matchType;
   late RotationTeamState _left;
   late RotationTeamState _right;
   late int _servingSide;
   late int _consecutiveServePoints;
+  bool _showCourt = false;
   final List<Team> _teams = <Team>[];
   final List<TextEditingController> _teamNameControllers =
       List<TextEditingController>.generate(2, (_) => TextEditingController());
@@ -39,6 +41,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     super.initState();
     final initial = widget.initial;
     _league = initial?.league ?? 'Herren';
+    _matchType = initial?.matchType ?? 'Freundschaftsspiel';
     _left = initial?.left ?? const RotationTeamState();
     _right = initial?.right ?? const RotationTeamState();
     _servingSide = initial?.servingSide ?? 0;
@@ -87,6 +90,10 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
         _teamAt(side).copyWith(clearSourceTeamId: true),
       );
       return;
+    }
+    if (volleyballLeagueOptions.contains(source.league)) {
+      _changeLeague(source.league);
+      setState(() => _matchType = matchTypeForTeamLeague(source.league));
     }
     final players = source.players
         .map(
@@ -218,6 +225,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
         league: _league,
         left: _teamAt(0).copyWith(name: _teamNameControllers[0].text.trim()),
         right: _teamAt(1).copyWith(name: _teamNameControllers[1].text.trim()),
+        matchType: _matchType,
         servingSide: _servingSide,
         consecutiveServePoints: _consecutiveServePoints,
       );
@@ -238,132 +246,182 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     Navigator.of(context).pop(_rotationState);
   }
 
+  void _cancel() {
+    Navigator.of(context).pop();
+  }
+
+  void _showLineup() {
+    setState(() => _showCourt = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final count = rotationPlayerCount(_league);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spielaufstellung'),
+        leading: _showCourt
+            ? IconButton(
+                tooltip: 'Zur Spielinfo',
+                onPressed: () => setState(() => _showCourt = false),
+                icon: const Icon(Icons.arrow_back),
+              )
+            : null,
+        title: Text(_showCourt ? 'Aufstellung' : 'Spielinfos'),
         actions: [
+          if (_showCourt)
+            IconButton(
+              tooltip: 'Seiten tauschen',
+              onPressed: _swapSides,
+              icon: const Icon(Icons.swap_horiz),
+            ),
           IconButton(
-            tooltip: 'Seiten tauschen',
-            onPressed: _swapSides,
-            icon: const Icon(Icons.swap_horiz),
+            key: const ValueKey('cancel-rotation-setup'),
+            tooltip: 'Abbrechen',
+            onPressed: _cancel,
+            icon: const Icon(Icons.close),
+          ),
+          IconButton(
+            key: const ValueKey('save-rotation-setup'),
+            tooltip: 'Speichern',
+            onPressed: _save,
+            icon: const Icon(Icons.save_outlined),
           ),
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-          children: [
-            DropdownButtonFormField<String>(
-              key: const ValueKey('rotation-league-select'),
-              initialValue: _league,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Spielklasse',
-                border: OutlineInputBorder(),
+        child: _showCourt ? _buildLineupStep(count) : _buildInfoStep(),
+      ),
+      bottomNavigationBar: _showCourt
+          ? null
+          : SafeArea(
+              minimum: const EdgeInsets.all(12),
+              child: FilledButton.icon(
+                key: const ValueKey('open-lineup-button'),
+                onPressed: _showLineup,
+                icon: const Icon(Icons.sports_volleyball),
+                label: const Text('Spieler und Aufstellung'),
               ),
-              items: volleyballLeagueOptions
-                  .map((league) => DropdownMenuItem(
-                        value: league,
-                        child: Text(
-                            '$league · ${rotationPlayerCount(league)} Spieler'),
-                      ))
-                  .toList(),
-              onChanged: (league) {
-                if (league != null) _changeLeague(league);
-              },
             ),
-            const SizedBox(height: 16),
-            SegmentedButton<int>(
-              segments: <ButtonSegment<int>>[
-                ButtonSegment<int>(
-                  value: 0,
-                  label: Text(_displayName(0, 'Blau')),
-                  icon: const Icon(Icons.sports_volleyball),
-                ),
-                ButtonSegment<int>(
-                  value: 1,
-                  label: Text(_displayName(1, 'Rot')),
-                  icon: const Icon(Icons.sports_volleyball),
-                ),
+    );
+  }
+
+  Widget _buildInfoStep() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+      children: [
+        DropdownButtonFormField<String>(
+          key: const ValueKey('rotation-league-select'),
+          initialValue: _league,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Spielklasse',
+            border: OutlineInputBorder(),
+          ),
+          items: volleyballLeagueOptions
+              .map((league) => DropdownMenuItem(
+                    value: league,
+                    child: Text(
+                        '$league · ${rotationPlayerCount(league)} Spieler'),
+                  ))
+              .toList(),
+          onChanged: (league) {
+            if (league != null) _changeLeague(league);
+          },
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          key: const ValueKey('rotation-match-type-select'),
+          initialValue: _matchType,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Spieltyp',
+            border: OutlineInputBorder(),
+          ),
+          items: volleyballMatchTypeOptions
+              .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+              .toList(),
+          onChanged: (type) {
+            if (type != null) setState(() => _matchType = type);
+          },
+        ),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 760) {
+              return Column(
+                children: [
+                  _buildTeamHeader(0),
+                  const SizedBox(height: 12),
+                  _buildTeamHeader(1),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildTeamHeader(0)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildTeamHeader(1)),
               ],
-              selected: <int>{_servingSide},
-              onSelectionChanged: (selection) =>
-                  setState(() => _servingSide = selection.first),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLineupStep(int count) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+      children: [
+        _buildFullCourt(count),
+        const SizedBox(height: 12),
+        SegmentedButton<int>(
+          segments: <ButtonSegment<int>>[
+            ButtonSegment<int>(
+              value: 0,
+              label: Text(_displayName(0, 'Blau')),
+              icon: const Icon(Icons.sports_volleyball),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Aufschlagteam',
-              style: Theme.of(context).textTheme.labelLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 760) {
-                  return Column(
-                    children: [
-                      _buildTeamHeader(0),
-                      const SizedBox(height: 12),
-                      _buildTeamHeader(1),
-                      const SizedBox(height: 16),
-                      _buildFullCourt(count),
-                      const SizedBox(height: 16),
-                      _buildRosterEditor(0, count),
-                      const SizedBox(height: 12),
-                      _buildRosterEditor(1, count),
-                    ],
-                  );
-                }
-                return Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildTeamHeader(0)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildTeamHeader(1)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFullCourt(count),
-                    const SizedBox(height: 16),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildRosterEditor(0, count)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildRosterEditor(1, count)),
-                      ],
-                    ),
-                  ],
-                );
-              },
+            ButtonSegment<int>(
+              value: 1,
+              label: Text(_displayName(1, 'Rot')),
+              icon: const Icon(Icons.sports_volleyball),
             ),
           ],
+          selected: <int>{_servingSide},
+          onSelectionChanged: (selection) =>
+              setState(() => _servingSide = selection.first),
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.all(12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Abbrechen'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              key: const ValueKey('save-rotation-setup'),
-              onPressed: _save,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Speichern'),
-            ),
-          ],
+        const SizedBox(height: 8),
+        Text(
+          'Aufschlagteam',
+          style: Theme.of(context).textTheme.labelLarge,
+          textAlign: TextAlign.center,
         ),
-      ),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 760) {
+              return Column(
+                children: [
+                  _buildRosterEditor(0, count),
+                  const SizedBox(height: 12),
+                  _buildRosterEditor(1, count),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildRosterEditor(0, count)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildRosterEditor(1, count)),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -435,8 +493,10 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Bank · ${bench.length}',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Bank ${_displayName(side, side == 0 ? 'Blau' : 'Rot')} · ${bench.length}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             DragTarget<RotationPlayer>(
               key: ValueKey('rotation-bank-$side'),
               onWillAcceptWithDetails: (details) =>
@@ -600,25 +660,25 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
   List<({int position, double x, double y})> _courtLayout(int count) {
     if (count == 6) {
       return const [
-        (position: 4, x: 0.20, y: 0.18),
-        (position: 3, x: 0.43, y: 0.18),
-        (position: 5, x: 0.20, y: 0.5),
-        (position: 2, x: 0.43, y: 0.5),
-        (position: 0, x: 0.20, y: 0.82),
-        (position: 1, x: 0.43, y: 0.82),
+        (position: 4, x: 0.15, y: 0.18),
+        (position: 3, x: 0.38, y: 0.18),
+        (position: 5, x: 0.15, y: 0.5),
+        (position: 2, x: 0.38, y: 0.5),
+        (position: 0, x: 0.15, y: 0.82),
+        (position: 1, x: 0.38, y: 0.82),
       ];
     }
     if (count == 4) {
       return const [
         (position: 0, x: 0.08, y: 0.5),
         (position: 1, x: 0.24, y: 0.82),
-        (position: 2, x: 0.45, y: 0.5),
+        (position: 2, x: 0.39, y: 0.5),
         (position: 3, x: 0.24, y: 0.18),
       ];
     }
     return const [
       (position: 0, x: 0.19, y: 0.82),
-      (position: 1, x: 0.45, y: 0.5),
+      (position: 1, x: 0.39, y: 0.5),
       (position: 2, x: 0.17, y: 0.18),
     ];
   }
@@ -662,8 +722,8 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 32,
+                      height: 32,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: player == null ? Colors.white24 : teamColor,

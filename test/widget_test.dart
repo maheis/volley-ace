@@ -60,13 +60,18 @@ void main() {
     expect(seniors.afterPoint(1).right.positions.first, 'r1');
   });
 
-  testWidgets('rotation setup selects a league and exposes save', (
+  test('a team league selects league match type', () {
+    expect(matchTypeForTeamLeague('U14'), 'Liga');
+    expect(matchTypeForTeamLeague(''), 'Freundschaftsspiel');
+  });
+
+  testWidgets('rotation setup shows info before the court and saves up top', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(400, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database =
-        await databaseFactoryMemory.openDatabase('rotation-setup.db');
+        await databaseFactoryMemory.openDatabase('rotation-setup-flow.db');
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(platform: TargetPlatform.windows),
@@ -74,90 +79,22 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Spielaufstellung'), findsOneWidget);
 
-    final leagueSelector = find.byKey(const ValueKey('rotation-league-select'));
-    await tester.ensureVisible(leagueSelector);
-    await tester.tap(leagueSelector);
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('U13 · 3 Spieler'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('U13 · 3 Spieler'), findsOneWidget);
-
-    Offset normalizedPosition(int side, int position) {
-      final court =
-          tester.getRect(find.byKey(const ValueKey('rotation-court')));
-      final center = tester.getCenter(
-        find.byKey(ValueKey('rotation-position-$side-$position')),
-      );
-      return Offset(
-        (center.dx - court.left) / court.width,
-        (center.dy - court.top) / court.height,
-      );
-    }
-
-    final threePlayerTop = normalizedPosition(0, 2);
-    final threePlayerMiddle = normalizedPosition(0, 1);
-    final threePlayerBottom = normalizedPosition(0, 0);
-    expect(threePlayerTop.dx, lessThan(0.3));
-    expect(threePlayerTop.dy, lessThan(0.4));
-    expect(threePlayerMiddle.dx, greaterThan(0.4));
-    expect(threePlayerMiddle.dy, closeTo(0.5, 0.02));
-    expect(threePlayerBottom.dx, lessThan(0.3));
-    expect(threePlayerBottom.dy, greaterThan(0.6));
-    for (var side = 0; side < 2; side++) {
-      for (var position = 0; position < 3; position++) {
-        expect(
-          find.byKey(ValueKey('rotation-position-$side-$position')),
-          findsOneWidget,
-        );
-      }
-      expect(find.byKey(ValueKey('rotation-position-$side-3')), findsNothing);
-    }
+    expect(find.text('Spielinfos'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-court')), findsNothing);
     expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cancel-rotation-setup')), findsOneWidget);
 
-    await tester.tap(leagueSelector);
+    await tester.tap(find.byKey(const ValueKey('open-lineup-button')));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('U14 · 4 Spieler'));
-    await tester.pump(const Duration(milliseconds: 300));
-    final fourPlayerLeft = normalizedPosition(0, 0);
-    final fourPlayerMiddleBottom = normalizedPosition(0, 1);
-    final fourPlayerNet = normalizedPosition(0, 2);
-    final fourPlayerMiddleTop = normalizedPosition(0, 3);
-    expect(fourPlayerLeft.dx, lessThan(0.2));
-    expect(fourPlayerLeft.dy, closeTo(0.5, 0.02));
-    expect(fourPlayerMiddleBottom.dx, closeTo(0.3, 0.08));
-    expect(fourPlayerMiddleBottom.dy, greaterThan(0.6));
-    expect(fourPlayerNet.dx, greaterThan(0.4));
-    expect(fourPlayerNet.dy, closeTo(0.5, 0.02));
-    expect(fourPlayerMiddleTop.dx, closeTo(0.3, 0.08));
-    expect(fourPlayerMiddleTop.dy, lessThan(0.4));
-
-    await tester.tap(leagueSelector);
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('U13 · 3 Spieler'));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    for (var index = 0; index < 4; index++) {
-      final name = index == 3 ? 'Reserve' : 'Spieler $index';
-      final nameField = find.byKey(const ValueKey('rotation-player-name-0'));
-      await tester.ensureVisible(nameField);
-      await tester.enterText(
-        nameField,
-        name,
-      );
-      await tester.ensureVisible(find.byTooltip('Spieler hinzufügen').first);
-      await tester.tap(find.byTooltip('Spieler hinzufügen').first);
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    expect(find.text('Reserve'), findsOneWidget);
-    expect(find.byKey(const ValueKey('rotation-bank-0')), findsOneWidget);
-
-    await tester.binding.setSurfaceSize(const Size(1024, 768));
-    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Aufstellung'), findsOneWidget);
     expect(find.byKey(const ValueKey('rotation-court')), findsOneWidget);
-    expect(find.byKey(const ValueKey('rotation-position-0-2')), findsOneWidget);
-    expect(find.byKey(const ValueKey('rotation-position-1-2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
+    expect(find.text('Bank Blau · 0'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zur Spielinfo'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Spielinfos'), findsOneWidget);
   });
 
   test('scoreboard persists the rotation setup and its progress', () async {
