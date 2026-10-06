@@ -1088,6 +1088,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isLandscape = constraints.maxWidth >= constraints.maxHeight;
+        final isAndroidLandscape = isLandscape &&
+            Theme.of(context).platform == TargetPlatform.android &&
+            MediaQuery.orientationOf(context) == Orientation.landscape;
         final scale = math
             .min(
               constraints.maxWidth / 1100,
@@ -1116,10 +1119,12 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                       if (isLandscape)
                         Expanded(
                           flex: 1,
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: _rotationSetupButton(),
-                          ),
+                          child: isAndroidLandscape
+                              ? Align(
+                                  alignment: Alignment.topCenter,
+                                  child: _rotationSetupButton(),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       Expanded(
                         flex: 5,

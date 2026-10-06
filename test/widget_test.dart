@@ -674,9 +674,16 @@ void main() {
 
     final database = await databaseFactoryMemory.openDatabase('landscape.db');
     await tester.pumpWidget(
-      MaterialApp(home: ScoreboardPage(database: database)),
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: ScoreboardPage(database: database),
+      ),
     );
     await _pumpUi(tester);
+
+    final setupButton = find.byKey(const ValueKey('rotation-setup-button'));
+    expect(setupButton, findsOneWidget);
+    expect(tester.getCenter(setupButton).dy, lessThan(60));
 
     final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
     expect(blueTimeout, findsOneWidget);
@@ -697,6 +704,20 @@ void main() {
     final size = tester.getSize(blueTimeout);
     expect(size.height, greaterThan(40));
     expect((size.width - size.height).abs(), lessThan(1.0));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpUi(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
+        home: ScoreboardPage(database: database),
+      ),
+    );
+    await _pumpUi(tester);
+    final androidSetupButton =
+        find.byKey(const ValueKey('rotation-setup-button'));
+    expect(androidSetupButton, findsOneWidget);
+    expect(tester.getCenter(androidSetupButton).dy, lessThan(100));
   });
 
   testWidgets('Scoreboard timeout buttons stay fixed-size squares', (
