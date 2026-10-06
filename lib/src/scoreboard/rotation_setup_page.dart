@@ -211,6 +211,74 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     );
   }
 
+  Future<void> _selectPlayerForPosition(int side, int position) async {
+    final team = _teamAt(side);
+    if (team.players.isEmpty) return;
+    final currentPlayerId =
+        position < team.positions.length ? team.positions[position] : null;
+    final selection = await showModalBottomSheet<_CourtPlayerSelection>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: 12),
+          children: [
+            ListTile(
+              title: Text('Position ${position + 1}'),
+              subtitle: Text(_displayName(side, side == 0 ? 'Blau' : 'Rot')),
+            ),
+            for (final player in team.players)
+              ListTile(
+                key: ValueKey(
+                  'choose-player-$side-$position-${player.id}',
+                ),
+                leading: CircleAvatar(
+                  child: Text(
+                    player.number?.toString() ??
+                        (player.name.isEmpty
+                            ? '${position + 1}'
+                            : player.name.characters.first),
+                  ),
+                ),
+                title: Text(player.name),
+                subtitle: Text(
+                  team.positions.contains(player.id)
+                      ? 'Position ${team.positions.indexOf(player.id) + 1}'
+                      : 'Bank',
+                ),
+                trailing: player.id == currentPlayerId
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(
+                  _CourtPlayerSelection(player: player),
+                ),
+              ),
+            if (currentPlayerId != null)
+              ListTile(
+                key: ValueKey('send-to-bank-$side-$position'),
+                leading: const Icon(Icons.move_to_inbox_outlined),
+                title: const Text('Auf die Bank setzen'),
+                onTap: () => Navigator.of(sheetContext).pop(
+                  const _CourtPlayerSelection(sendToBank: true),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selection == null || !mounted) return;
+    if (selection.sendToBank) {
+      final player = team.players
+          .where((entry) => entry.id == currentPlayerId)
+          .firstOrNull;
+      if (player != null) _moveToBench(side, player);
+      return;
+    }
+    final player = selection.player;
+    if (player != null) _assignPlayer(side, position, player);
+  }
+
   void _rotate(int side) {
     setState(() {
       if (side == 0) {
@@ -482,45 +550,34 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
               'Bank ${_displayName(side, side == 0 ? 'Blau' : 'Rot')} · ${bench.length}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
-            DragTarget<RotationPlayer>(
+            Container(
               key: ValueKey('rotation-bank-$side'),
-              onWillAcceptWithDetails: (details) =>
-                  activeIds.contains(details.data.id),
-              onAcceptWithDetails: (details) =>
-                  _moveToBench(side, details.data),
-              builder: (context, candidates, rejected) => Container(
-                constraints: const BoxConstraints(minHeight: 42),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: candidates.isNotEmpty
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: candidates.isNotEmpty
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.outlineVariant,
-                  ),
+              constraints: const BoxConstraints(minHeight: 42),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
                 ),
-                child: bench.isEmpty
-                    ? team.players.isEmpty
-                        ? const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Padding(
-                              padding: EdgeInsets.all(6),
-                              child: Text('Noch keine Spieler erfasst.'),
-                            ),
-                          )
-                        : const SizedBox(height: 32)
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: bench
-                            .map((player) =>
-                                _playerToken(side, player, bench: true))
-                            .toList(),
-                      ),
               ),
+              child: bench.isEmpty
+                  ? team.players.isEmpty
+                      ? const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Text('Noch keine Spieler erfasst.'),
+                          ),
+                        )
+                      : const SizedBox(height: 32)
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: bench
+                          .map((player) => _playerToken(side, player))
+                          .toList(),
+                    ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -687,141 +744,116 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
 
     return Align(
       alignment: Alignment(x * 2 - 1, y * 2 - 1),
-      child: DragTarget<RotationPlayer>(
-        key: ValueKey('rotation-position-$side-$position'),
-        onWillAcceptWithDetails: (details) =>
-            team.players.any((entry) => entry.id == details.data.id),
-        onAcceptWithDetails: (details) =>
-            _assignPlayer(side, position, details.data),
-        builder: (context, candidates, rejected) {
-          final highlighted = candidates.isNotEmpty;
-          final ink = highlighted ? Colors.yellow : Colors.white;
-          return SizedBox(
-            width: 76,
-            height: 74,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: player == null ? Colors.white24 : teamColor,
-                        shape: BoxShape.circle,
-                        border:
-                            Border.all(color: ink, width: highlighted ? 3 : 2),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black26, blurRadius: 3),
-                        ],
-                      ),
-                      child: player == null
-                          ? const Icon(Icons.add, color: Colors.white, size: 20)
-                          : Text(
-                              '${player.number ?? position + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+      child: Tooltip(
+        message: 'Position ${position + 1} auswählen',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: ValueKey('rotation-position-$side-$position'),
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => _selectPlayerForPosition(side, position),
+            child: SizedBox(
+              width: 76,
+              height: 74,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: player == null ? Colors.white24 : teamColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 3),
+                          ],
+                        ),
+                        child: player == null
+                            ? const Icon(Icons.add,
+                                color: Colors.white, size: 20)
+                            : Text(
+                                '${player.number ?? position + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
+                      ),
+                      if (player != null)
+                        SizedBox(
+                          width: 74,
+                          child: Text(
+                            player.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(color: Colors.black54, blurRadius: 2)
+                              ],
                             ),
-                    ),
-                    if (player != null)
-                      SizedBox(
-                        width: 74,
-                        child: Text(
-                          player.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            shadows: [
-                              Shadow(color: Colors.black54, blurRadius: 2)
-                            ],
                           ),
                         ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 2,
+                    left: 5,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                  ],
-                ),
-                Positioned(
-                  top: 2,
-                  left: 5,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${position + 1}',
-                      style: TextStyle(
-                        color: teamColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      child: Text(
+                        '${position + 1}',
+                        style: TextStyle(
+                          color: teamColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Widget _playerToken(int side, RotationPlayer player, {bool bench = false}) {
+  Widget _playerToken(int side, RotationPlayer player) {
     final label = _playerLabel(player);
-    final child = bench
-        ? InputChip(
-            label: Text(label, overflow: TextOverflow.ellipsis),
-            avatar: const Icon(Icons.drag_indicator, size: 18),
-            onDeleted: () => _removePlayer(side, player),
-          )
-        : Container(
-            width: 84,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (player.number != null)
-                  Text('${player.number}',
-                      style: Theme.of(context).textTheme.labelSmall),
-                Text(
-                  player.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-              ],
-            ),
-          );
-    return Tooltip(
-      message: bench ? '$label einsetzen' : '$label verschieben',
-      child: Draggable<RotationPlayer>(
-        data: player,
-        feedback: Material(
-          color: Colors.transparent,
-          child: Chip(label: Text(label)),
-        ),
-        childWhenDragging: Opacity(opacity: 0.35, child: child),
-        child: child,
-      ),
+    return InputChip(
+      key: ValueKey('rotation-bank-player-${side}-${player.id}'),
+      label: Text(label, overflow: TextOverflow.ellipsis),
+      avatar: const Icon(Icons.person_outline, size: 18),
+      onDeleted: () => _removePlayer(side, player),
     );
   }
 
   String _playerLabel(RotationPlayer player) =>
       player.number == null ? player.name : '${player.number} · ${player.name}';
+}
+
+class _CourtPlayerSelection {
+  const _CourtPlayerSelection({this.player, this.sendToBank = false});
+
+  final RotationPlayer? player;
+  final bool sendToBank;
 }
 
 class _VolleyballCourtPainter extends CustomPainter {

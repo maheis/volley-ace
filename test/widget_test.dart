@@ -109,6 +109,49 @@ void main() {
     expect(find.text('Bank Blau · 0'), findsOneWidget);
   });
 
+  testWidgets('tap a court position to select or bench a player', (
+    WidgetTester tester,
+  ) async {
+    final database =
+        await databaseFactoryMemory.openDatabase('rotation-pick-player.db');
+    const starter = RotationPlayer(id: 'starter', name: 'Ada', number: 7);
+    const reserve = RotationPlayer(id: 'reserve', name: 'Berta', number: 3);
+    const back = RotationPlayer(id: 'back', name: 'Mara', number: 5);
+    final initial = ScoreboardRotationState(
+      league: 'U13',
+      left: const RotationTeamState(
+        name: 'Blau',
+        players: [starter, reserve, back],
+        positions: ['starter', null, 'back'],
+      ),
+      right: const RotationTeamState(),
+      servingSide: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
+        home: RotationSetupPage(database: database, initial: initial),
+      ),
+    );
+    await _pumpUi(tester);
+
+    await tester.tap(find.byKey(const ValueKey('rotation-position-0-1')));
+    await _pumpUi(tester);
+    expect(find.text('Position 2'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('choose-player-0-1-reserve')),
+    );
+    await _pumpUi(tester);
+    expect(find.text('Berta'), findsOneWidget);
+    expect(find.text('Bank Blau · 0'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('rotation-position-0-1')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('send-to-bank-0-1')));
+    await _pumpUi(tester);
+    expect(find.text('Bank Blau · 1'), findsOneWidget);
+  });
+
   test('scoreboard persists the rotation setup and its progress', () async {
     final database =
         await databaseFactoryMemory.openDatabase('rotation-score.db');

@@ -261,6 +261,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Tests dauern ewig?!
 - [x] Button muss etwas höher und sollte nicht doppelt sein (wird in Leiste oben angezeigt und unten)
 - [x] Spielinfos (Mannschaft, Spielklasse) soll als zweite Seite aufrufbar sein, primäre Seite soll das Spielfeld sein!
+- [x] Spieler nicht per D&D rein ziehen, sondern auf die Position auf dem Spielfeld tippen und dann eine Auswahl bekommen
 
 ## Datenschutz
 
