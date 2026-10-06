@@ -25,7 +25,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
   late RotationTeamState _right;
   late int _servingSide;
   late int _consecutiveServePoints;
-  bool _showCourt = false;
+  bool _showCourt = true;
   final List<Team> _teams = <Team>[];
   final List<TextEditingController> _teamNameControllers =
       List<TextEditingController>.generate(2, (_) => TextEditingController());
@@ -250,22 +250,18 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     Navigator.of(context).pop();
   }
 
-  void _showLineup() {
-    setState(() => _showCourt = true);
-  }
-
   @override
   Widget build(BuildContext context) {
     final count = rotationPlayerCount(_league);
     return Scaffold(
       appBar: AppBar(
-        leading: _showCourt
-            ? IconButton(
-                tooltip: 'Zur Spielinfo',
-                onPressed: () => setState(() => _showCourt = false),
-                icon: const Icon(Icons.arrow_back),
-              )
-            : null,
+        leading: IconButton(
+          tooltip: _showCourt ? 'Spielinfos' : 'Zur Aufstellung',
+          onPressed: () => setState(() => _showCourt = !_showCourt),
+          icon: Icon(
+            _showCourt ? Icons.info_outline : Icons.sports_volleyball,
+          ),
+        ),
         title: Text(_showCourt ? 'Aufstellung' : 'Spielinfos'),
         actions: [
           if (_showCourt)
@@ -291,17 +287,6 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
       body: SafeArea(
         child: _showCourt ? _buildLineupStep(count) : _buildInfoStep(),
       ),
-      bottomNavigationBar: _showCourt
-          ? null
-          : SafeArea(
-              minimum: const EdgeInsets.all(12),
-              child: FilledButton.icon(
-                key: const ValueKey('open-lineup-button'),
-                onPressed: _showLineup,
-                icon: const Icon(Icons.sports_volleyball),
-                label: const Text('Spieler und Aufstellung'),
-              ),
-            ),
     );
   }
 

@@ -71,7 +71,7 @@ void main() {
     expect(matchTypeForTeamLeague(''), 'Freundschaftsspiel');
   });
 
-  testWidgets('rotation setup shows info before the court and saves up top', (
+  testWidgets('rotation setup opens on the court with info as a second page', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(400, 800));
@@ -86,21 +86,27 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Spielinfos'), findsOneWidget);
-    expect(find.byKey(const ValueKey('rotation-court')), findsNothing);
-    expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
-    expect(find.byKey(const ValueKey('cancel-rotation-setup')), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('open-lineup-button')));
-    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Aufstellung'), findsOneWidget);
     expect(find.byKey(const ValueKey('rotation-court')), findsOneWidget);
     expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
-    expect(find.text('Bank Blau · 0'), findsOneWidget);
+    expect(find.byKey(const ValueKey('cancel-rotation-setup')), findsOneWidget);
+    expect(find.byKey(const ValueKey('open-lineup-button')), findsNothing);
 
-    await tester.tap(find.byTooltip('Zur Spielinfo'));
+    await tester.tap(find.byTooltip('Spielinfos'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Spielinfos'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-court')), findsNothing);
+    expect(
+        find.byKey(const ValueKey('rotation-league-select')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('rotation-team-select-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('save-rotation-setup')), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zur Aufstellung'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Aufstellung'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rotation-court')), findsOneWidget);
+    expect(find.text('Bank Blau · 0'), findsOneWidget);
   });
 
   test('scoreboard persists the rotation setup and its progress', () async {

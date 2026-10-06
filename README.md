@@ -260,7 +260,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Zurücksetzen soll auch Spieler zurücksetzen
 - [x] Tests dauern ewig?!
 - [x] Button muss etwas höher und sollte nicht doppelt sein (wird in Leiste oben angezeigt und unten)
-- [x] Spielinfos (Mannschaft, Spielklasse)
+- [x] Spielinfos (Mannschaft, Spielklasse) soll als zweite Seite aufrufbar sein, primäre Seite soll das Spielfeld sein!
 
 ## Datenschutz
 
