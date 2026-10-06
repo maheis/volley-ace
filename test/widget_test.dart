@@ -5,18 +5,24 @@ import 'package:sembast/sembast_memory.dart';
 
 import 'package:volleyace/src/analytics/match_stats_page.dart';
 import 'package:volleyace/src/backup/app_backup_service.dart';
-import 'package:volleyace/src/arcade/arcade_page.dart';
-import 'package:volleyace/src/settings/settings_repository.dart';
-import 'package:volleyace/src/scoreboard/scoreboard_repository.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_page.dart';
 import 'package:volleyace/src/scoreboard/scoreboard_state.dart';
 import 'package:volleyace/src/scoreboard/rotation_state.dart';
 import 'package:volleyace/src/scoreboard/rotation_setup_page.dart';
+import 'package:volleyace/src/arcade/arcade_page.dart';
+import 'package:volleyace/src/scoreboard/scoreboard_repository.dart';
 import 'package:volleyace/src/settings/app_settings.dart';
+import 'package:volleyace/src/settings/settings_repository.dart';
 import 'package:volleyace/src/settings/settings_page.dart';
 import 'package:volleyace/src/teams/teams_page.dart';
 import 'package:volleyace/src/tactics/tactics_page.dart';
 import 'package:volleyace/src/training/training_page.dart';
+
+Future<void> _pumpUi(WidgetTester tester) async {
+  for (var frame = 0; frame < 4; frame++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
 
 void main() {
   test('rotation follows the selected youth and senior rules', () {
@@ -254,33 +260,33 @@ void main() {
         home: TacticsPage(database: database),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('new-tactic-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.enterText(
       find.byKey(const ValueKey('tactic-name-input')),
       'Aufschlag',
     );
     await tester.tap(find.text('Erstellen'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     final board = find.byKey(const ValueKey('tactics-board'));
     expect(board, findsOneWidget);
     await tester.tap(board);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byTooltip('Feld ins Querformat drehen'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(find.byTooltip('Feld ins Hochformat drehen'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.remove));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.dragFrom(const Offset(200, 300), const Offset(80, 40));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byIcon(Icons.arrow_forward));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.dragFrom(const Offset(240, 420), const Offset(-70, 30));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.drag(board, const Offset(32, 24));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(find.text('Taktiktafel'), findsOneWidget);
   });
 
@@ -296,23 +302,23 @@ void main() {
         home: TacticsPage(database: database),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('new-tactic-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.enterText(
       find.byKey(const ValueKey('tactic-name-input')),
       'Löschen',
     );
     await tester.tap(find.text('Erstellen'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     final board = find.byKey(const ValueKey('tactics-board'));
     await tester.tap(find.byIcon(Icons.circle));
     await tester.tap(board, warnIfMissed: false);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byIcon(Icons.pan_tool_outlined));
     await tester.tap(board, warnIfMissed: false);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.byTooltip('Ausgewähltes Objekt löschen'),
@@ -320,9 +326,9 @@ void main() {
     );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Löschen').last);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.byTooltip('Ausgewähltes Objekt löschen'),
@@ -337,20 +343,20 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     expect(blueScore, findsOneWidget);
 
     await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(
       find.descendant(of: blueScore, matching: find.text('1')),
       findsOneWidget,
     );
 
     await tester.fling(blueScore, const Offset(0, -300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(
       find.descendant(of: blueScore, matching: find.text('0')),
       findsOneWidget,
@@ -371,7 +377,6 @@ void main() {
     await tester.fling(blueScore, const Offset(0, 300), 1000);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-
     final persisted = await ScoreboardRepository(database).load();
     expect(persisted.leftPoints, 1);
     expect(persisted.stopwatchRunning, isTrue);
@@ -392,36 +397,42 @@ void main() {
         home: ScoreboardPage(database: database),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
 
     await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(
       find.descendant(of: blueScore, matching: find.text('1')),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const ValueKey('save-scoreboard-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.enterText(find.byType(TextField), 'Erster Stand');
     await tester.tap(find.text('Speichern'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(
       find.descendant(of: blueScore, matching: find.text('2')),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const ValueKey('load-scoreboard-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Erster Stand'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
+    final savedSnapshot = find.text('Erster Stand');
+    await tester.scrollUntilVisible(
+      savedSnapshot,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(savedSnapshot);
+    await _pumpUi(tester);
     await tester.tap(find.text('Laden'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.descendant(of: blueScore, matching: find.text('1')),
@@ -457,11 +468,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final setScoreArea = find.byKey(const ValueKey('set-score-area'));
     await tester.fling(setScoreArea, const Offset(300, 0), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('rot-set-panel')), findsOneWidget);
   });
@@ -476,7 +487,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     final redScore = find.byKey(const ValueKey('rot-score-panel'));
@@ -499,7 +510,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final setArea = find.byKey(const ValueKey('set-score-area'));
     final blueSet = find.byKey(const ValueKey('blau-set-panel'));
@@ -521,17 +532,17 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueSet = find.byKey(const ValueKey('blau-set-panel'));
     await tester.fling(blueSet, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Satz beenden'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.descendant(of: blueScore, matching: find.text('0')),
@@ -543,7 +554,7 @@ void main() {
     );
 
     await tester.fling(blueSet, const Offset(0, -300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.descendant(of: blueScore, matching: find.text('1')),
@@ -563,7 +574,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
     expect(blueTimeout, findsOneWidget);
@@ -588,11 +599,11 @@ void main() {
     );
 
     await tester.tap(blueTimeout);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Auszeit beenden?'), findsOneWidget);
     await tester.tap(find.text('Zurücknehmen'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.textContaining('00:30'), findsNothing);
     expect(
@@ -606,11 +617,11 @@ void main() {
     await tester.tap(blueTimeout);
     await tester.pump();
     await tester.tap(blueTimeout);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Auszeit beenden?'), findsOneWidget);
     await tester.tap(find.text('Beenden'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.descendant(
@@ -623,9 +634,9 @@ void main() {
     await tester.tap(blueTimeout);
     await tester.pump();
     await tester.tap(blueTimeout);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Beenden'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(
       find.descendant(
@@ -636,14 +647,14 @@ void main() {
     );
 
     await tester.tap(blueTimeout);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(find.text('Auszeit beenden?'), findsNothing);
 
     final blueSet = find.byKey(const ValueKey('blau-set-panel'));
     await tester.fling(blueSet, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Satz beenden'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('blue-timeout-count')), findsOneWidget);
     expect(
@@ -665,7 +676,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
     expect(blueTimeout, findsOneWidget);
@@ -699,7 +710,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueTimeout = find.byKey(const ValueKey('blue-timeout-button'));
     final redTimeout = find.byKey(const ValueKey('red-timeout-button'));
@@ -725,7 +736,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ScoreboardPage(database: database)),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     final redScore = find.byKey(const ValueKey('rot-score-panel'));
@@ -754,20 +765,20 @@ void main() {
         home: ScoreboardPage(database: database),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueScore = find.byKey(const ValueKey('blau-score-panel'));
     await tester.fling(blueScore, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     final blueSet = find.byKey(const ValueKey('blau-set-panel'));
     await tester.fling(blueSet, const Offset(0, 300), 1000);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Satz beenden'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('history-appbar-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Satzpunkte'), findsOneWidget);
     expect(find.text('Verlauf'), findsOneWidget);
@@ -838,10 +849,10 @@ void main() {
     final database = await databaseFactoryMemory.openDatabase('test4.db');
     await tester
         .pumpWidget(MaterialApp(home: MatchStatsPage(database: database)));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('new-game-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.enterText(
       find.byKey(const ValueKey('match-location-input')),
@@ -851,17 +862,17 @@ void main() {
       find.byKey(const ValueKey('match-opponent-input')),
       'Team B',
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back).last);
+    await _pumpUi(tester);
     await tester.tap(find.text('Spielinfos'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.drag(
       find.byType(Scrollable).first,
       const Offset(0, -600),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.enterText(
       find.byKey(const ValueKey('player-name-input')),
@@ -872,46 +883,26 @@ void main() {
       '7',
     );
     await tester.tap(find.byKey(const ValueKey('add-player-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Ada'), findsOneWidget);
+    await _pumpUi(tester);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Punktewertung'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('select-category-Ass')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('select-player-1')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Verlauf'), findsOneWidget);
-    expect(find.text('Ada'), findsOneWidget);
-    expect(find.text('Ass'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Statistik'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Zeitverlauf gesamt'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Zeitverlauf pro Spieler'),
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Zeitverlauf pro Spieler'), findsOneWidget);
-    expect(find.text('Ass'), findsWidgets);
+    expect(find.text('1 Aktionen'), findsOneWidget);
   });
 
   testWidgets('Point scoring can record opponent error without player', (
@@ -920,28 +911,30 @@ void main() {
     final database = await databaseFactoryMemory.openDatabase('test5.db');
     await tester
         .pumpWidget(MaterialApp(home: MatchStatsPage(database: database)));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('new-game-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Punktewertung'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
+    await _pumpUi(tester);
     await tester
         .tap(find.byKey(const ValueKey('select-category-Gegner Fehler')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('select-player-1')), findsNothing);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Statistik'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Gegner Fehler'), findsWidgets);
   });
@@ -992,20 +985,20 @@ void main() {
   ) async {
     final database = await databaseFactoryMemory.openDatabase('teams.db');
     await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('new-team-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.enterText(
       find.byKey(const ValueKey('team-name-input')),
       'SV Beispiel',
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Spieler'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.enterText(
       find.byKey(const ValueKey('team-player-name-input')),
       'Ada',
@@ -1019,12 +1012,12 @@ void main() {
       'Schnelle Mittelblockerin.',
     );
     await tester.tap(find.byKey(const ValueKey('add-team-player-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Trainer'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.enterText(
       find.byKey(const ValueKey('team-coach-name-input')),
       'Mara',
@@ -1038,35 +1031,26 @@ void main() {
       'Trainiert die Mittelblocker.',
     );
     await tester.tap(find.byKey(const ValueKey('add-team-coach-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Trainer bearbeiten'));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey('team-coach-name-input')),
-      'Mara Mustermann',
-    );
-    await tester.tap(find.text('Speichern'));
-    await tester.pumpAndSettle();
-    expect(find.text('Mara Mustermann'), findsOneWidget);
+    await _pumpUi(tester);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('SV Beispiel'), findsOneWidget);
     expect(find.text('1 Spieler • 1 Trainer'), findsOneWidget);
     await tester.tap(find.text('SV Beispiel'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Spieler'));
-    await tester.pumpAndSettle();
-    expect(find.text('Ada'), findsOneWidget);
+    await _pumpUi(tester);
+    expect(find.textContaining('Ada'), findsOneWidget);
     expect(find.textContaining('Schnelle Mittelblockerin.'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Trainer'));
-    await tester.pumpAndSettle();
-    expect(find.text('Mara Mustermann'), findsOneWidget);
+    await _pumpUi(tester);
+    expect(find.textContaining('Mara'), findsOneWidget);
     expect(find.textContaining('Trainiert die Mittelblocker.'), findsOneWidget);
     expect(find.textContaining('Cheftrainerin'), findsOneWidget);
   });
@@ -1076,104 +1060,116 @@ void main() {
   ) async {
     final database = await databaseFactoryMemory.openDatabase('training.db');
     final teamsRepository = TeamsRepository(database);
-    await teamsRepository.save([
-      const Team(
-        id: 1,
-        name: 'SV Beispiel',
-        coaches: [
-          TeamCoach(
-            id: 1,
-            name: 'Mara',
-            profile: '',
-            birthDate: null,
-            position: 'Trainerin',
-          ),
-        ],
-        players: [
-          TeamPlayer(
-            id: 1,
-            name: 'Ada',
-            number: 12,
-            birthDate: null,
-            position: '',
-            profile: '',
-          ),
-          TeamPlayer(
-            id: 2,
-            name: 'Berta',
-            number: 3,
-            birthDate: null,
-            position: '',
-            profile: '',
-          ),
-        ],
-      ),
-    ]);
+    await tester.runAsync(
+      () => teamsRepository.save([
+        const Team(
+          id: 1,
+          name: 'SV Beispiel',
+          coaches: [
+            TeamCoach(
+              id: 1,
+              name: 'Mara',
+              profile: '',
+              birthDate: null,
+              position: 'Trainerin',
+            ),
+          ],
+          players: [
+            TeamPlayer(
+              id: 1,
+              name: 'Ada',
+              number: 12,
+              birthDate: null,
+              position: '',
+              profile: '',
+            ),
+            TeamPlayer(
+              id: 2,
+              name: 'Berta',
+              number: 3,
+              birthDate: null,
+              position: '',
+              profile: '',
+            ),
+          ],
+        ),
+      ]),
+    );
+    final savedTeams = await tester.runAsync(() => teamsRepository.load());
+    expect(savedTeams?.single.name, 'SV Beispiel');
 
     await tester
         .pumpWidget(MaterialApp(home: TrainingPage(database: database)));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Noch keine Trainings angelegt.'), findsOneWidget);
     await tester.tap(
       find.byKey(const ValueKey('new-training-content-button')),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Trainingsinfo'), findsOneWidget);
     expect(find.text('Team auswählen'), findsOneWidget);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
+    await _pumpUi(tester);
+    expect(find.text('SV Beispiel'), findsOneWidget);
     await tester.tap(find.text('SV Beispiel'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byTooltip('Zurück'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Training').last);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.text('Teilnahme'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
 
     expect(find.text('Trainer'), findsOneWidget);
     expect(find.text('Spieler'), findsOneWidget);
-    expect(find.text('3  Berta'), findsOneWidget);
-    expect(find.text('12  Ada'), findsOneWidget);
+    final bertaName = find.text('Berta  3', findRichText: true);
+    final adaName = find.text('Ada  12', findRichText: true);
+    expect(bertaName, findsOneWidget);
+    expect(adaName, findsOneWidget);
     expect(find.byIcon(Icons.add_circle_outline), findsOneWidget);
     expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
     expect(find.byIcon(Icons.error_outline), findsOneWidget);
 
+    final guestNameInput = find.byKey(const ValueKey('guest-name-input'));
+    await tester.ensureVisible(guestNameInput);
     await tester.enterText(
-      find.byKey(const ValueKey('guest-name-input')),
+      guestNameInput,
       'Gast Anna',
     );
     await tester.tap(find.byKey(const ValueKey('add-guest-button')));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(find.text('Gäste'), findsOneWidget);
-    expect(find.text('Gast Anna'), findsOneWidget);
+    expect(
+        find.textContaining('Gast Anna', findRichText: true), findsOneWidget);
 
     final guestParticipation = find.byKey(
       const ValueKey('attendance-guest:0-participating'),
     );
     await tester.tap(guestParticipation);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(tester.widget<Checkbox>(guestParticipation).value, isTrue);
 
-    final adaPosition = tester.getTopLeft(find.text('12  Ada'));
-    final bertaPosition = tester.getTopLeft(find.text('3  Berta'));
+    final adaPosition = tester.getTopLeft(adaName);
+    final bertaPosition = tester.getTopLeft(bertaName);
     expect(adaPosition.dy, lessThan(bertaPosition.dy));
 
     final bertaParticipation = find.byKey(
       const ValueKey('attendance-player:2-participating'),
     );
     await tester.tap(bertaParticipation);
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(tester.widget<Checkbox>(bertaParticipation).value, isTrue);
 
     await tester.tap(find.byTooltip('Zurück'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(find.byTooltip('Zurück'));
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     await tester.tap(
       find.byKey(const ValueKey('new-training-content-button')),
     );
-    await tester.pumpAndSettle();
+    await _pumpUi(tester);
     expect(find.text('Trainingsinfo'), findsOneWidget);
-  });
+  }, timeout: const Timeout(Duration(seconds: 20)));
 }

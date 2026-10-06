@@ -258,8 +258,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Button zum Aufruf oben Mittig!
 - [x] Speichern/Abbrechen Button nach oben in die Leiste
 - [x] Zurücksetzen soll auch Spieler zurücksetzen
-- [ ] Tests dauern ewig?!
-- [ ]
+- [x] Tests dauern ewig?!
 
 ## Datenschutz
 
