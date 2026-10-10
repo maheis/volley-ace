@@ -1231,6 +1231,69 @@ void main() {
     expect(currentRotation?.servingSide, 0);
   });
 
+  testWidgets('match rotation view mirrors its single team court', (
+    WidgetTester tester,
+  ) async {
+    const rotation = ScoreboardRotationState(
+      league: 'U13',
+      left: RotationTeamState(
+        players: [
+          RotationPlayer(id: 'one', name: 'Ada', number: 7),
+          RotationPlayer(id: 'two', name: 'Berta', number: 4),
+          RotationPlayer(id: 'three', name: 'Mara', number: 5),
+        ],
+        positions: ['one', 'two', 'three'],
+      ),
+      right: RotationTeamState(),
+      servingSide: 0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 600,
+              child: MatchRotationView(
+                rotation: rotation,
+                teamName: 'SV Beispiel',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('match-rotation-court')), findsOneWidget);
+    expect(find.byKey(const ValueKey('match-rotation-position-0')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('match-rotation-position-1')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('match-rotation-position-2')),
+        findsOneWidget);
+    expect(
+      (tester
+              .widget<Container>(
+                find.byKey(const ValueKey('match-rotation-player-0')),
+              )
+              .decoration as BoxDecoration)
+          .shape,
+      BoxShape.circle,
+    );
+    final playerBefore = tester.getCenter(
+      find.byKey(const ValueKey('match-rotation-position-0')),
+    );
+
+    await tester.tap(find.text('Rechts'));
+    await tester.pump();
+    final playerAfter = tester.getCenter(
+      find.byKey(const ValueKey('match-rotation-position-0')),
+    );
+
+    expect(playerAfter.dx, greaterThan(playerBefore.dx));
+    expect(find.byKey(const ValueKey('match-rotation-court')), findsOneWidget);
+  });
+
   testWidgets('Teams with players and coaches are persisted', (
     WidgetTester tester,
   ) async {

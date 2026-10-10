@@ -1703,146 +1703,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return rotationAfterMatchEvents(match);
   }
 
-  List<({int position, double x, double y})> _rotationCourtLayout(int count) {
-    if (count == 6) {
-      return const [
-        (position: 4, x: 0.15, y: 0.18),
-        (position: 3, x: 0.38, y: 0.18),
-        (position: 5, x: 0.15, y: 0.5),
-        (position: 2, x: 0.38, y: 0.5),
-        (position: 0, x: 0.15, y: 0.82),
-        (position: 1, x: 0.38, y: 0.82),
-      ];
-    }
-    if (count == 4) {
-      return const [
-        (position: 0, x: 0.08, y: 0.5),
-        (position: 1, x: 0.24, y: 0.82),
-        (position: 2, x: 0.39, y: 0.5),
-        (position: 3, x: 0.24, y: 0.18),
-      ];
-    }
-    return const [
-      (position: 0, x: 0.19, y: 0.82),
-      (position: 1, x: 0.39, y: 0.5),
-      (position: 2, x: 0.17, y: 0.18),
-    ];
-  }
-
   Widget _buildMatchRotation(MatchGame match) {
     final rotation = _rotationAfterEvents(match)!;
-    final team = rotation.left;
-    final count = rotationPlayerCount(rotation.league);
-    final isComplete = team.positions.length >= count &&
-        team.positions.take(count).every((id) =>
-            id != null && team.players.any((player) => player.id == id));
-    return Card(
-      key: const ValueKey('match-rotation-panel'),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Sollaufstellung · ${team.name.isEmpty ? 'Eigenes Team' : team.name}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                IconButton(
-                  key: const ValueKey('match-rotation-edit-button'),
-                  tooltip: 'Aufstellung bearbeiten',
-                  onPressed: _matchHasScoredPoints(match)
-                      ? null
-                      : () => _configureMatchRotation(match),
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-              ],
-            ),
-            Text(
-              'Aufschlag: ${rotation.servingSide == 0 ? 'eigenes Team' : 'Gegner'}',
-              key: const ValueKey('match-rotation-serving-side'),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              key: const ValueKey('match-rotation-court'),
-              height: 210,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final layout = _rotationCourtLayout(count);
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD89B5B),
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: Stack(
-                      children: [
-                        for (final slot in layout)
-                          Align(
-                            alignment:
-                                Alignment(slot.x * 2 - 1, slot.y * 2 - 1),
-                            child: SizedBox(
-                              width: math.min(100, constraints.maxWidth * 0.3),
-                              height: 52,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: slot.position == 0 &&
-                                          rotation.servingSide == 0
-                                      ? const Color(0xFF1976D2)
-                                      : Colors.white.withValues(alpha: 0.92),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Center(
-                                  child: Builder(
-                                    builder: (context) {
-                                      final playerId =
-                                          slot.position < team.positions.length
-                                              ? team.positions[slot.position]
-                                              : null;
-                                      final player = team.players
-                                          .where(
-                                              (entry) => entry.id == playerId)
-                                          .firstOrNull;
-                                      return Text(
-                                        '${slot.position + 1} · ${player?.number ?? '-'}\n${player?.name ?? 'Offen'}',
-                                        key: ValueKey(
-                                          'match-rotation-position-${slot.position}',
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: slot.position == 0 &&
-                                                  rotation.servingSide == 0
-                                              ? Colors.white
-                                              : Colors.black87,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (!isComplete)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                    'Aufstellung unvollständig: Rotation noch nicht aktiv.'),
-              ),
-          ],
-        ),
-      ),
+    return MatchRotationView(
+      rotation: rotation,
+      teamName: rotation.left.name,
+      onEdit: _matchHasScoredPoints(match)
+          ? null
+          : () => _configureMatchRotation(match),
     );
   }
 
@@ -2021,11 +1889,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ],
               ),
               const SizedBox(height: 12),
-              if (match.rotationSetup == null)
-                _buildRotationSetupButton(match)
-              else
-                _buildMatchRotation(match),
-              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 140,
@@ -2121,6 +1984,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   Expanded(child: _PointsTile(sets: scoreSets)),
                 ],
               ),
+              const SizedBox(height: 20),
+              if (match.rotationSetup == null)
+                _buildRotationSetupButton(match)
+              else
+                _buildMatchRotation(match),
             ],
           ),
         ),
@@ -2446,6 +2314,277 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _matchTagController.dispose();
     super.dispose();
   }
+}
+
+class MatchRotationView extends StatefulWidget {
+  const MatchRotationView({
+    super.key,
+    required this.rotation,
+    required this.teamName,
+    this.onEdit,
+  });
+
+  final ScoreboardRotationState rotation;
+  final String teamName;
+  final VoidCallback? onEdit;
+
+  @override
+  State<MatchRotationView> createState() => _MatchRotationViewState();
+}
+
+class _MatchRotationViewState extends State<MatchRotationView> {
+  bool _showOnLeft = true;
+
+  List<({int position, double x, double y})> _courtLayout(int count) {
+    if (count == 6) {
+      return const [
+        (position: 4, x: 0.15, y: 0.18),
+        (position: 3, x: 0.38, y: 0.18),
+        (position: 5, x: 0.15, y: 0.5),
+        (position: 2, x: 0.38, y: 0.5),
+        (position: 0, x: 0.15, y: 0.82),
+        (position: 1, x: 0.38, y: 0.82),
+      ];
+    }
+    if (count == 4) {
+      return const [
+        (position: 0, x: 0.08, y: 0.5),
+        (position: 1, x: 0.24, y: 0.82),
+        (position: 2, x: 0.39, y: 0.5),
+        (position: 3, x: 0.24, y: 0.18),
+      ];
+    }
+    return const [
+      (position: 0, x: 0.19, y: 0.82),
+      (position: 1, x: 0.39, y: 0.5),
+      (position: 2, x: 0.17, y: 0.18),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rotation = widget.rotation;
+    final team = rotation.left;
+    final count = rotationPlayerCount(rotation.league);
+    final isComplete = team.positions.length >= count &&
+        team.positions.take(count).every((id) =>
+            id != null && team.players.any((player) => player.id == id));
+    final sideName = widget.teamName.isEmpty ? 'Eigenes Team' : widget.teamName;
+
+    return Card(
+      key: const ValueKey('match-rotation-panel'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Sollaufstellung · $sideName',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                if (widget.onEdit != null)
+                  IconButton(
+                    key: const ValueKey('match-rotation-edit-button'),
+                    tooltip: 'Aufstellung bearbeiten',
+                    onPressed: widget.onEdit,
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+              ],
+            ),
+            SegmentedButton<bool>(
+              key: const ValueKey('match-rotation-side-selector'),
+              segments: const [
+                ButtonSegment<bool>(
+                  value: true,
+                  icon: Icon(Icons.keyboard_double_arrow_left),
+                  label: Text('Links'),
+                ),
+                ButtonSegment<bool>(
+                  value: false,
+                  icon: Icon(Icons.keyboard_double_arrow_right),
+                  label: Text('Rechts'),
+                ),
+              ],
+              selected: {_showOnLeft},
+              onSelectionChanged: (selection) =>
+                  setState(() => _showOnLeft = selection.single),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Aufschlag: ${rotation.servingSide == 0 ? 'eigenes Team' : 'Gegner'}',
+              key: const ValueKey('match-rotation-serving-side'),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              key: const ValueKey('match-rotation-court'),
+              height: 210,
+              child: LayoutBuilder(
+                builder: (context, constraints) => Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD89B5B),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: CustomPaint(
+                    painter: const _MatchRotationCourtPainter(),
+                    child: Stack(
+                      children: [
+                        for (final slot in _courtLayout(count))
+                          Align(
+                            alignment: Alignment(
+                              (_showOnLeft ? slot.x : 1 - slot.x) * 2 - 1,
+                              slot.y * 2 - 1,
+                            ),
+                            child: SizedBox(
+                              width: math.min(88, constraints.maxWidth * 0.25),
+                              child: _playerMarker(
+                                team: team,
+                                position: slot.position,
+                                serving: slot.position == 0 &&
+                                    rotation.servingSide == 0,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (!isComplete)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Aufstellung unvollständig: Rotation noch nicht aktiv.',
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _playerMarker({
+    required RotationTeamState team,
+    required int position,
+    required bool serving,
+  }) {
+    final playerId =
+        position < team.positions.length ? team.positions[position] : null;
+    final player =
+        team.players.where((entry) => entry.id == playerId).firstOrNull;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              key: ValueKey('match-rotation-player-$position'),
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: player == null
+                    ? Colors.white24
+                    : serving
+                        ? const Color(0xFF1976D2)
+                        : const Color(0xFF1565C0),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 3),
+                ],
+              ),
+              child: player == null
+                  ? const Icon(Icons.person_outline, color: Colors.white)
+                  : Text(
+                      '${player.number ?? position + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+            Positioned(
+              top: -3,
+              left: -4,
+              child: Container(
+                width: 20,
+                height: 20,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${position + 1}',
+                  key: ValueKey('match-rotation-position-number-$position'),
+                  style: const TextStyle(
+                    color: Color(0xFF1565C0),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          player?.name ?? 'Offen',
+          key: ValueKey('match-rotation-position-$position'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MatchRotationCourtPainter extends CustomPainter {
+  const _MatchRotationCourtPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawRect(
+      Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.25, 0),
+      Offset(size.width * 0.25, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.75, 0),
+      Offset(size.width * 0.75, size.height),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MatchRotationCourtPainter oldDelegate) => false;
 }
 
 class _DetailTile extends StatelessWidget {
