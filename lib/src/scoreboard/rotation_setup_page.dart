@@ -233,6 +233,9 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                 key: ValueKey(
                   'choose-player-$side-$position-${player.id}',
                 ),
+                tileColor: team.positions.contains(player.id)
+                    ? null
+                    : Theme.of(sheetContext).colorScheme.secondaryContainer,
                 leading: CircleAvatar(
                   child: Text(
                     player.number?.toString() ??
@@ -248,8 +251,32 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                       : 'Bank',
                 ),
                 trailing: player.id == currentPlayerId
-                    ? const Icon(Icons.check)
-                    : null,
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check),
+                          IconButton(
+                            key: ValueKey(
+                              'edit-rotation-number-$side-${player.id}',
+                            ),
+                            tooltip: 'Trikotnummer ändern',
+                            onPressed: () => Navigator.of(sheetContext).pop(
+                              _CourtPlayerSelection(editPlayer: player),
+                            ),
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                        ],
+                      )
+                    : IconButton(
+                        key: ValueKey(
+                          'edit-rotation-number-$side-${player.id}',
+                        ),
+                        tooltip: 'Trikotnummer ändern',
+                        onPressed: () => Navigator.of(sheetContext).pop(
+                          _CourtPlayerSelection(editPlayer: player),
+                        ),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
                 onTap: () => Navigator.of(sheetContext).pop(
                   _CourtPlayerSelection(player: player),
                 ),
@@ -268,6 +295,11 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
       ),
     );
     if (selection == null || !mounted) return;
+    final editPlayer = selection.editPlayer;
+    if (editPlayer != null) {
+      await _editPlayerNumber(side, editPlayer);
+      return;
+    }
     if (selection.sendToBank) {
       final player = team.players
           .where((entry) => entry.id == currentPlayerId)
@@ -277,6 +309,67 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     }
     final player = selection.player;
     if (player != null) _assignPlayer(side, position, player);
+  }
+
+  Future<void> _editPlayerNumber(int side, RotationPlayer player) async {
+    var numberValue = player.number?.toString() ?? '';
+    final numberText = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Trikotnummer für ${player.name}'),
+        content: TextFormField(
+          key: ValueKey('rotation-number-input-$side-${player.id}'),
+          initialValue: numberValue,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Trikotnummer',
+            helperText: 'Leer lassen, um die Nummer zu entfernen.',
+          ),
+          onChanged: (value) => numberValue = value,
+          onFieldSubmitted: (value) =>
+              Navigator.of(dialogContext).pop(value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            key: ValueKey('save-rotation-number-$side-${player.id}'),
+            onPressed: () => Navigator.of(dialogContext).pop(
+              numberValue.trim(),
+            ),
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    );
+    if (numberText == null || !mounted) return;
+    final number = numberText.isEmpty ? null : int.tryParse(numberText);
+    if (numberText.isNotEmpty && number == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Trikotnummer muss eine Zahl sein.')),
+      );
+      return;
+    }
+    final team = _teamAt(side);
+    _replaceTeam(
+      side,
+      team.copyWith(
+        players: team.players
+            .map(
+              (entry) => entry.id == player.id
+                  ? RotationPlayer(
+                      id: entry.id,
+                      name: entry.name,
+                      number: number,
+                    )
+                  : entry,
+            )
+            .toList(),
+      ),
+    );
   }
 
   void _rotate(int side) {
@@ -850,9 +943,14 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
 }
 
 class _CourtPlayerSelection {
-  const _CourtPlayerSelection({this.player, this.sendToBank = false});
+  const _CourtPlayerSelection({
+    this.player,
+    this.editPlayer,
+    this.sendToBank = false,
+  });
 
   final RotationPlayer? player;
+  final RotationPlayer? editPlayer;
   final bool sendToBank;
 }
 

@@ -135,6 +135,34 @@ void main() {
     );
     await _pumpUi(tester);
 
+    await tester.tap(find.byKey(const ValueKey('rotation-position-0-0')));
+    await _pumpUi(tester);
+    final reserveTile = tester.widget<ListTile>(
+      find.byKey(const ValueKey('choose-player-0-0-reserve')),
+    );
+    expect(
+      reserveTile.tileColor,
+      Theme.of(tester.element(find.byType(RotationSetupPage)))
+          .colorScheme
+          .secondaryContainer,
+    );
+    await tester.tap(find.byKey(const ValueKey('choose-player-0-0-back')));
+    await _pumpUi(tester);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('rotation-position-0-0')),
+        matching: find.text('5'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('rotation-position-0-2')),
+        matching: find.text('7'),
+      ),
+      findsOneWidget,
+    );
+
     await tester.tap(find.byKey(const ValueKey('rotation-position-0-1')));
     await _pumpUi(tester);
     expect(find.text('Position 2'), findsOneWidget);
@@ -144,6 +172,30 @@ void main() {
     await _pumpUi(tester);
     expect(find.text('Berta'), findsOneWidget);
     expect(find.text('Bank Blau · 0'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('rotation-position-0-1')));
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('edit-rotation-number-0-reserve')),
+    );
+    await _pumpUi(tester);
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey('rotation-number-input-0-reserve')),
+          )
+          .initialValue,
+      '3',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('rotation-number-input-0-reserve')),
+      '10',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('save-rotation-number-0-reserve')),
+    );
+    await _pumpUi(tester);
+    expect(find.text('10'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('rotation-position-0-1')));
     await _pumpUi(tester);
@@ -1053,6 +1105,8 @@ void main() {
   testWidgets('Teams with players and coaches are persisted', (
     WidgetTester tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = await databaseFactoryMemory.openDatabase('teams.db');
     await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
     await _pumpUi(tester);
@@ -1083,6 +1137,30 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('add-team-player-button')));
     await _pumpUi(tester);
+    expect(find.textContaining('Trikot 7'), findsOneWidget);
+
+    await tester.ensureVisible(find.byTooltip('Spieler bearbeiten'));
+    await tester.tap(find.byTooltip('Spieler bearbeiten'));
+    await _pumpUi(tester);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('team-player-number-input')),
+    );
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('team-player-number-input')),
+          )
+          .controller
+          ?.text,
+      '7',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('team-player-number-input')),
+      '9',
+    );
+    await tester.tap(find.byKey(const ValueKey('add-team-player-button')));
+    await _pumpUi(tester);
+    expect(find.textContaining('Trikot 9'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await _pumpUi(tester);
@@ -1115,6 +1193,7 @@ void main() {
     await tester.tap(find.text('Spieler'));
     await _pumpUi(tester);
     expect(find.textContaining('Ada'), findsOneWidget);
+    expect(find.textContaining('Trikot 9'), findsOneWidget);
     expect(find.textContaining('Schnelle Mittelblockerin.'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.arrow_back));
     await _pumpUi(tester);
