@@ -112,6 +112,8 @@ void main() {
   testWidgets('tap a court position to select or bench a player', (
     WidgetTester tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final database =
         await databaseFactoryMemory.openDatabase('rotation-pick-player.db');
     const starter = RotationPlayer(id: 'starter', name: 'Ada', number: 7);
@@ -202,6 +204,30 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('send-to-bank-0-1')));
     await _pumpUi(tester);
     expect(find.text('Bank Blau · 1'), findsOneWidget);
+
+    final bankPlayer = find.byKey(
+      const ValueKey('rotation-bank-player-0-reserve'),
+    );
+    final courtPosition = find.byKey(
+      const ValueKey('rotation-position-0-0'),
+    );
+    final dragStart = tester.getCenter(bankPlayer);
+    final dragEnd = tester.getCenter(courtPosition);
+    await tester.timedDragFrom(
+      dragStart,
+      dragEnd - dragStart,
+      const Duration(milliseconds: 500),
+    );
+    await _pumpUi(tester);
+    expect(find.text('Bank Blau · 1'), findsOneWidget);
+    expect(
+      find.descendant(of: courtPosition, matching: find.text('10')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('rotation-bank-player-0-back')),
+      findsOneWidget,
+    );
   });
 
   test('scoreboard persists the rotation setup and its progress', () async {
