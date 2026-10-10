@@ -48,24 +48,24 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Auszeiten pro Team
         30 Sekunden Timer
         2 Stück pro Satz und Team
-  - [ ] Rotation / Spielerwechsel (optional)
-    - [ ] Spielinfos [Eingabe/Erfassung]
-      - [ ] Team A
-        - [ ] Team (optional)
-        - [ ] Spieler/Nummern
-      - [ ] Team B
-        - [ ] Team (optional)
-        - [ ] Spieler/Nummern
-      - [ ] Aufschlagteam
-      - [ ] Spielklasse auswählen (U12, U13, U14, U15, U16, U18, U20, Damen, Herren, Mixed, Freizeit)
+  - [x] Rotation / Spielerwechsel (optional)
+    - [x] Spielinfos [Eingabe/Erfassung]
+      - [x] Team A
+        - [x] Team (optional)
+        - [x] Spieler/Nummern
+      - [x] Team B
+        - [x] Team (optional)
+        - [x] Spieler/Nummern
+      - [x] Aufschlagteam
+      - [x] Spielklasse auswählen (U12, U13, U14, U15, U16, U18, U20, Damen, Herren, Mixed, Freizeit)
             Rotation/Position muss je nach Spielklasse unterschiedlich sein!
             U12-U13: 3 Spieler, U14-U15: 4 Spieler, Rest: 6 Spieler
             U12-U15: Rotation nach 2 Aufschlägen und bei Aufschlagwechsel, Rest: Rotation nach Aufschlagwechsel
-    - [ ] WAS?
-      - [ ] Startaufstellung (Positionsnummern 1-6) [per D&D auf Spielfeld]
-      - [ ] Ersatzspieler
-      - [ ] Spielerwechsel
-    - [ ] Anzeige in einem Spielfeld auf den jeweiligen Positionen 1-6
+    - [x] WAS?
+      - [x] Startaufstellung (Positionsnummern 1-6) [per D&D auf Spielfeld]
+      - [x] Ersatzspieler
+      - [x] Spielerwechsel
+    - [x] Anzeige in einem Spielfeld auf den jeweiligen Positionen 1-6
           Bei Punktvergabe soll Rotation berücksichtigt werden, manuell soll aber auch eine Rotation ausgelöst werden können (falls ein Team außerhalb der Punkte-Rotation rotieren möchte)
 - [x] Taktiktafel
   - [x] Speichern von Taktiken
