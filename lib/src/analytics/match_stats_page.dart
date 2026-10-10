@@ -1705,9 +1705,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Widget _buildMatchRotation(MatchGame match) {
     final rotation = _rotationAfterEvents(match)!;
+    final sourceTeam = match.teamId == null
+        ? null
+        : _teams.cast<Team?>().firstWhere(
+              (entry) => entry?.id == match.teamId,
+              orElse: () => null,
+            );
     return MatchRotationView(
       rotation: rotation,
       teamName: rotation.left.name,
+      teamColor: sourceTeam?.primaryColorValue == null
+          ? const Color(0xFF1976D2)
+          : Color(sourceTeam!.primaryColorValue!),
       onEdit: _matchHasScoredPoints(match)
           ? null
           : () => _configureMatchRotation(match),
@@ -2321,11 +2330,13 @@ class MatchRotationView extends StatefulWidget {
     super.key,
     required this.rotation,
     required this.teamName,
+    this.teamColor = const Color(0xFF1976D2),
     this.onEdit,
   });
 
   final ScoreboardRotationState rotation;
   final String teamName;
+  final Color teamColor;
   final VoidCallback? onEdit;
 
   @override
@@ -2419,40 +2430,50 @@ class _MatchRotationViewState extends State<MatchRotationView> {
               key: const ValueKey('match-rotation-serving-side'),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              key: const ValueKey('match-rotation-court'),
-              height: 210,
-              child: LayoutBuilder(
-                builder: (context, constraints) => Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD89B5B),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: CustomPaint(
-                    painter: const _MatchRotationCourtPainter(),
-                    child: Stack(
-                      children: [
-                        for (final slot in _courtLayout(count))
-                          Align(
-                            alignment: Alignment(
-                              (_showOnLeft ? slot.x : 1 - slot.x) * 2 - 1,
-                              slot.y * 2 - 1,
-                            ),
-                            child: SizedBox(
-                              width: math.min(88, constraints.maxWidth * 0.25),
-                              child: _playerMarker(
-                                team: team,
-                                position: slot.position,
-                                serving: slot.position == 0 &&
-                                    rotation.servingSide == 0,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final courtSize = math.min(420.0, constraints.maxWidth);
+                return Center(
+                  child: SizedBox(
+                    key: const ValueKey('match-rotation-court'),
+                    width: courtSize,
+                    height: courtSize,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD89B5B),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: CustomPaint(
+                        painter: _MatchRotationCourtPainter(
+                          netOnLeft: !_showOnLeft,
+                        ),
+                        child: Stack(
+                          children: [
+                            for (final slot in _courtLayout(count))
+                              Align(
+                                alignment: Alignment(
+                                  (_showOnLeft ? slot.x * 2 : 1 - slot.x * 2) *
+                                          2 -
+                                      1,
+                                  slot.y * 2 - 1,
+                                ),
+                                child: SizedBox(
+                                  width: math.min(88, courtSize * 0.25),
+                                  child: _playerMarker(
+                                    team: team,
+                                    position: slot.position,
+                                    serving: slot.position == 0 &&
+                                        rotation.servingSide == 0,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             if (!isComplete)
               const Padding(
@@ -2476,6 +2497,11 @@ class _MatchRotationViewState extends State<MatchRotationView> {
         position < team.positions.length ? team.positions[position] : null;
     final player =
         team.players.where((entry) => entry.id == playerId).firstOrNull;
+    final markerTextColor =
+        ThemeData.estimateBrightnessForColor(widget.teamColor) ==
+                Brightness.dark
+            ? Colors.white
+            : Colors.black87;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -2489,13 +2515,12 @@ class _MatchRotationViewState extends State<MatchRotationView> {
               height: 52,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: player == null
-                    ? Colors.white24
-                    : serving
-                        ? const Color(0xFF1976D2)
-                        : const Color(0xFF1565C0),
+                color: player == null ? Colors.white24 : widget.teamColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                  color: serving ? Colors.white : markerTextColor,
+                  width: serving ? 3 : 2,
+                ),
                 boxShadow: const [
                   BoxShadow(color: Colors.black26, blurRadius: 3),
                 ],
@@ -2504,8 +2529,8 @@ class _MatchRotationViewState extends State<MatchRotationView> {
                   ? const Icon(Icons.person_outline, color: Colors.white)
                   : Text(
                       '${player.number ?? position + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: markerTextColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -2514,18 +2539,19 @@ class _MatchRotationViewState extends State<MatchRotationView> {
               top: -3,
               left: -4,
               child: Container(
+                key: ValueKey('match-rotation-position-badge-$position'),
                 width: 20,
                 height: 20,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: widget.teamColor,
                   shape: BoxShape.circle,
                 ),
                 child: Text(
                   '${position + 1}',
                   key: ValueKey('match-rotation-position-number-$position'),
-                  style: const TextStyle(
-                    color: Color(0xFF1565C0),
+                  style: TextStyle(
+                    color: markerTextColor,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -2554,7 +2580,9 @@ class _MatchRotationViewState extends State<MatchRotationView> {
 }
 
 class _MatchRotationCourtPainter extends CustomPainter {
-  const _MatchRotationCourtPainter();
+  const _MatchRotationCourtPainter({required this.netOnLeft});
+
+  final bool netOnLeft;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2566,25 +2594,22 @@ class _MatchRotationCourtPainter extends CustomPainter {
       Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
       paint,
     );
+    final netX = netOnLeft ? 0.0 : size.width;
+    final attackLineX = netOnLeft ? size.width / 3 : size.width * 2 / 3;
     canvas.drawLine(
-      Offset(size.width / 2, 0),
-      Offset(size.width / 2, size.height),
+      Offset(attackLineX, 0),
+      Offset(attackLineX, size.height),
       paint,
     );
-    canvas.drawLine(
-      Offset(size.width * 0.25, 0),
-      Offset(size.width * 0.25, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.75, 0),
-      Offset(size.width * 0.75, size.height),
-      paint,
-    );
+    final netPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 4;
+    canvas.drawLine(Offset(netX, 0), Offset(netX, size.height), netPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _MatchRotationCourtPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MatchRotationCourtPainter oldDelegate) =>
+      oldDelegate.netOnLeft != netOnLeft;
 }
 
 class _DetailTile extends StatelessWidget {

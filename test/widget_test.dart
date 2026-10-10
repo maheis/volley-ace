@@ -1234,6 +1234,7 @@ void main() {
   testWidgets('match rotation view mirrors its single team court', (
     WidgetTester tester,
   ) async {
+    const teamColor = Color(0xFF008577);
     const rotation = ScoreboardRotationState(
       league: 'U13',
       left: RotationTeamState(
@@ -1256,6 +1257,7 @@ void main() {
               child: MatchRotationView(
                 rotation: rotation,
                 teamName: 'SV Beispiel',
+                teamColor: teamColor,
               ),
             ),
           ),
@@ -1265,20 +1267,31 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('match-rotation-court')), findsOneWidget);
+    final courtSize = tester.getSize(
+      find.byKey(const ValueKey('match-rotation-court')),
+    );
+    expect(courtSize.width, courtSize.height);
     expect(find.byKey(const ValueKey('match-rotation-position-0')),
         findsOneWidget);
     expect(find.byKey(const ValueKey('match-rotation-position-1')),
         findsOneWidget);
     expect(find.byKey(const ValueKey('match-rotation-position-2')),
         findsOneWidget);
+    final playerDecoration = tester
+        .widget<Container>(
+          find.byKey(const ValueKey('match-rotation-player-0')),
+        )
+        .decoration as BoxDecoration;
+    expect(playerDecoration.shape, BoxShape.circle);
+    expect(playerDecoration.color, teamColor);
     expect(
       (tester
               .widget<Container>(
-                find.byKey(const ValueKey('match-rotation-player-0')),
+                find.byKey(const ValueKey('match-rotation-position-badge-0')),
               )
               .decoration as BoxDecoration)
-          .shape,
-      BoxShape.circle,
+          .color,
+      teamColor,
     );
     final playerBefore = tester.getCenter(
       find.byKey(const ValueKey('match-rotation-position-0')),
