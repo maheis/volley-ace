@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
+import '../scoreboard/rotation_state.dart';
 import '../teams/teams_page.dart';
+import '../scoreboard/rotation_setup_page.dart';
 import '../theme/app_palette.dart';
 
 class MatchPlayer {
@@ -147,6 +149,7 @@ class MatchGame {
     required this.matchType,
     this.league = '',
     this.teamId,
+    this.rotationSetup,
     this.coaches = const <MatchCoach>[],
     required this.players,
     required this.events,
@@ -164,6 +167,7 @@ class MatchGame {
   final String matchType;
   final String league;
   final int? teamId;
+  final ScoreboardRotationState? rotationSetup;
   final List<MatchCoach> coaches;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
@@ -182,6 +186,8 @@ class MatchGame {
     String? league,
     int? teamId,
     bool clearTeamId = false,
+    ScoreboardRotationState? rotationSetup,
+    bool clearRotationSetup = false,
     List<MatchCoach>? coaches,
     List<MatchPlayer>? players,
     List<MatchEvent>? events,
@@ -200,6 +206,8 @@ class MatchGame {
       matchType: matchType ?? this.matchType,
       league: league ?? this.league,
       teamId: clearTeamId ? null : (teamId ?? this.teamId),
+      rotationSetup:
+          clearRotationSetup ? null : (rotationSetup ?? this.rotationSetup),
       coaches: coaches ?? this.coaches,
       players: players ?? this.players,
       events: events ?? this.events,
@@ -221,6 +229,7 @@ class MatchGame {
         'matchType': matchType,
         'league': league,
         'teamId': teamId,
+        'rotationSetup': rotationSetup?.toJson(),
         'coaches': coaches.map((coach) => coach.toJson()).toList(),
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
@@ -286,6 +295,7 @@ class MatchGame {
           : 'Freundschaftsspiel',
       league: data['league'] is String ? data['league'] as String : '',
       teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
+      rotationSetup: ScoreboardRotationState.fromJson(data['rotationSetup']),
       coaches: coaches,
       players: players,
       events: events,
@@ -301,6 +311,44 @@ class MatchGame {
           : null,
     );
   }
+}
+
+ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
+  final initialRotation = match.rotationSetup;
+  if (initialRotation == null) return null;
+  var rotation = initialRotation;
+  final events = List<MatchEvent>.from(match.events)
+    ..sort((a, b) {
+      final timeOrder = a.occurredAt.compareTo(b.occurredAt);
+      return timeOrder != 0 ? timeOrder : a.id.compareTo(b.id);
+    });
+  var ourScore = 0;
+  var opponentScore = 0;
+  for (final event in events) {
+    if (event.kind == 'manual_set_end') {
+      ourScore = 0;
+      opponentScore = 0;
+      rotation = rotation.copyWith(consecutiveServePoints: 0);
+      continue;
+    }
+    if (event.kind != 'point' && event.kind != 'error') continue;
+
+    final scoringSide = event.kind == 'point' ? 0 : 1;
+    rotation = rotation.afterPoint(scoringSide);
+    if (scoringSide == 0) {
+      ourScore++;
+    } else {
+      opponentScore++;
+    }
+    final setFinished = (ourScore >= 25 && ourScore - opponentScore >= 2) ||
+        (opponentScore >= 25 && opponentScore - ourScore >= 2);
+    if (setFinished) {
+      ourScore = 0;
+      opponentScore = 0;
+      rotation = rotation.copyWith(consecutiveServePoints: 0);
+    }
+  }
+  return rotation;
 }
 
 class MatchStatsState {
@@ -611,6 +659,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     String? league,
     int? teamId,
     bool clearTeamId = false,
+    bool clearRotationSetup = false,
     List<MatchCoach>? coaches,
   }) {
     _replaceMatch(
@@ -623,6 +672,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         league: league,
         teamId: teamId,
         clearTeamId: clearTeamId,
+        clearRotationSetup: clearRotationSetup,
         coaches: coaches,
       ),
     );
@@ -657,7 +707,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final players = List<MatchPlayer>.from(match.players)
       ..add(MatchPlayer(id: nextId, name: name, number: number));
 
-    _replaceMatch(match.copyWith(players: players));
+    _replaceMatch(match.copyWith(
+      players: players,
+      clearRotationSetup: !_matchHasScoredPoints(match),
+    ));
     _playerNameController.clear();
     _playerNumberController.clear();
   }
@@ -680,7 +733,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _confirmRemoveTeamPlayer(match, player);
       return;
     }
-    _replaceMatch(match.copyWith(players: players));
+    _replaceMatch(match.copyWith(
+      players: players,
+      clearRotationSetup: !_matchHasScoredPoints(match),
+    ));
   }
 
   Future<void> _confirmRemoveTeamPlayer(
@@ -707,7 +763,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     if (confirmed != true || !mounted) return;
     final players = List<MatchPlayer>.from(match.players)
       ..removeWhere((entry) => entry.teamPlayerId == player.id);
-    _replaceMatch(match.copyWith(players: players));
+    _replaceMatch(match.copyWith(
+      players: players,
+      clearRotationSetup: !_matchHasScoredPoints(match),
+    ));
   }
 
   void _selectTeam(MatchGame match, int? teamId) {
@@ -721,6 +780,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       match,
       teamId: teamId,
       clearTeamId: teamId == null,
+      clearRotationSetup: !_matchHasScoredPoints(match),
       league: selectedTeam?.league ?? '',
       coaches: const <MatchCoach>[],
     );
@@ -793,6 +853,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           .map((entry) =>
               entry.id == player.id ? entry.copyWith(number: number) : entry)
           .toList(),
+      clearRotationSetup: !_matchHasScoredPoints(match),
     ));
   }
 
@@ -1563,6 +1624,222 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             ),
             const SizedBox(height: 12),
             _buildPlayerEditor(match),
+            const SizedBox(height: 16),
+            _buildRotationSetupButton(match),
+          ],
+        ),
+      ),
+    );
+  }
+
+  ScoreboardRotationState _initialRotationForMatch(MatchGame match) {
+    final league = _leagues.contains(match.league) ? match.league : 'Herren';
+    final count = rotationPlayerCount(league);
+    final team = _teams.cast<Team?>().firstWhere(
+          (entry) => entry?.id == match.teamId,
+          orElse: () => null,
+        );
+    final players = match.players
+        .map(
+          (player) => RotationPlayer(
+            id: 'match-${player.id}',
+            name: _displayPlayerName(match, player),
+            number: player.number > 0 ? player.number : null,
+          ),
+        )
+        .toList();
+    return ScoreboardRotationState(
+      league: league,
+      left: RotationTeamState(
+        name: team?.name ?? 'Eigenes Team',
+        players: players,
+        positions: List<String?>.generate(
+          count,
+          (index) => index < players.length ? players[index].id : null,
+        ),
+      ),
+      right: RotationTeamState(
+        name: match.opponentTeam,
+        positions: List<String?>.filled(count, null),
+      ),
+      servingSide: 0,
+    );
+  }
+
+  Future<void> _configureMatchRotation(MatchGame match) async {
+    final initial = match.rotationSetup ?? _initialRotationForMatch(match);
+    final updated = await Navigator.of(context).push<ScoreboardRotationState>(
+      MaterialPageRoute<ScoreboardRotationState>(
+        builder: (_) => RotationSetupPage(
+          database: widget.database,
+          initial: initial,
+        ),
+      ),
+    );
+    if (updated == null || !mounted) return;
+    _replaceMatch(match.copyWith(rotationSetup: updated));
+  }
+
+  bool _matchHasScoredPoints(MatchGame match) => match.events.any(
+        (event) => event.kind == 'point' || event.kind == 'error',
+      );
+
+  Widget _buildRotationSetupButton(MatchGame match) {
+    return OutlinedButton.icon(
+      key: const ValueKey('match-rotation-setup-button'),
+      onPressed: _matchHasScoredPoints(match)
+          ? null
+          : () => _configureMatchRotation(match),
+      icon: const Icon(Icons.rotate_right),
+      label: Text(
+        match.rotationSetup == null
+            ? 'Startaufstellung und Rotation festlegen'
+            : 'Startaufstellung bearbeiten',
+      ),
+    );
+  }
+
+  ScoreboardRotationState? _rotationAfterEvents(MatchGame match) {
+    return rotationAfterMatchEvents(match);
+  }
+
+  List<({int position, double x, double y})> _rotationCourtLayout(int count) {
+    if (count == 6) {
+      return const [
+        (position: 4, x: 0.15, y: 0.18),
+        (position: 3, x: 0.38, y: 0.18),
+        (position: 5, x: 0.15, y: 0.5),
+        (position: 2, x: 0.38, y: 0.5),
+        (position: 0, x: 0.15, y: 0.82),
+        (position: 1, x: 0.38, y: 0.82),
+      ];
+    }
+    if (count == 4) {
+      return const [
+        (position: 0, x: 0.08, y: 0.5),
+        (position: 1, x: 0.24, y: 0.82),
+        (position: 2, x: 0.39, y: 0.5),
+        (position: 3, x: 0.24, y: 0.18),
+      ];
+    }
+    return const [
+      (position: 0, x: 0.19, y: 0.82),
+      (position: 1, x: 0.39, y: 0.5),
+      (position: 2, x: 0.17, y: 0.18),
+    ];
+  }
+
+  Widget _buildMatchRotation(MatchGame match) {
+    final rotation = _rotationAfterEvents(match)!;
+    final team = rotation.left;
+    final count = rotationPlayerCount(rotation.league);
+    final isComplete = team.positions.length >= count &&
+        team.positions.take(count).every((id) =>
+            id != null && team.players.any((player) => player.id == id));
+    return Card(
+      key: const ValueKey('match-rotation-panel'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Sollaufstellung · ${team.name.isEmpty ? 'Eigenes Team' : team.name}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                IconButton(
+                  key: const ValueKey('match-rotation-edit-button'),
+                  tooltip: 'Aufstellung bearbeiten',
+                  onPressed: _matchHasScoredPoints(match)
+                      ? null
+                      : () => _configureMatchRotation(match),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            ),
+            Text(
+              'Aufschlag: ${rotation.servingSide == 0 ? 'eigenes Team' : 'Gegner'}',
+              key: const ValueKey('match-rotation-serving-side'),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              key: const ValueKey('match-rotation-court'),
+              height: 210,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final layout = _rotationCourtLayout(count);
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD89B5B),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Stack(
+                      children: [
+                        for (final slot in layout)
+                          Align(
+                            alignment:
+                                Alignment(slot.x * 2 - 1, slot.y * 2 - 1),
+                            child: SizedBox(
+                              width: math.min(100, constraints.maxWidth * 0.3),
+                              height: 52,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: slot.position == 0 &&
+                                          rotation.servingSide == 0
+                                      ? const Color(0xFF1976D2)
+                                      : Colors.white.withValues(alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Center(
+                                  child: Builder(
+                                    builder: (context) {
+                                      final playerId =
+                                          slot.position < team.positions.length
+                                              ? team.positions[slot.position]
+                                              : null;
+                                      final player = team.players
+                                          .where(
+                                              (entry) => entry.id == playerId)
+                                          .firstOrNull;
+                                      return Text(
+                                        '${slot.position + 1} · ${player?.number ?? '-'}\n${player?.name ?? 'Offen'}',
+                                        key: ValueKey(
+                                          'match-rotation-position-${slot.position}',
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: slot.position == 0 &&
+                                                  rotation.servingSide == 0
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (!isComplete)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                    'Aufstellung unvollständig: Rotation noch nicht aktiv.'),
+              ),
           ],
         ),
       ),
@@ -1743,6 +2020,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              if (match.rotationSetup == null)
+                _buildRotationSetupButton(match)
+              else
+                _buildMatchRotation(match),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,

@@ -71,6 +71,28 @@ void main() {
     expect(matchTypeForTeamLeague(''), 'Freundschaftsspiel');
   });
 
+  test('rotation advances our playable team without opponent positions', () {
+    const rotation = ScoreboardRotationState(
+      league: 'U13',
+      left: RotationTeamState(
+        players: [
+          RotationPlayer(id: 'one', name: 'Ada'),
+          RotationPlayer(id: 'two', name: 'Berta'),
+          RotationPlayer(id: 'three', name: 'Mara'),
+        ],
+        positions: ['one', 'two', 'three'],
+      ),
+      right: RotationTeamState(),
+      servingSide: 1,
+    );
+
+    final next = rotation.afterPoint(0);
+
+    expect(next.left.positions, ['two', 'three', 'one']);
+    expect(next.right.positions, isEmpty);
+    expect(next.servingSide, 0);
+  });
+
   testWidgets('rotation setup opens on the court with info as a second page', (
     WidgetTester tester,
   ) async {
@@ -1126,6 +1148,87 @@ void main() {
     expect(restored.players[0].teamPlayerId, 4);
     expect(restored.players[0].sourceTeamId, 3);
     expect(restored.players[1].teamPlayerId, isNull);
+  });
+
+  test('Match persists its starting rotation setup', () {
+    final match = MatchGame(
+      id: 2,
+      createdAt: DateTime(2026),
+      location: '',
+      opponentTeam: '',
+      matchDateTime: DateTime(2026),
+      matchTag: '',
+      matchType: 'Liga',
+      league: 'U13',
+      players: const [],
+      events: const [],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          players: [RotationPlayer(id: 'match-1', name: 'Ada', number: 7)],
+          positions: ['match-1', null, null],
+        ),
+        right: RotationTeamState(),
+        servingSide: 1,
+      ),
+    );
+
+    final restored = MatchGame.fromJson(match.toJson());
+
+    expect(restored.rotationSetup?.league, 'U13');
+    expect(restored.rotationSetup?.left.positions, ['match-1', null, null]);
+    expect(restored.rotationSetup?.servingSide, 1);
+  });
+
+  test('match rotation follows scored point events', () {
+    final match = MatchGame(
+      id: 4,
+      createdAt: DateTime(2026),
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: DateTime(2026),
+      matchTag: '',
+      matchType: 'Liga',
+      league: 'U13',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+        MatchPlayer(id: 2, name: 'Berta', number: 4),
+        MatchPlayer(id: 3, name: 'Mara', number: 5),
+      ],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: 1,
+          playerName: 'Ada',
+          playerNumber: 7,
+          kind: 'point',
+          category: 'Ass',
+          occurredAt: DateTime(2026, 1, 1, 12),
+        ),
+      ],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          name: 'Eigenes Team',
+          players: [
+            RotationPlayer(id: 'match-1', name: 'Ada', number: 7),
+            RotationPlayer(id: 'match-2', name: 'Berta', number: 4),
+            RotationPlayer(id: 'match-3', name: 'Mara', number: 5),
+          ],
+          positions: ['match-1', 'match-2', 'match-3'],
+        ),
+        right: RotationTeamState(),
+        servingSide: 1,
+      ),
+    );
+    final currentRotation = rotationAfterMatchEvents(match);
+
+    expect(currentRotation?.left.positions, [
+      'match-2',
+      'match-3',
+      'match-1',
+    ]);
+    expect(currentRotation?.servingSide, 0);
   });
 
   testWidgets('Teams with players and coaches are persisted', (

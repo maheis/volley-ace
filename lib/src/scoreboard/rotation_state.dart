@@ -142,15 +142,18 @@ class ScoreboardRotationState {
 
   RotationTeamState teamAt(int side) => side == 0 ? left : right;
 
-  bool get isPlayable {
+  bool _teamIsPlayable(RotationTeamState team) {
     final requiredCount = rotationPlayerCount(league);
-    return <RotationTeamState>[left, right].every(
-      (team) =>
-          team.positions.length >= requiredCount &&
-          team.positions.take(requiredCount).every((id) => id != null) &&
-          team.positions.take(requiredCount).toSet().length == requiredCount,
-    );
+    final positionIds = team.positions.take(requiredCount).whereType<String>();
+    return team.positions.length >= requiredCount &&
+        positionIds.length == requiredCount &&
+        positionIds.toSet().length == requiredCount &&
+        positionIds.every(
+          (id) => team.players.any((player) => player.id == id),
+        );
   }
+
+  bool get isPlayable => _teamIsPlayable(left) && _teamIsPlayable(right);
 
   ScoreboardRotationState copyWith({
     String? league,
@@ -173,8 +176,9 @@ class ScoreboardRotationState {
   ScoreboardRotationState afterPoint(int scoringSide) {
     if (scoringSide != servingSide) {
       return copyWith(
-        left: scoringSide == 0 && isPlayable ? _rotate(left) : left,
-        right: scoringSide == 1 && isPlayable ? _rotate(right) : right,
+        left: scoringSide == 0 && _teamIsPlayable(left) ? _rotate(left) : left,
+        right:
+            scoringSide == 1 && _teamIsPlayable(right) ? _rotate(right) : right,
         servingSide: scoringSide,
         consecutiveServePoints: 0,
       );
@@ -184,9 +188,10 @@ class ScoreboardRotationState {
     final servePoints = consecutiveServePoints + 1;
     final shouldRotate = servePoints >= 2;
     return copyWith(
-      left:
-          scoringSide == 0 && shouldRotate && isPlayable ? _rotate(left) : left,
-      right: scoringSide == 1 && shouldRotate && isPlayable
+      left: scoringSide == 0 && shouldRotate && _teamIsPlayable(left)
+          ? _rotate(left)
+          : left,
+      right: scoringSide == 1 && shouldRotate && _teamIsPlayable(right)
           ? _rotate(right)
           : right,
       consecutiveServePoints: shouldRotate ? 0 : servePoints,
