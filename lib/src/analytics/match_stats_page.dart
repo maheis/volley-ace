@@ -3490,26 +3490,26 @@ class _MatchRotationViewState extends State<MatchRotationView> {
   List<({int position, double x, double y})> _courtLayout(int count) {
     if (count == 6) {
       return const [
-        (position: 4, x: 0.15, y: 0.18),
-        (position: 3, x: 0.38, y: 0.18),
-        (position: 5, x: 0.15, y: 0.5),
-        (position: 2, x: 0.38, y: 0.5),
-        (position: 0, x: 0.15, y: 0.82),
-        (position: 1, x: 0.38, y: 0.82),
+        (position: 4, x: 0.24, y: 0.18),
+        (position: 3, x: 0.76, y: 0.18),
+        (position: 5, x: 0.24, y: 0.5),
+        (position: 2, x: 0.76, y: 0.5),
+        (position: 0, x: 0.24, y: 0.82),
+        (position: 1, x: 0.76, y: 0.82),
       ];
     }
     if (count == 4) {
       return const [
-        (position: 0, x: 0.08, y: 0.5),
-        (position: 1, x: 0.24, y: 0.82),
-        (position: 2, x: 0.39, y: 0.5),
-        (position: 3, x: 0.24, y: 0.18),
+        (position: 0, x: 0.24, y: 0.5),
+        (position: 1, x: 0.76, y: 0.82),
+        (position: 2, x: 0.76, y: 0.5),
+        (position: 3, x: 0.76, y: 0.18),
       ];
     }
     return const [
-      (position: 0, x: 0.19, y: 0.82),
-      (position: 1, x: 0.39, y: 0.5),
-      (position: 2, x: 0.17, y: 0.18),
+      (position: 0, x: 0.24, y: 0.82),
+      (position: 1, x: 0.76, y: 0.5),
+      (position: 2, x: 0.76, y: 0.18),
     ];
   }
 

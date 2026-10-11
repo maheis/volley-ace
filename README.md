@@ -327,6 +327,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] html export
 - [x] pdf ohne seitenumbrüche
 - [x] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
+- [ ] "punkte und fehler nach art" auch als tabelle (zusätlich!) als tabelle exportieren
 
 ## Datenschutz
 

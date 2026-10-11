@@ -1827,6 +1827,14 @@ void main() {
           .color,
       teamColor,
     );
+    final courtRect = tester.getRect(
+      find.byKey(const ValueKey('match-rotation-court')),
+    );
+    final positionTwoBefore = tester.getCenter(
+      find.byKey(const ValueKey('match-rotation-player-1')),
+    );
+    expect(positionTwoBefore.dx,
+        greaterThan(courtRect.left + courtRect.width * 2 / 3));
     final playerBefore = tester.getCenter(
       find.byKey(const ValueKey('match-rotation-position-0')),
     );
@@ -1836,14 +1844,14 @@ void main() {
     final playerAfter = tester.getCenter(
       find.byKey(const ValueKey('match-rotation-position-0')),
     );
-
-    final courtRect = tester.getRect(find.byKey(
-      const ValueKey('match-rotation-court'),
-    ));
     expect(
       (playerBefore.dx + playerAfter.dx) / 2,
       closeTo(courtRect.center.dx, 1),
     );
+    final positionTwoAfter = tester.getCenter(
+      find.byKey(const ValueKey('match-rotation-player-1')),
+    );
+    expect(positionTwoAfter.dx, lessThan(courtRect.left + courtRect.width / 3));
     expect(find.byKey(const ValueKey('match-rotation-court')), findsOneWidget);
   });
 
