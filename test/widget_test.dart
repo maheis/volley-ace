@@ -1447,6 +1447,31 @@ void main() {
     expect(combined.events, hasLength(2));
     expect(combined.events.map((event) => event.kind), ['point', 'error']);
     expect(combined.events.map((event) => event.playerId), [1, 1]);
+
+    final backup = AppBackupService.buildMatchesBackup(matches);
+    expect(backup['type'], 'matches');
+    expect(backup['matches'], hasLength(2));
+
+    final unrelated = MatchGame(
+      id: 3,
+      createdAt: DateTime(2026, 4, 1),
+      location: '',
+      opponentTeam: 'Unverändert',
+      matchDateTime: DateTime(2026, 4, 1),
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: const [],
+    );
+    final merged = AppBackupService.mergeMatchesById(
+      [unrelated, matches.first.copyWith(opponentTeam: 'Alter Stand')],
+      matches,
+    );
+    expect(merged, hasLength(3));
+    expect(
+        merged.firstWhere((match) => match.id == 1).opponentTeam, 'Team Eins');
+    expect(merged.firstWhere((match) => match.id == 3).opponentTeam,
+        'Unverändert');
   });
 
   test('match list ordering uses scheduled game date and time', () {

@@ -299,7 +299,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Aufslistun ausgewählten partien
   - [x] im diagramm die partien im wechsel farblich hinterlegen
 - [x] diagramme zoomen und scrollen können
-- [ ] multiexport und import!
+- [x] multiexport und import!
 
 ## Datenschutz
 

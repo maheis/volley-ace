@@ -49,6 +49,27 @@ class AppBackupService {
         'match': match.toJson(),
       };
 
+  static Map<String, dynamic> buildMatchesBackup(List<MatchGame> matches) =>
+      <String, dynamic>{
+        'formatVersion': _formatVersion,
+        'type': 'matches',
+        'exportedAt': DateTime.now().toIso8601String(),
+        'matches': matches.map((match) => match.toJson()).toList(),
+      };
+
+  static List<MatchGame> mergeMatchesById(
+    List<MatchGame> existing,
+    List<MatchGame> imported,
+  ) {
+    final merged = <int, MatchGame>{
+      for (final match in existing) match.id: match,
+    };
+    for (final match in imported) {
+      merged[match.id] = match;
+    }
+    return merged.values.toList();
+  }
+
   static Future<Uint8List> buildMatchStatsPdf(
     MatchGame match, {
     required String title,
@@ -763,6 +784,23 @@ class AppBackupService {
     );
   }
 
+  static Future<void> shareMatches(
+    BuildContext context,
+    List<MatchGame> matches,
+  ) async {
+    if (matches.isEmpty) return;
+    final jsonText = encodeBackup(buildMatchesBackup(matches));
+    final suggestedName =
+        'volleyace-punktewertungen-${matches.length}-${DateTime.now().millisecondsSinceEpoch}.json';
+    await shareOrSaveJson(
+      context,
+      suggestedName: suggestedName,
+      jsonText: jsonText,
+      subject: '${matches.length} VolleyAce-Punktewertungen',
+      dialogTitle: 'Punktewertungen speichern',
+    );
+  }
+
   static Future<Map<String, dynamic>?> _pickJsonMap(String dialogTitle) async {
     final result = await FilePicker.pickFiles(
       dialogTitle: dialogTitle,
@@ -916,6 +954,10 @@ class AppBackupService {
       return _importFullBackupData(context, database, data);
     }
 
+    if (data['type'] == 'matches' && data['matches'] is List) {
+      return _importMatchesBackup(context, database, data['matches'] as List);
+    }
+
     final type = data['type'];
     if (type != 'match' && data['match'] == null) {
       throw const FormatException(
@@ -967,6 +1009,54 @@ class AppBackupService {
                 'Spiel importiert: ${match.opponentTeam.isEmpty ? 'Spiel' : match.opponentTeam}')),
       );
     }
+    return true;
+  }
+
+  static Future<bool> _importMatchesBackup(
+    BuildContext context,
+    Database database,
+    List<dynamic> rawMatches,
+  ) async {
+    final matches = rawMatches
+        .whereType<Map>()
+        .map((item) => MatchGame.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+    if (matches.isEmpty) {
+      throw const FormatException(
+        'Das Mehrspiel-Backup enthält keine gültigen Spiele.',
+      );
+    }
+
+    final shouldImport = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Punktewertungen importieren?'),
+        content: Text(
+          '${matches.length} Spiele werden hinzugefügt. Vorhandene Spiele mit gleicher ID werden aktualisiert.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Importieren'),
+          ),
+        ],
+      ),
+    );
+    if (shouldImport != true || !context.mounted) return false;
+
+    final repository = MatchStatsRepository(database);
+    final existing = await repository.load();
+    final merged = mergeMatchesById(existing.matches, matches);
+    await repository.save(MatchStatsState(matches: merged));
+
+    if (!context.mounted) return false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${matches.length} Spiele importiert.')),
+    );
     return true;
   }
 

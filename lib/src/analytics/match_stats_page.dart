@@ -1334,6 +1334,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               onPressed: _openCombinedStats,
             ),
             IconButton(
+              key: const ValueKey('export-selected-matches-button'),
+              tooltip: '${_selectedMatchIds.length} Spiele exportieren',
+              icon: const Icon(Icons.file_download_outlined),
+              onPressed: () =>
+                  AppBackupService.shareMatches(context, _selectedMatches),
+            ),
+            IconButton(
               key: const ValueKey('clear-match-selection-button'),
               tooltip: 'Auswahl aufheben',
               icon: const Icon(Icons.close),
