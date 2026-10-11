@@ -1589,6 +1589,13 @@ void main() {
         .allMatches(String.fromCharCodes(pdfBytes))
         .length;
     expect(pageCount(bytes), greaterThan(pageCount(summaryOnlyBytes)));
+    final continuousBytes = await AppBackupService.buildMatchStatsPdf(
+      combinedMatch,
+      title: 'Statistik · 2 Spiele',
+      sourceMatches: selectedMatches,
+      continuous: true,
+    );
+    expect(pageCount(continuousBytes), 1);
 
     final singleMatchBytes = await AppBackupService.buildMatchStatsPdf(
       match,

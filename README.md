@@ -324,6 +324,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
 - [ ] diagramm bei multiselect zusammen dampfen, die zeiträume, in der kein spiel war, ausschneiden
 - [ ] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt
+- [ ] html export
+- [x] pdf ohne seitenumbrüche
 
 ## Datenschutz
 

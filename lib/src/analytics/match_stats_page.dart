@@ -3266,7 +3266,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     List<MatchGame>? sourceMatches,
   }) async {
     try {
-      final landscape = await showModalBottomSheet<bool>(
+      final layout = await showModalBottomSheet<String>(
         context: context,
         builder: (sheetContext) => SafeArea(
           child: Column(
@@ -3275,24 +3275,30 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ListTile(
                 leading: const Icon(Icons.stay_current_portrait_outlined),
                 title: const Text('Hochformat'),
-                onTap: () => Navigator.of(sheetContext).pop(false),
+                onTap: () => Navigator.of(sheetContext).pop('portrait'),
               ),
               ListTile(
                 leading: const Icon(Icons.stay_current_landscape_outlined),
                 title: const Text('Querformat'),
-                onTap: () => Navigator.of(sheetContext).pop(true),
+                onTap: () => Navigator.of(sheetContext).pop('landscape'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.view_stream_outlined),
+                title: const Text('Fortlaufend, eine lange Seite'),
+                onTap: () => Navigator.of(sheetContext).pop('continuous'),
               ),
             ],
           ),
         ),
       );
-      if (landscape == null || !mounted) return;
+      if (layout == null || !mounted) return;
       await AppBackupService.exportMatchStatsPdf(
         context,
         match,
         title: title,
         sourceMatches: sourceMatches,
-        landscape: landscape,
+        landscape: layout == 'landscape',
+        continuous: layout == 'continuous',
       );
     } catch (error) {
       if (!mounted) return;

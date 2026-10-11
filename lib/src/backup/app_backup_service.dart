@@ -75,6 +75,7 @@ class AppBackupService {
     required String title,
     List<MatchGame>? sourceMatches,
     bool landscape = false,
+    bool continuous = false,
   }) async {
     final sortedEvents = List<MatchEvent>.from(match.events)
       ..sort((a, b) {
@@ -115,151 +116,178 @@ class AppBackupService {
     final document = pw.Document();
     final pageFormat = _pageFormat(landscape);
 
-    document.addPage(
-      pw.MultiPage(
-        pageFormat: pageFormat,
-        margin: const pw.EdgeInsets.all(32),
-        header: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(bottom: 12),
-          child: pw.Text(
-            'VolleyAce · Punktewertung',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 9,
-            ),
-          ),
+    final reportWidgets = <pw.Widget>[
+      pw.Text(
+        title,
+        style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 4),
+      pw.Text(
+        match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
+        style: const pw.TextStyle(fontSize: 13),
+      ),
+      if (sourceMatches != null && sourceMatches.isNotEmpty) ...[
+        pw.SizedBox(height: 14),
+        pw.Text(
+          'Ausgewählte Partien (${sourceMatches.length})',
+          style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
         ),
-        footer: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(top: 12),
-          child: pw.Text(
-            '${context.pageNumber} / ${context.pagesCount}',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 9,
-            ),
-          ),
+        pw.SizedBox(height: 6),
+        _selectedMatchesTable(sourceMatches),
+      ],
+      pw.Text(
+        '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
+        style: const pw.TextStyle(
+          color: pdf.PdfColors.grey700,
+          fontSize: 10,
         ),
-        build: (context) => <pw.Widget>[
-          pw.Text(
-            title,
-            style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 18),
+      pw.Row(
+        children: [
+          pw.Expanded(
+            child: _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
           ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
-            style: const pw.TextStyle(fontSize: 13),
+          pw.SizedBox(width: 12),
+          pw.Expanded(
+            child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
           ),
-          if (sourceMatches != null && sourceMatches.isNotEmpty) ...[
-            pw.SizedBox(height: 14),
-            pw.Text(
-              'Ausgewählte Partien (${sourceMatches.length})',
-              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 6),
-            _selectedMatchesTable(sourceMatches),
-          ],
-          pw.Text(
-            '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 10,
+          pw.SizedBox(width: 12),
+          pw.Expanded(
+            child: _summaryCard(
+              'Einträge',
+              '${pointCount + errorCount}',
+              pdf.PdfColors.blue,
             ),
           ),
-          pw.SizedBox(height: 18),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child:
-                    _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
-              ),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
-              ),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                child: _summaryCard(
-                  'Einträge',
-                  '${pointCount + errorCount}',
-                  pdf.PdfColors.blue,
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 22),
-          pw.Text(
-            'Punkte und Fehler nach Art',
-            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 8),
-          if (categories.isEmpty)
-            pw.Text('Noch keine Punkte oder Fehler erfasst.')
-          else
-            pw.SizedBox(
-              height: 230,
-              child: _categoryChart(categories, points, errors),
-            ),
-          pw.Text(
-            'Zeitverlauf',
-            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 8),
-          if (pointCount + errorCount == 0)
-            pw.Text('Noch keine Verlaufsdaten vorhanden.')
-          else
-            pw.SizedBox(
-              height: 220,
-              child: _timelineChart(sortedEvents, matchTimes: matchTimes),
-            ),
-          if (match.players.isNotEmpty) ...[
-            pw.SizedBox(height: 22),
-            pw.Text(
-              'Spielerübersicht',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 8),
-            _playerTable(match, sortedEvents),
-            pw.SizedBox(height: 18),
-            pw.Text(
-              'Zeitverlauf pro Spieler',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-            ),
-            for (final player in match.players) ...[
-              pw.SizedBox(height: 12),
-              pw.Text(
-                '${player.name} · ${player.number}',
-                style: pw.TextStyle(
-                  fontSize: 11,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.SizedBox(
-                height: 150,
-                child: _timelineChart(
-                  sortedEvents
-                      .where((event) => event.playerId == player.id)
-                      .toList(),
-                  matchTimes: matchTimes,
-                ),
-              ),
-            ],
-          ],
-          if (sourceMatches != null && sourceMatches.length > 1) ...[
-            pw.SizedBox(height: 24),
-            pw.Divider(color: pdf.PdfColors.grey400),
-            pw.Text(
-              'Einzelstatistiken',
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-            ),
-            for (final sourceMatch in sourceMatches)
-              ..._individualMatchReportWidgets(sourceMatch),
-          ],
         ],
       ),
-    );
+      pw.SizedBox(height: 22),
+      pw.Text(
+        'Punkte und Fehler nach Art',
+        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 8),
+      if (categories.isEmpty)
+        pw.Text('Noch keine Punkte oder Fehler erfasst.')
+      else
+        pw.SizedBox(
+          height: 230,
+          child: _categoryChart(categories, points, errors),
+        ),
+      pw.Text(
+        'Zeitverlauf',
+        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 8),
+      if (pointCount + errorCount == 0)
+        pw.Text('Noch keine Verlaufsdaten vorhanden.')
+      else
+        pw.SizedBox(
+          height: 220,
+          child: _timelineChart(sortedEvents, matchTimes: matchTimes),
+        ),
+      if (match.players.isNotEmpty) ...[
+        pw.SizedBox(height: 22),
+        pw.Text(
+          'Spielerübersicht',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 8),
+        _playerTable(match, sortedEvents),
+        pw.SizedBox(height: 18),
+        pw.Text(
+          'Zeitverlauf pro Spieler',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        for (final player in match.players) ...[
+          pw.SizedBox(height: 12),
+          pw.Text(
+            '${player.name} · ${player.number}',
+            style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.SizedBox(
+            height: 150,
+            child: _timelineChart(
+              sortedEvents
+                  .where((event) => event.playerId == player.id)
+                  .toList(),
+              matchTimes: matchTimes,
+            ),
+          ),
+        ],
+      ],
+      if (sourceMatches != null && sourceMatches.length > 1) ...[
+        pw.SizedBox(height: 24),
+        pw.Divider(color: pdf.PdfColors.grey400),
+        pw.Text(
+          'Einzelstatistiken',
+          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+        ),
+        for (final sourceMatch in sourceMatches)
+          ..._individualMatchReportWidgets(sourceMatch),
+      ],
+    ];
+
+    if (continuous) {
+      final reportCount = sourceMatches?.length ?? 1;
+      final reportPlayerCount = sourceMatches == null
+          ? match.players.length
+          : sourceMatches.fold<int>(
+              match.players.length,
+              (total, sourceMatch) => total + sourceMatch.players.length,
+            );
+      final pageHeight = math
+          .max(
+            pageFormat.height,
+            1800 + reportCount * 1000 + reportPlayerCount * 180,
+          )
+          .toDouble();
+      document.addPage(
+        pw.Page(
+          pageFormat: pdf.PdfPageFormat(pageFormat.width, pageHeight),
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: reportWidgets,
+          ),
+        ),
+      );
+    } else {
+      document.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          margin: const pw.EdgeInsets.all(32),
+          header: (context) => pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Text(
+              'VolleyAce · Punktewertung',
+              style: const pw.TextStyle(
+                color: pdf.PdfColors.grey700,
+                fontSize: 9,
+              ),
+            ),
+          ),
+          footer: (context) => pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 12),
+            child: pw.Text(
+              '${context.pageNumber} / ${context.pagesCount}',
+              style: const pw.TextStyle(
+                color: pdf.PdfColors.grey700,
+                fontSize: 9,
+              ),
+            ),
+          ),
+          build: (_) => reportWidgets,
+        ),
+      );
+    }
 
     return document.save();
   }
@@ -810,12 +838,14 @@ class AppBackupService {
     required String title,
     List<MatchGame>? sourceMatches,
     bool landscape = false,
+    bool continuous = false,
   }) async {
     final bytes = await buildMatchStatsPdf(
       match,
       title: title,
       sourceMatches: sourceMatches,
       landscape: landscape,
+      continuous: continuous,
     );
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
