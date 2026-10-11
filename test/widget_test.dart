@@ -1180,6 +1180,49 @@ void main() {
     expect(restored.rotationSetup?.servingSide, 1);
   });
 
+  test('match statistics export builds a PDF with chart data', () async {
+    final match = MatchGame(
+      id: 7,
+      createdAt: DateTime(2026, 6, 1),
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: DateTime(2026, 6, 1, 18),
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+      ],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: 1,
+          playerName: 'Ada',
+          playerNumber: 7,
+          kind: 'point',
+          category: 'Ass',
+          occurredAt: DateTime(2026, 6, 1, 18),
+        ),
+        MatchEvent(
+          id: 2,
+          playerId: 1,
+          playerName: 'Ada',
+          playerNumber: 7,
+          kind: 'error',
+          category: 'Aufschlag',
+          occurredAt: DateTime(2026, 6, 1, 18, 5),
+        ),
+      ],
+    );
+
+    final bytes = await AppBackupService.buildMatchStatsPdf(
+      match,
+      title: 'Statistik · Team Rot',
+    );
+
+    expect(bytes.length, greaterThan(1000));
+    expect(bytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+  });
+
   test('match rotation follows scored point events', () {
     final match = MatchGame(
       id: 4,

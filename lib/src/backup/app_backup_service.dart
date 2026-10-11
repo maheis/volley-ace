@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart' as pdf;
+import 'package:pdf/widgets.dart' as pw;
 import 'package:sembast/sembast.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -45,6 +48,415 @@ class AppBackupService {
         'exportedAt': DateTime.now().toIso8601String(),
         'match': match.toJson(),
       };
+
+  static Future<Uint8List> buildMatchStatsPdf(
+    MatchGame match, {
+    required String title,
+  }) async {
+    final sortedEvents = List<MatchEvent>.from(match.events)
+      ..sort((a, b) {
+        final timeOrder = a.occurredAt.compareTo(b.occurredAt);
+        return timeOrder != 0 ? timeOrder : a.id.compareTo(b.id);
+      });
+    final points = _eventSummary(sortedEvents, 'point');
+    final errors = _eventSummary(sortedEvents, 'error');
+    final pointCount =
+        sortedEvents.where((event) => event.kind == 'point').length;
+    final errorCount =
+        sortedEvents.where((event) => event.kind == 'error').length;
+    final categories = <String>{...points.keys, ...errors.keys}.toList()
+      ..sort();
+    final scoredEvents = sortedEvents
+        .where((event) => event.kind == 'point' || event.kind == 'error')
+        .toList();
+    final firstEventTime = scoredEvents.firstOrNull?.occurredAt;
+    final lastEventTime = scoredEvents.lastOrNull?.occurredAt;
+    final period = firstEventTime == null || lastEventTime == null
+        ? _formatPdfDate(match.matchDateTime)
+        : '${_formatPdfDateTime(firstEventTime)} – ${_formatPdfDateTime(lastEventTime)}';
+    final document = pw.Document();
+
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: pdf.PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(bottom: 12),
+          child: pw.Text(
+            'VolleyAce · Punktewertung',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 9,
+            ),
+          ),
+        ),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 12),
+          child: pw.Text(
+            '${context.pageNumber} / ${context.pagesCount}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 9,
+            ),
+          ),
+        ),
+        build: (context) => <pw.Widget>[
+          pw.Text(
+            title,
+            style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
+            style: const pw.TextStyle(fontSize: 13),
+          ),
+          pw.Text(
+            '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 10,
+            ),
+          ),
+          pw.SizedBox(height: 18),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child:
+                    _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _summaryCard(
+                  'Einträge',
+                  '${pointCount + errorCount}',
+                  pdf.PdfColors.blue,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 22),
+          pw.Text(
+            'Punkte und Fehler nach Art',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (categories.isEmpty)
+            pw.Text('Noch keine Punkte oder Fehler erfasst.')
+          else
+            pw.SizedBox(
+              height: 230,
+              child: _categoryChart(categories, points, errors),
+            ),
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'Zeitverlauf',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (pointCount + errorCount == 0)
+            pw.Text('Noch keine Verlaufsdaten vorhanden.')
+          else
+            pw.SizedBox(
+              height: 220,
+              child: _timelineChart(sortedEvents),
+            ),
+          if (match.players.isNotEmpty) ...[
+            pw.SizedBox(height: 22),
+            pw.Text(
+              'Spielerübersicht',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            _playerTable(match, sortedEvents),
+            pw.SizedBox(height: 18),
+            pw.Text(
+              'Zeitverlauf pro Spieler',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            for (final player in match.players) ...[
+              pw.SizedBox(height: 12),
+              pw.Text(
+                '${player.name} · ${player.number}',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.SizedBox(
+                height: 150,
+                child: _timelineChart(
+                  sortedEvents
+                      .where((event) => event.playerId == player.id)
+                      .toList(),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+
+    return document.save();
+  }
+
+  static Map<String, int> _eventSummary(
+    List<MatchEvent> events,
+    String kind,
+  ) {
+    final summary = <String, int>{};
+    for (final event in events.where((entry) => entry.kind == kind)) {
+      summary[event.category] = (summary[event.category] ?? 0) + 1;
+    }
+    return summary;
+  }
+
+  static pw.Widget _summaryCard(
+      String label, String value, pdf.PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: color.shade(0.12),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 10)),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            value,
+            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _categoryChart(
+    List<String> categories,
+    Map<String, int> points,
+    Map<String, int> errors,
+  ) {
+    final labels = categories.length == 1 ? [...categories, ''] : categories;
+    final pointData = <pw.PointChartValue>[
+      for (var index = 0; index < labels.length; index++)
+        pw.PointChartValue(
+          index.toDouble(),
+          index < categories.length
+              ? (points[categories[index]] ?? 0).toDouble()
+              : 0,
+        ),
+    ];
+    final errorData = <pw.PointChartValue>[
+      for (var index = 0; index < labels.length; index++)
+        pw.PointChartValue(
+          index.toDouble(),
+          index < categories.length
+              ? (errors[categories[index]] ?? 0).toDouble()
+              : 0,
+        ),
+    ];
+    final maxValue = <int>[...points.values, ...errors.values]
+        .fold<int>(1, math.max)
+        .toDouble();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Row(
+          children: [
+            _chartLegend(pdf.PdfColors.green, 'Punkte'),
+            pw.SizedBox(width: 16),
+            _chartLegend(pdf.PdfColors.red, 'Fehler'),
+          ],
+        ),
+        pw.SizedBox(height: 8),
+        pw.Expanded(
+          child: pw.Chart(
+            grid: pw.CartesianGrid(
+              xAxis: pw.FixedAxis.fromStrings(
+                labels,
+                angle: math.pi / 4,
+                textStyle: const pw.TextStyle(fontSize: 7),
+              ),
+              yAxis: pw.FixedAxis<double>(
+                [0, maxValue],
+                format: (value) => value.toStringAsFixed(0),
+                divisions: true,
+                textStyle: const pw.TextStyle(fontSize: 8),
+              ),
+            ),
+            datasets: [
+              pw.BarDataSet<pw.PointChartValue>(
+                data: pointData,
+                color: pdf.PdfColors.green,
+                width: 0.3,
+                offset: -0.16,
+              ),
+              pw.BarDataSet<pw.PointChartValue>(
+                data: errorData,
+                color: pdf.PdfColors.red,
+                width: 0.3,
+                offset: 0.16,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _timelineChart(List<MatchEvent> events) {
+    final scoredEvents = events
+        .where((event) => event.kind == 'point' || event.kind == 'error')
+        .toList();
+    if (scoredEvents.isEmpty) return pw.Text('Keine Punktdaten.');
+
+    var points = 0;
+    var errors = 0;
+    final pointData = <pw.PointChartValue>[
+      const pw.PointChartValue(0, 0),
+    ];
+    final errorData = <pw.PointChartValue>[
+      const pw.PointChartValue(0, 0),
+    ];
+    for (var index = 0; index < scoredEvents.length; index++) {
+      if (scoredEvents[index].kind == 'point') {
+        points++;
+      } else {
+        errors++;
+      }
+      pointData
+          .add(pw.PointChartValue((index + 1).toDouble(), points.toDouble()));
+      errorData
+          .add(pw.PointChartValue((index + 1).toDouble(), errors.toDouble()));
+    }
+
+    final end = scoredEvents.length.toDouble();
+    final middle = end / 2;
+    final dateLabels = [0.0, middle, end].map((position) {
+      final eventIndex =
+          (position - 1).round().clamp(0, scoredEvents.length - 1);
+      return _formatPdfDateTime(scoredEvents[eventIndex].occurredAt);
+    }).toList();
+    final maxValue = math.max(points, errors).toDouble();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Row(
+          children: [
+            _chartLegend(pdf.PdfColors.green, 'Punkte'),
+            pw.SizedBox(width: 16),
+            _chartLegend(pdf.PdfColors.red, 'Fehler'),
+          ],
+        ),
+        pw.SizedBox(height: 8),
+        pw.Expanded(
+          child: pw.Chart(
+            grid: pw.CartesianGrid(
+              xAxis: pw.FixedAxis<double>(
+                [0, middle, end],
+                format: (value) {
+                  if (value <= 0) return dateLabels.first;
+                  if (value >= end) return dateLabels.last;
+                  return dateLabels[1];
+                },
+                textStyle: const pw.TextStyle(fontSize: 7),
+              ),
+              yAxis: pw.FixedAxis<double>(
+                [0, math.max(1, maxValue)],
+                format: (value) => value.toStringAsFixed(0),
+                divisions: true,
+                textStyle: const pw.TextStyle(fontSize: 8),
+              ),
+            ),
+            datasets: [
+              pw.LineDataSet<pw.PointChartValue>(
+                data: pointData,
+                legend: 'Punkte',
+                color: pdf.PdfColors.green,
+                drawPoints: false,
+                isCurved: true,
+              ),
+              pw.LineDataSet<pw.PointChartValue>(
+                data: errorData,
+                legend: 'Fehler',
+                color: pdf.PdfColors.red,
+                drawPoints: false,
+                isCurved: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _playerTable(MatchGame match, List<MatchEvent> events) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+      columnWidths: const <int, pw.TableColumnWidth>{
+        0: pw.FlexColumnWidth(3),
+        1: pw.FlexColumnWidth(1),
+        2: pw.FlexColumnWidth(1),
+      },
+      children: [
+        _tableRow(['Spieler', 'Punkte', 'Fehler'], header: true),
+        for (final player in match.players)
+          _tableRow([
+            '${player.name} · ${player.number}',
+            '${events.where((event) => event.playerId == player.id && event.kind == 'point').length}',
+            '${events.where((event) => event.playerId == player.id && event.kind == 'error').length}',
+          ]),
+      ],
+    );
+  }
+
+  static pw.TableRow _tableRow(List<String> values, {bool header = false}) {
+    return pw.TableRow(
+      decoration:
+          header ? const pw.BoxDecoration(color: pdf.PdfColors.grey200) : null,
+      children: [
+        for (var index = 0; index < values.length; index++)
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(6),
+            child: pw.Text(
+              values[index],
+              textAlign: index == 0 ? pw.TextAlign.left : pw.TextAlign.right,
+              style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: header ? pw.FontWeight.bold : pw.FontWeight.normal,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static pw.Widget _chartLegend(pdf.PdfColor color, String label) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.Container(width: 9, height: 9, color: color),
+        pw.SizedBox(width: 5),
+        pw.Text(label, style: const pw.TextStyle(fontSize: 9)),
+      ],
+    );
+  }
+
+  static String _formatPdfDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+
+  static String _formatPdfDateTime(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
   static String encodeBackup(Map<String, dynamic> payload) {
     return const JsonEncoder.withIndent('  ').convert(payload);
@@ -120,6 +532,57 @@ class AppBackupService {
     }
 
     await _shareJson(suggestedName, jsonText, subject);
+  }
+
+  static Future<void> exportMatchStatsPdf(
+    BuildContext context,
+    MatchGame match, {
+    required String title,
+  }) async {
+    final bytes = await buildMatchStatsPdf(match, title: title);
+    if (!context.mounted) return;
+    final platform = Theme.of(context).platform;
+    final suggestedName =
+        'volleyace-statistik-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+    if (platform == TargetPlatform.linux ||
+        platform == TargetPlatform.windows) {
+      try {
+        final selectedPath = await FilePicker.saveFile(
+          dialogTitle: 'Statistik als PDF speichern',
+          fileName: suggestedName,
+          type: FileType.custom,
+          allowedExtensions: const ['pdf'],
+          bytes: bytes,
+        );
+        if (selectedPath == null || !context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF gespeichert: $selectedPath')),
+        );
+      } catch (_) {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$suggestedName');
+        await file.writeAsBytes(bytes, flush: true);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF gespeichert unter ${file.path}'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
+    }
+
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}/$suggestedName');
+    await file.writeAsBytes(bytes, flush: true);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'application/pdf')],
+        subject: title,
+      ),
+    );
   }
 
   static Future<void> exportBackup(

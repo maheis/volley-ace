@@ -2273,6 +2273,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: onBack ?? () => _showMatchDetail(match.id),
         ),
+        actions: [
+          IconButton(
+            key: const ValueKey('export-match-stats-pdf'),
+            tooltip: 'Statistik als PDF exportieren',
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: () => _exportStatisticsPdf(match, title: title),
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -2334,6 +2342,24 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportStatisticsPdf(
+    MatchGame match, {
+    required String title,
+  }) async {
+    try {
+      await AppBackupService.exportMatchStatsPdf(
+        context,
+        match,
+        title: title,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF konnte nicht erstellt werden: $error')),
+      );
+    }
   }
 
   List<_TrendSample> _trendSamples(MatchGame match, {int? playerId}) {

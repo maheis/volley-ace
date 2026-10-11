@@ -176,7 +176,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Diagram über Punkte/Fehler im Zeitverlauf
         - [ ] Aufklappbare Details pro Spieler
       - [ ] Export
-        - [ ] PDF inkl. Grafiken
+        - [x] PDF inkl. Grafiken
         - [ ] Format das in Excel importiert werden kann
     - [ ] Spielbericht
 - [x] Training
@@ -284,9 +284,10 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] satz beenden geht nicht
 - [ ] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
 - [ ] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
-- [ ] sonstiger spieler / mannschaft (wenn man es nicht eindeutig ist)
-- [ ] rückgängig machen von zeug
-- [ ] zweite aufstellung (sitenwechsel) fehler nummerierung bzw. plätze und wird nicht gespeichert
+- [ ] undefiniert und mannschaft als spieler zum buchen auswählen (wenn man es nicht eindeutig ist)
+- [ ] rückgängig machen von der letzten wertung (wertung um wertung) inkl. rotation!
+- [ ] zweite aufstellung (sitenwechsel rechts/links) fehler in der platz nummerierung bzw. plätze, platz 1 ist immer hinten rechts! d.h. auf der rechten seite muss platz 1 hinten rechts oben sein.
+- [ ] wird rechts als spielfeld in der punktewertung ausgewähl, wird das nicht gespeichert! soll aber gespeichert werden!
 - [ ] neuer baum zum buchen von spielpunkten (siehe oben)
   - [ ] Annahmefehler
   - [ ] aufschlagpunkt
@@ -294,6 +295,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] spielernummern aus mannschaft übernehmen (nachträglich!)
 - [ ] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
 - [ ] gegnerfehler im diagramm (dritte linie)
+- [ ] multistatistik
+  - [ ] Aufslistun ausgewählten partien
+  - [ ] im diagramm die partien im wechsel farblich hinterlegen
 
 ## Datenschutz
 
