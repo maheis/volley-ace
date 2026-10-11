@@ -1219,11 +1219,13 @@ void main() {
     const contentKey = ValueKey('trend-chart-content-Zeitverlauf gesamt');
     final viewportWidth = tester.getSize(find.byKey(viewportKey)).width;
     final initialContentSize = tester.getSize(find.byKey(contentKey));
-    await tester.tap(zoomIn);
-    await tester.pump();
+    for (var step = 0; step < 5; step++) {
+      await tester.tap(zoomIn);
+      await tester.pump();
+    }
     final expandedContentSize = tester.getSize(find.byKey(contentKey));
     expect(initialContentSize.width, closeTo(viewportWidth, 1));
-    expect(expandedContentSize.width, greaterThan(viewportWidth));
+    expect(expandedContentSize.width, greaterThan(viewportWidth * 4));
     expect(expandedContentSize.height, initialContentSize.height);
 
     final chartScrollable = find.descendant(
@@ -1242,6 +1244,12 @@ void main() {
       tester.state<ScrollableState>(chartScrollable).position.pixels,
       greaterThan(0),
     );
+  });
+
+  test('multiselect trend charts allow more time-axis expansion', () {
+    expect(trendChartMaxTimeScale(2), 16);
+    expect(trendChartMaxTimeScale(100), 25);
+    expect(trendChartMaxTimeScale(1000), 64);
   });
 
   test('Match stores selected team players with match-specific numbers', () {

@@ -321,6 +321,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] annahmefehler das "fehler" rausnehmen
 - [ ] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne seitenumbruch?)
 - [ ] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
+- [ ] diagramm bei multiselect zusammen dampfen, die zeiträume, in der kein spiel war, ausschneiden
 
 ## Datenschutz
 

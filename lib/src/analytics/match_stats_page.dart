@@ -3723,6 +3723,9 @@ class _TrendSample {
   final int opponentErrors;
 }
 
+double trendChartMaxTimeScale(int sampleCount) =>
+    (sampleCount / 4).clamp(16.0, 64.0).toDouble();
+
 class _TrendChartCard extends StatefulWidget {
   const _TrendChartCard({
     required this.title,
@@ -3745,8 +3748,10 @@ class _TrendChartCard extends StatefulWidget {
 class _TrendChartCardState extends State<_TrendChartCard> {
   double _scale = 1;
 
+  double get _maxScale => trendChartMaxTimeScale(widget.samples.length);
+
   void _setScale(double scale) {
-    final nextScale = scale.clamp(1.0, 4.0).toDouble();
+    final nextScale = scale.clamp(1.0, _maxScale).toDouble();
     setState(() => _scale = nextScale);
   }
 
@@ -3768,14 +3773,14 @@ class _TrendChartCardState extends State<_TrendChartCard> {
                 ),
                 IconButton(
                   tooltip: 'Zeitachse verkürzen',
-                  onPressed:
-                      _scale <= 1 ? null : () => _setScale(_scale / 1.25),
+                  onPressed: _scale <= 1 ? null : () => _setScale(_scale / 1.5),
                   icon: const Icon(Icons.zoom_out),
                 ),
                 IconButton(
                   tooltip: 'Zeitachse nach rechts erweitern',
-                  onPressed:
-                      _scale >= 4 ? null : () => _setScale(_scale * 1.25),
+                  onPressed: _scale >= _maxScale
+                      ? null
+                      : () => _setScale(_scale * 1.5),
                   icon: const Icon(Icons.zoom_in),
                 ),
                 IconButton(
