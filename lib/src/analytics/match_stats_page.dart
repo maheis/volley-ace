@@ -592,6 +592,8 @@ const String _timeoutKind = 'timeout';
 const String _manualSetEndKind = 'manual_set_end';
 const int _unknownScorerId = -1;
 const int _teamScorerId = -2;
+const Duration _scoringSelectionTimeout = Duration(seconds: 7);
+const String _otherCategoryTimeoutResult = '__scoring_timeout__';
 
 class _UndoScoringIntent extends Intent {
   const _UndoScoringIntent();
@@ -748,6 +750,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   DateTime _now = DateTime.now();
   Timer? _clockTimer;
+  Timer? _scoringSelectionTimer;
 
   @override
   void initState() {
@@ -883,6 +886,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _showMatchDetail(int matchId, {String? section}) {
+    _scoringSelectionTimer?.cancel();
     if (section == 'info') {
       final match = _matches.firstWhere((entry) => entry.id == matchId);
       _locationController.text = match.location;
@@ -901,6 +905,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _closeMatchDetail() {
+    _scoringSelectionTimer?.cancel();
     setState(() {
       _selectedMatchIds.clear();
       _selectedMatchId = null;
@@ -913,6 +918,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _handleSystemBack() {
+    _scoringSelectionTimer?.cancel();
     if (_activeSection == 'multi-stats') {
       setState(() => _activeSection = null);
       return;
@@ -1324,6 +1330,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _startEventSelection(MatchGame match, {required bool isPoint}) {
+    _scoringSelectionTimer?.cancel();
     setState(() {
       _pendingEventKind = isPoint ? 'point' : 'error';
       _pendingCategoryPath = <String>[];
@@ -1356,6 +1363,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _cancelEventSelection() {
+    _scoringSelectionTimer?.cancel();
     setState(() {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
@@ -1494,13 +1502,23 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         _pendingScorerNumber = scorerNumber;
         _activeSection = 'category-selection';
       });
+      _scheduleScoringSelectionTimeout(match);
       return;
     }
 
     var category = _pendingCategoryPath.join(' · ');
     if (mainCategory.requiresText) {
+      _scoringSelectionTimer?.cancel();
       final details = await _requestOtherCategoryDetails();
-      if (details == null || !mounted) return;
+      if (!mounted) return;
+      if (details == _otherCategoryTimeoutResult) {
+        _createMainCategoryEvent(match, scorerId, scorerName, scorerNumber);
+        return;
+      }
+      if (details == null) {
+        _scheduleScoringSelectionTimeout(match);
+        return;
+      }
       category = '$category: $details';
     }
     _createEvent(
@@ -1514,6 +1532,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Future<String?> _requestOtherCategoryDetails() async {
     final controller = TextEditingController();
+    final navigator = Navigator.of(context);
+    final timeout = Timer(_scoringSelectionTimeout, () {
+      navigator.maybePop(_otherCategoryTimeoutResult);
+    });
     final details = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1536,9 +1558,37 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ],
       ),
     );
+    timeout.cancel();
     controller.dispose();
-    if (!mounted || details == null || details.isEmpty) return null;
+    if (!mounted || details == null || details.isEmpty) return details;
     return details;
+  }
+
+  void _scheduleScoringSelectionTimeout(MatchGame match) {
+    _scoringSelectionTimer?.cancel();
+    _scoringSelectionTimer = Timer(_scoringSelectionTimeout, () {
+      if (!mounted || _pendingCategoryPath.isEmpty) return;
+      final scorerId = _pendingScorerId ?? _unknownScorerId;
+      final scorerName = _pendingScorerName ?? 'Unbekannt';
+      final scorerNumber = _pendingScorerId == null ? 0 : _pendingScorerNumber;
+      _createMainCategoryEvent(match, scorerId, scorerName, scorerNumber);
+    });
+  }
+
+  void _createMainCategoryEvent(
+    MatchGame match,
+    int scorerId,
+    String scorerName,
+    int scorerNumber,
+  ) {
+    if (_pendingCategoryPath.isEmpty) return;
+    _createEvent(
+      match,
+      playerId: scorerId,
+      playerName: scorerName,
+      playerNumber: scorerNumber,
+      category: _pendingCategoryPath.first,
+    );
   }
 
   List<_ScoringCategory> _categoriesAtPendingPath() {
@@ -1572,18 +1622,34 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         _pendingCategoryPath = path;
         _activeSection = 'player-selection';
       });
+      _scheduleScoringSelectionTimeout(match);
       return;
     }
 
     if (selected.children.isNotEmpty) {
       setState(() => _pendingCategoryPath = path);
+      _scheduleScoringSelectionTimeout(match);
       return;
     }
 
     var category = path.join(' · ');
     if (selected.requiresText) {
+      _scoringSelectionTimer?.cancel();
       final details = await _requestOtherCategoryDetails();
-      if (details == null) return;
+      if (!mounted) return;
+      if (details == _otherCategoryTimeoutResult) {
+        _createMainCategoryEvent(
+          match,
+          _pendingScorerId ?? _unknownScorerId,
+          _pendingScorerName ?? 'Unbekannt',
+          _pendingScorerNumber,
+        );
+        return;
+      }
+      if (details == null) {
+        _scheduleScoringSelectionTimeout(match);
+        return;
+      }
       category = '$category: $details';
     }
 
@@ -1603,6 +1669,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     String? playerName,
     int? playerNumber,
   }) {
+    _scoringSelectionTimer?.cancel();
     final player = match.players.cast<MatchPlayer?>().firstWhere(
           (entry) => entry?.id == playerId,
           orElse: () => null,
@@ -1639,6 +1706,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _backFromPlayerSelection() {
+    _scoringSelectionTimer?.cancel();
     if (_pendingCategoryPath.isEmpty) {
       _cancelEventSelection();
       return;
@@ -1650,6 +1718,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _pendingScorerNumber = 0;
       _activeSection = 'category-selection';
     });
+  }
+
+  void _backToScorerSelection(MatchGame match) {
+    setState(() => _activeSection = 'player-selection');
+    _scheduleScoringSelectionTimeout(match);
   }
 
   Map<String, int> _pointSummary(MatchGame match) {
@@ -2929,7 +3002,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           onPressed: _pendingCategoryPath.isEmpty
               ? _cancelEventSelection
               : _pendingScorerId != null && _pendingCategoryPath.length == 1
-                  ? () => setState(() => _activeSection = 'player-selection')
+                  ? () => _backToScorerSelection(match)
                   : () => setState(() {
                         _pendingCategoryPath = _pendingCategoryPath.sublist(
                             0, _pendingCategoryPath.length - 1);
@@ -3268,6 +3341,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _scoringSelectionTimer?.cancel();
     _playerNameController.dispose();
     _playerNumberController.dispose();
     _coachNameController.dispose();

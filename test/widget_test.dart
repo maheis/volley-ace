@@ -1130,11 +1130,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
     await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('select-category-Block')));
+    await tester.pump(const Duration(seconds: 7));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('record-error-button')));
     await _pumpUi(tester);
     await tester.tap(
-      find.byTooltip('Ohne Spieler als Unbekannt buchen'),
+      find.byKey(const ValueKey('select-category-Annahme')),
     );
     await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-player-1')));
+    await tester.pump(const Duration(seconds: 7));
+    await _pumpUi(tester);
+
     await tester.tap(find.byKey(const ValueKey('record-error-button')));
     await _pumpUi(tester);
     await tester.tap(
@@ -1158,7 +1165,8 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.text('Verlauf'), findsOneWidget);
-    expect(find.text('4 Aktionen'), findsOneWidget);
+    expect(find.text('5 Aktionen'), findsOneWidget);
+    expect(find.text('Ada Neu  •  Annahme'), findsOneWidget);
     expect(find.text('1 abgeschlossene Sätze'), findsOneWidget);
     expect(find.text('Satzende'), findsOneWidget);
     final editPoint = find.byKey(const ValueKey('edit-match-event-1'));
