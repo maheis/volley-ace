@@ -1307,6 +1307,61 @@ void main() {
     expect(find.byKey(const ValueKey('match-rotation-court')), findsOneWidget);
   });
 
+  test('selected matches combine player and event totals', () {
+    final matches = [
+      MatchGame(
+        id: 1,
+        createdAt: DateTime(2026, 5, 1),
+        location: 'Halle A',
+        opponentTeam: 'Team Eins',
+        matchDateTime: DateTime(2026, 5, 1),
+        matchTag: '',
+        matchType: 'Liga',
+        players: const [MatchPlayer(id: 1, name: 'Ada', number: 7)],
+        events: [
+          MatchEvent(
+            id: 1,
+            playerId: 1,
+            playerName: 'Ada',
+            playerNumber: 7,
+            kind: 'point',
+            category: 'Ass',
+            occurredAt: DateTime(2026, 5, 1, 12),
+          ),
+        ],
+      ),
+      MatchGame(
+        id: 2,
+        createdAt: DateTime(2026, 5, 2),
+        location: 'Halle B',
+        opponentTeam: 'Team Zwei',
+        matchDateTime: DateTime(2026, 5, 2),
+        matchTag: '',
+        matchType: 'Turnier',
+        players: const [MatchPlayer(id: 1, name: 'Ada', number: 7)],
+        events: [
+          MatchEvent(
+            id: 1,
+            playerId: 1,
+            playerName: 'Ada',
+            playerNumber: 7,
+            kind: 'error',
+            category: 'Aufschlag',
+            occurredAt: DateTime(2026, 5, 2, 12),
+          ),
+        ],
+      ),
+    ];
+    final combined = combineMatchesForStatistics(matches);
+
+    expect(combined.opponentTeam, '2 Spiele');
+    expect(combined.players, hasLength(1));
+    expect(combined.players.single.name, 'Ada');
+    expect(combined.events, hasLength(2));
+    expect(combined.events.map((event) => event.kind), ['point', 'error']);
+    expect(combined.events.map((event) => event.playerId), [1, 1]);
+  });
+
   testWidgets('Teams with players and coaches are persisted', (
     WidgetTester tester,
   ) async {

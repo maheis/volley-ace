@@ -128,7 +128,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Wertung
           - Punkte
             Auswahl wie ein Punkt erreicht wurde.
-            - Ass
+            - Aufschlag
+              - Ass
+            - Angriff
             - Angriff
             - Block
             - Zuspieler-Finte
@@ -137,11 +139,17 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
           - Fehler
             Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag
+              - Ball ins seitliche Aus
+              - Ball ins hintere Aus
+              - Ball ins Netz
+            - Annahmefehler
+              - Zugeschaut
+              - Tusch
+              - Untere Annahme
+              - Obere Annahme 
             - Ball ins Aus
             - Ball ins Netz
             - Ball nicht rüber
-            - Zugeschaut
-            - Tusch
             - Übertritt
             - Netz Berührung
             - Fehler beim Hinterfeldangriff
@@ -163,6 +171,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Diagram über Punkte/Fehler im Zeitverlauf
         - [ ] Aufklappbare Details pro Spieler
       - [ ] Export (Format das z.B. in Excel importiert werden kann)
+    - [ ] Spielbericht
 - [x] Training
   - [x] Training
     - [x] Mehrere Trainings speichern
@@ -263,6 +272,20 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Spielinfos (Mannschaft, Spielklasse) soll als zweite Seite aufrufbar sein, primäre Seite soll das Spielfeld sein!
 - [x] Spieler nicht per D&D rein ziehen, sondern auf die Position auf dem Spielfeld tippen und dann eine Auswahl bekommen
 - [x] Spielernummern müssen auch bei Mannschaften noch änderbar/eintragbar sein (Spielernummern können ggf. nicht fix sein!)
+- [x] tagesstatistik / multistatistik
+- [ ] sortierung der punktewertungen nach eingetragener spiel uhrzeit!
+- [ ] satz beenden geht nicht
+- [ ] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
+- [ ] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
+- [ ] sonstiger spieler / mannschaft (wenn man es nicht eindeutig ist)
+- [ ] rückgängig machen von zeug
+- [ ] zweite aufstellung (sitenwechsel) fehler nummerierung bzw. plätze und wird nicht gespeichert
+- [ ] neuer baum zum buchen von spielpunkten (siehe oben)
+  - [ ] Annahmefehler
+  - [ ] aufschlagpunkt
+- [ ] spielernummern werden nicht gespeichert
+- [ ] spielernummern aus mannschaft übernehmen (nachträglich!)
+- [ ] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
 
 ## Datenschutz
 

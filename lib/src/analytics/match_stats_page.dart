@@ -313,6 +313,65 @@ class MatchGame {
   }
 }
 
+MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
+  if (matches.isEmpty) {
+    throw ArgumentError.value(matches, 'matches', 'Must not be empty');
+  }
+
+  final playersByKey = <String, MatchPlayer>{};
+  final combinedPlayers = <MatchPlayer>[];
+  final combinedEvents = <MatchEvent>[];
+
+  for (final match in matches) {
+    final playerIds = <int, int>{};
+    for (final player in match.players) {
+      final identity = player.teamPlayerId != null
+          ? 'team:${match.teamId}:${player.teamPlayerId}'
+          : 'name:${player.name.trim().toLowerCase()}';
+      var combinedPlayer = playersByKey[identity];
+      if (combinedPlayer == null) {
+        combinedPlayer = MatchPlayer(
+          id: combinedPlayers.length + 1,
+          name: player.name,
+          number: player.number,
+          teamPlayerId: player.teamPlayerId,
+          sourceTeamId: player.sourceTeamId,
+        );
+        playersByKey[identity] = combinedPlayer;
+        combinedPlayers.add(combinedPlayer);
+      }
+      playerIds[player.id] = combinedPlayer.id;
+    }
+
+    for (final event in match.events) {
+      combinedEvents.add(
+        MatchEvent(
+          id: combinedEvents.length + 1,
+          playerId: event.playerId == null ? null : playerIds[event.playerId],
+          playerName: event.playerName,
+          playerNumber: event.playerNumber,
+          kind: event.kind,
+          category: event.category,
+          occurredAt: event.occurredAt,
+        ),
+      );
+    }
+  }
+
+  final firstMatch = matches.first;
+  return MatchGame(
+    id: -1,
+    createdAt: firstMatch.createdAt,
+    location: '',
+    opponentTeam: '${matches.length} Spiele',
+    matchDateTime: firstMatch.matchDateTime,
+    matchTag: '',
+    matchType: 'Zusammenfassung',
+    players: combinedPlayers,
+    events: combinedEvents,
+  );
+}
+
 ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
   final initialRotation = match.rotationSetup;
   if (initialRotation == null) return null;
@@ -469,6 +528,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   String? _activeSection;
   String? _pendingEventKind;
   String? _pendingCategory;
+  final Set<int> _selectedMatchIds = <int>{};
   bool _isLoaded = false;
   int _nextMatchId = 1;
 
@@ -541,6 +601,30 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     return null;
   }
 
+  List<MatchGame> get _selectedMatches =>
+      _matches.where((match) => _selectedMatchIds.contains(match.id)).toList();
+
+  void _toggleMatchSelection(int matchId) {
+    setState(() {
+      if (!_selectedMatchIds.add(matchId)) {
+        _selectedMatchIds.remove(matchId);
+      }
+    });
+  }
+
+  void _clearMatchSelection() {
+    setState(_selectedMatchIds.clear);
+  }
+
+  void _openCombinedStats() {
+    if (_selectedMatchIds.isEmpty) return;
+    setState(() => _activeSection = 'multi-stats');
+  }
+
+  MatchGame _combinedStatsMatch(List<MatchGame> matches) {
+    return combineMatchesForStatistics(matches);
+  }
+
   String _displayPlayerName(MatchGame match, MatchPlayer player) {
     final teamPlayerId = player.teamPlayerId;
     if (teamPlayerId == null || match.teamId == null) return player.name;
@@ -584,6 +668,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _matchTagController.text = match.matchTag;
     }
     setState(() {
+      _selectedMatchIds.clear();
       _selectedMatchId = matchId;
       _activeSection = section;
       _pendingEventKind = null;
@@ -593,6 +678,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   void _closeMatchDetail() {
     setState(() {
+      _selectedMatchIds.clear();
       _selectedMatchId = null;
       _activeSection = null;
       _pendingEventKind = null;
@@ -601,6 +687,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _handleSystemBack() {
+    if (_activeSection == 'multi-stats') {
+      setState(() => _activeSection = null);
+      return;
+    }
     if (_selectedMatchId == null) return;
     setState(() {
       if (_activeSection == 'player-selection') {
@@ -1183,7 +1273,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
     final selectedMatch = _selectedMatch;
     final Widget page;
-    if (selectedMatch != null && _activeSection == null) {
+    if (_activeSection == 'multi-stats' && _selectedMatches.isNotEmpty) {
+      final selectedMatches = _selectedMatches;
+      page = _buildStatsView(
+        _combinedStatsMatch(selectedMatches),
+        title: 'Statistik · ${selectedMatches.length} Spiele',
+        onBack: _handleSystemBack,
+        showSets: false,
+      );
+    } else if (selectedMatch != null && _activeSection == null) {
       page = _buildMatchDetailView(selectedMatch);
     } else if (selectedMatch != null && _activeSection == 'info') {
       page = _buildMatchInfoView(selectedMatch);
@@ -1200,7 +1298,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       page = _buildMatchListView();
     }
     return PopScope(
-      canPop: _selectedMatchId == null,
+      canPop: _selectedMatchId == null && _activeSection != 'multi-stats',
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _handleSystemBack();
       },
@@ -1214,8 +1312,26 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Punktewertung'),
+        title: Text(
+          _selectedMatchIds.isEmpty
+              ? 'Punktewertung'
+              : '${_selectedMatchIds.length} Spiele ausgewählt',
+        ),
         actions: [
+          if (_selectedMatchIds.isNotEmpty) ...[
+            IconButton(
+              key: const ValueKey('multi-match-statistics-button'),
+              tooltip: 'Statistik für ${_selectedMatchIds.length} Spiele',
+              icon: const Icon(Icons.bar_chart),
+              onPressed: _openCombinedStats,
+            ),
+            IconButton(
+              key: const ValueKey('clear-match-selection-button'),
+              tooltip: 'Auswahl aufheben',
+              icon: const Icon(Icons.close),
+              onPressed: _clearMatchSelection,
+            ),
+          ],
           IconButton(
             tooltip: 'Import',
             icon: const Icon(Icons.upload_outlined),
@@ -1254,7 +1370,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                     Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: _buildMatchIcon(context, match),
+                        key: ValueKey('match-row-${match.id}'),
+                        leading: _selectedMatchIds.isEmpty
+                            ? _buildMatchIcon(context, match)
+                            : Checkbox(
+                                key: ValueKey(
+                                  'select-match-${match.id}',
+                                ),
+                                value: _selectedMatchIds.contains(match.id),
+                                onChanged: (_) =>
+                                    _toggleMatchSelection(match.id),
+                              ),
                         title: Text(
                           match.opponentTeam.isEmpty
                               ? 'Neues Spiel'
@@ -1263,42 +1389,50 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                         subtitle: Text(
                           '${match.matchType} • ${_formatDateTime(match.matchDateTime)} • ${match.matchTag.isEmpty ? 'Ohne Stichwort' : match.matchTag} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
                         ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (compactActions)
-                              PopupMenuButton<String>(
-                                tooltip: 'Weitere Aktionen',
-                                onSelected: (_) =>
-                                    AppBackupService.shareMatch(context, match),
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'share',
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.share_outlined,
-                                            color: Theme.of(context)
-                                                .iconTheme
-                                                .color),
-                                        const SizedBox(width: 12),
-                                        Text('Spiel teilen'),
+                        trailing: _selectedMatchIds.isNotEmpty
+                            ? null
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (compactActions)
+                                    PopupMenuButton<String>(
+                                      tooltip: 'Weitere Aktionen',
+                                      onSelected: (_) =>
+                                          AppBackupService.shareMatch(
+                                              context, match),
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'share',
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.share_outlined,
+                                                  color: Theme.of(context)
+                                                      .iconTheme
+                                                      .color),
+                                              const SizedBox(width: 12),
+                                              Text('Spiel teilen'),
+                                            ],
+                                          ),
+                                        ),
                                       ],
+                                    )
+                                  else
+                                    IconButton(
+                                      tooltip: 'Spiel teilen',
+                                      icon: const Icon(Icons.share_outlined),
+                                      onPressed: () =>
+                                          AppBackupService.shareMatch(
+                                              context, match),
                                     ),
-                                  ),
+                                  const Icon(Icons.chevron_right),
                                 ],
-                              )
-                            else
-                              IconButton(
-                                tooltip: 'Spiel teilen',
-                                icon: const Icon(Icons.share_outlined),
-                                onPressed: () =>
-                                    AppBackupService.shareMatch(context, match),
                               ),
-                            const Icon(Icons.chevron_right),
-                          ],
-                        ),
-                        onTap: () => _showMatchDetail(match.id),
+                        selected: _selectedMatchIds.contains(match.id),
+                        onLongPress: () => _toggleMatchSelection(match.id),
+                        onTap: _selectedMatchIds.isNotEmpty
+                            ? () => _toggleMatchSelection(match.id)
+                            : () => _showMatchDetail(match.id),
                       ),
                     ),
               ],
@@ -2116,23 +2250,28 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     );
   }
 
-  Widget _buildStatsView(MatchGame match) {
+  Widget _buildStatsView(
+    MatchGame match, {
+    String title = 'Statistik',
+    VoidCallback? onBack,
+    bool showSets = true,
+  }) {
     final points = _pointSummary(match);
     final errors = _errorSummary(match);
     final sets = _computeSets(match);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Statistik'),
+        title: Text(title),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => _showMatchDetail(match.id),
+          onPressed: onBack ?? () => _showMatchDetail(match.id),
         ),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (sets.isNotEmpty) ...[
+            if (showSets && sets.isNotEmpty) ...[
               _SetsOverview(sets: sets),
               const SizedBox(height: 12),
             ],
