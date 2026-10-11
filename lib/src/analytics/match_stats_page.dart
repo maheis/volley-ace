@@ -3039,7 +3039,7 @@ class _TrendSample {
   final int opponentErrors;
 }
 
-class _TrendChartCard extends StatelessWidget {
+class _TrendChartCard extends StatefulWidget {
   const _TrendChartCard({
     required this.title,
     required this.samples,
@@ -3055,6 +3055,28 @@ class _TrendChartCard extends StatelessWidget {
   final double height;
 
   @override
+  State<_TrendChartCard> createState() => _TrendChartCardState();
+}
+
+class _TrendChartCardState extends State<_TrendChartCard> {
+  final TransformationController _transformationController =
+      TransformationController();
+  double _scale = 1;
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _setScale(double scale) {
+    final nextScale = scale.clamp(1.0, 4.0).toDouble();
+    setState(() => _scale = nextScale);
+    _transformationController.value = Matrix4.identity()
+      ..scaleByDouble(nextScale, nextScale, 1, 1);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
@@ -3062,7 +3084,33 @@ class _TrendChartCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Diagramm verkleinern',
+                  onPressed:
+                      _scale <= 1 ? null : () => _setScale(_scale / 1.25),
+                  icon: const Icon(Icons.zoom_out),
+                ),
+                IconButton(
+                  tooltip: 'Diagramm vergrößern',
+                  onPressed:
+                      _scale >= 4 ? null : () => _setScale(_scale * 1.25),
+                  icon: const Icon(Icons.zoom_in),
+                ),
+                IconButton(
+                  tooltip: 'Diagramm zurücksetzen',
+                  onPressed: _scale == 1 ? null : () => _setScale(1),
+                  icon: const Icon(Icons.zoom_out_map),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             Wrap(
               spacing: 12,
@@ -3085,17 +3133,33 @@ class _TrendChartCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: height,
+              height: widget.height,
               width: double.infinity,
-              child: samples.isEmpty
+              child: widget.samples.isEmpty
                   ? const Center(child: Text('Noch keine Diagrammdaten.'))
-                  : CustomPaint(
-                      painter: _TrendChartPainter(
-                        samples: samples,
-                        timeoutMarkers: timeoutMarkers,
-                        matchTimes: matchTimes,
+                  : InteractiveViewer(
+                      transformationController: _transformationController,
+                      minScale: 1,
+                      maxScale: 4,
+                      panEnabled: _scale > 1,
+                      scaleEnabled: true,
+                      boundaryMargin: const EdgeInsets.all(80),
+                      onInteractionUpdate: (_) {
+                        final nextScale = _transformationController.value
+                            .getMaxScaleOnAxis()
+                            .clamp(1.0, 4.0)
+                            .toDouble();
+                        if ((nextScale - _scale).abs() < 0.02) return;
+                        setState(() => _scale = nextScale);
+                      },
+                      child: CustomPaint(
+                        painter: _TrendChartPainter(
+                          samples: widget.samples,
+                          timeoutMarkers: widget.timeoutMarkers,
+                          matchTimes: widget.matchTimes,
+                        ),
+                        child: const SizedBox.expand(),
                       ),
-                      child: const SizedBox.expand(),
                     ),
             ),
           ],

@@ -1107,6 +1107,18 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.text('Gegner Fehler'), findsWidgets);
+    final zoomIn = find.byTooltip('Diagramm vergrößern');
+    expect(zoomIn, findsOneWidget);
+    await tester.tap(zoomIn);
+    await tester.pump();
+    final chartInteraction = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    expect(
+      chartInteraction.transformationController!.value.getMaxScaleOnAxis(),
+      greaterThan(1),
+    );
+    expect(chartInteraction.panEnabled, isTrue);
   });
 
   test('Match stores selected team players with match-specific numbers', () {
