@@ -1138,12 +1138,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('record-error-button')));
     await _pumpUi(tester);
     await tester.tap(
-      find.byKey(const ValueKey('select-category-Annahmefehler')),
+      find.byKey(const ValueKey('select-category-Annahme')),
     );
     await _pumpUi(tester);
     await tester.tap(
       find.byKey(
-        const ValueKey('select-category-Annahmefehler-Obere Annahme'),
+        const ValueKey('select-category-Annahme-Obere Annahme'),
       ),
     );
     await _pumpUi(tester);
@@ -1250,6 +1250,20 @@ void main() {
     expect(trendChartMaxTimeScale(2), 16);
     expect(trendChartMaxTimeScale(100), 25);
     expect(trendChartMaxTimeScale(1000), 64);
+  });
+
+  test('legacy receive error categories load without the word error', () {
+    final event = MatchEvent.fromJson({
+      'id': 1,
+      'playerId': 1,
+      'playerName': 'Ada',
+      'playerNumber': 7,
+      'kind': 'error',
+      'category': 'Annahmefehler · Obere Annahme',
+      'occurredAtMillis': DateTime(2026).millisecondsSinceEpoch,
+    });
+
+    expect(event.category, 'Annahme · Obere Annahme');
   });
 
   test('Match stores selected team players with match-specific numbers', () {

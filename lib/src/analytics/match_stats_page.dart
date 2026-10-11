@@ -131,6 +131,7 @@ class MatchEvent {
     final playerNumber = data['playerNumber'];
     final kind = data['kind'];
     final category = data['category'];
+    final categoryName = category is String ? category : 'Ass';
     final occurredAtMillis = data['occurredAtMillis'];
 
     return MatchEvent(
@@ -139,7 +140,9 @@ class MatchEvent {
       playerName: playerName is String ? playerName : 'Unbekannt',
       playerNumber: playerNumber is num ? playerNumber.toInt() : 0,
       kind: kind is String ? kind : 'point',
-      category: category is String ? category : 'Ass',
+      category: categoryName.startsWith('Annahmefehler')
+          ? categoryName.replaceFirst('Annahmefehler', 'Annahme')
+          : categoryName,
       occurredAt: occurredAtMillis is num
           ? DateTime.fromMillisecondsSinceEpoch(occurredAtMillis.toInt())
           : DateTime.now(),
@@ -692,7 +695,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _ScoringCategory('Ball zu kurz'),
       _ScoringCategory('Übertritt'),
     ]),
-    _ScoringCategory('Annahmefehler', children: <_ScoringCategory>[
+    _ScoringCategory('Annahme', children: <_ScoringCategory>[
       _ScoringCategory('Zugeschaut'),
       _ScoringCategory('Tusch'),
       _ScoringCategory('Untere Annahme'),
