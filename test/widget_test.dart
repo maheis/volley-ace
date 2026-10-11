@@ -1614,9 +1614,22 @@ void main() {
       combinedMatch,
       title: 'Statistik · 2 Spiele',
       sourceMatches: selectedMatches,
+      landscape: true,
       continuous: true,
     );
     expect(pageCount(continuousBytes), 1);
+    final continuousPageBox = RegExp(
+      r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+    ).firstMatch(String.fromCharCodes(continuousBytes));
+    expect(continuousPageBox, isNotNull);
+    expect(
+      double.parse(continuousPageBox!.group(1)!),
+      greaterThan(800),
+    );
+    expect(
+      double.parse(continuousPageBox.group(2)!),
+      greaterThan(double.parse(continuousPageBox.group(1)!)),
+    );
 
     final singleMatchBytes = await AppBackupService.buildMatchStatsPdf(
       match,

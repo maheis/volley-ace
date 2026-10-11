@@ -3320,7 +3320,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.view_stream_outlined),
-                title: const Text('Fortlaufend, eine lange Seite'),
+                title: const Text('Fortlaufend im Querformat'),
                 onTap: () => Navigator.of(sheetContext).pop('continuous'),
               ),
             ],
@@ -3333,7 +3333,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         match,
         title: title,
         sourceMatches: sourceMatches,
-        landscape: layout == 'landscape',
+        landscape: layout == 'landscape' || layout == 'continuous',
         continuous: layout == 'continuous',
       );
     } catch (error) {
