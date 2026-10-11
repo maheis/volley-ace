@@ -313,6 +313,13 @@ class MatchGame {
   }
 }
 
+int compareMatchesByGameTime(MatchGame first, MatchGame second) {
+  final gameTimeOrder = second.matchDateTime.compareTo(first.matchDateTime);
+  return gameTimeOrder != 0
+      ? gameTimeOrder
+      : second.createdAt.compareTo(first.createdAt);
+}
+
 MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
   if (matches.isEmpty) {
     throw ArgumentError.value(matches, 'matches', 'Must not be empty');
@@ -564,7 +571,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _matches
         ..clear()
         ..addAll(state.matches)
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        ..sort(compareMatchesByGameTime);
       _teams
         ..clear()
         ..addAll(teams);
@@ -582,7 +589,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Future<void> _persist() async {
     final matches = List<MatchGame>.from(_matches)
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort(compareMatchesByGameTime);
     await _repository.save(MatchStatsState(matches: matches));
   }
 
@@ -988,7 +995,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       } else {
         _matches.insert(0, updated);
       }
-      _matches.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _matches.sort(compareMatchesByGameTime);
       _selectedMatchId = updated.id;
     });
     unawaited(_persist());
@@ -1308,7 +1315,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Widget _buildMatchListView() {
     final matches = List<MatchGame>.from(_matches)
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort(compareMatchesByGameTime);
 
     return Scaffold(
       appBar: AppBar(

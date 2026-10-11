@@ -273,7 +273,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Spieler nicht per D&D rein ziehen, sondern auf die Position auf dem Spielfeld tippen und dann eine Auswahl bekommen
 - [x] Spielernummern müssen auch bei Mannschaften noch änderbar/eintragbar sein (Spielernummern können ggf. nicht fix sein!)
 - [x] tagesstatistik / multistatistik
-- [ ] sortierung der punktewertungen nach eingetragener spiel uhrzeit!
+- [x] sortierung der punktewertungen nach eingetragener spiel uhrzeit!
 - [ ] satz beenden geht nicht
 - [ ] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
 - [ ] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten

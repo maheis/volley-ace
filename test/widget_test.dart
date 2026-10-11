@@ -1362,6 +1362,35 @@ void main() {
     expect(combined.events.map((event) => event.playerId), [1, 1]);
   });
 
+  test('match list ordering uses scheduled game date and time', () {
+    MatchGame match(int id, DateTime createdAt, DateTime matchDateTime) =>
+        MatchGame(
+          id: id,
+          createdAt: createdAt,
+          location: '',
+          opponentTeam: 'Team $id',
+          matchDateTime: matchDateTime,
+          matchTag: '',
+          matchType: 'Liga',
+          players: const [],
+          events: const [],
+        );
+
+    final newerGame = match(
+      1,
+      DateTime(2026, 5, 1),
+      DateTime(2026, 6, 10, 20),
+    );
+    final laterCreated = match(
+      2,
+      DateTime(2026, 6, 12),
+      DateTime(2026, 6, 10, 18),
+    );
+
+    expect(compareMatchesByGameTime(newerGame, laterCreated), lessThan(0));
+    expect(compareMatchesByGameTime(laterCreated, newerGame), greaterThan(0));
+  });
+
   testWidgets('Teams with players and coaches are persisted', (
     WidgetTester tester,
   ) async {
