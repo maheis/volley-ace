@@ -126,34 +126,39 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
           - [ ] Spielerwechsel pro Team anzeigen
           - [x] Rotation für unsere Spieler anzeigen
     - [x] Wertung
-          - Punkte
-            Auswahl wie ein Punkt erreicht wurde.
+          - Punkte - Auswahl wie ein Punkt erreicht wurde.
             - Aufschlag
               - Ass
             - Angriff
-            - Angriff
+              - Auge
+              - Angriffsschlag
+              - Annahmefehler
+              - Zuspieler-Finte
             - Block
-            - Zuspieler-Finte
             - Gegnerfehler
             - Sonstiges
-          - Fehler
-            Auswahl Welcher Fehler gemacht wurde.
+              - Text-Eingabe
+          - Fehler - Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag
               - Ball ins seitliche Aus
               - Ball ins hintere Aus
               - Ball ins Netz
+              - Ball zu Kurz
+              - Übertritt
             - Annahmefehler
               - Zugeschaut
               - Tusch
               - Untere Annahme
-              - Obere Annahme 
-            - Ball ins Aus
-            - Ball ins Netz
-            - Ball nicht rüber
-            - Übertritt
+              - Obere Annahme
+            - Angriff
+              - Ball ins seitliche Aus
+              - Ball ins hintere Aus
+              - Ball ins Netz
+              - Ball nicht rüber
             - Netz Berührung
             - Fehler beim Hinterfeldangriff
             - Sonstiges
+              - Text-Eingabe
       - [x] Auszeit (wichtig für den Verlauf / Impact)
     - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen.
@@ -170,7 +175,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
         - [x] Fehler pro Art
         - [x] Diagram über Punkte/Fehler im Zeitverlauf
         - [ ] Aufklappbare Details pro Spieler
-      - [ ] Export (Format das z.B. in Excel importiert werden kann)
+      - [ ] Export
+        - [ ] PDF inkl. Grafiken
+        - [ ] Format das in Excel importiert werden kann
     - [ ] Spielbericht
 - [x] Training
   - [x] Training
