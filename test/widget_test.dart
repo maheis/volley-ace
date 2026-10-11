@@ -71,6 +71,49 @@ void main() {
     expect(matchTypeForTeamLeague(''), 'Freundschaftsspiel');
   });
 
+  test('rotation court positions follow each league formation', () {
+    final threePlayerPositions = rotationCourtPositions('U13');
+    expect(threePlayerPositions.map((position) => position.depth), [
+      0.22,
+      0.76,
+      0.76,
+    ]);
+    expect(threePlayerPositions.map((position) => position.lateral), [
+      0.82,
+      0.82,
+      0.18,
+    ]);
+
+    final fourPlayerPositions = rotationCourtPositions('U14');
+    expect(fourPlayerPositions.map((position) => position.depth), [
+      0.22,
+      0.76,
+      0.76,
+      0.22,
+    ]);
+
+    final sixPlayerPositions = rotationCourtPositions('Damen');
+    expect(sixPlayerPositions.map((position) => position.depth), [
+      0.22,
+      0.76,
+      0.76,
+      0.76,
+      0.22,
+      0.22,
+    ]);
+
+    final leftPositionTwo = rotationCourtScreenPosition(
+      sixPlayerPositions[1],
+      showOnLeft: true,
+    );
+    final rightPositionTwo = rotationCourtScreenPosition(
+      sixPlayerPositions[1],
+      showOnLeft: false,
+    );
+    expect(leftPositionTwo.x + rightPositionTwo.x, 1);
+    expect(leftPositionTwo.y + rightPositionTwo.y, 1);
+  });
+
   test('rotation advances our playable team without opponent positions', () {
     const rotation = ScoreboardRotationState(
       league: 'U13',
@@ -161,6 +204,26 @@ void main() {
 
     final courtCenterY =
         tester.getRect(find.byKey(const ValueKey('rotation-court'))).center.dy;
+    final courtRect =
+        tester.getRect(find.byKey(const ValueKey('rotation-court')));
+    final leftPositionTwo = tester.getCenter(
+      find.byKey(const ValueKey('rotation-position-0-1')),
+    );
+    final rightPositionTwo = tester.getCenter(
+      find.byKey(const ValueKey('rotation-position-1-1')),
+    );
+    expect(
+      leftPositionTwo.dx,
+      greaterThan(courtRect.left + courtRect.width * 0.25),
+    );
+    expect(
+      rightPositionTwo.dx,
+      lessThan(courtRect.left + courtRect.width * 0.75),
+    );
+    expect(
+      leftPositionTwo.dy + rightPositionTwo.dy,
+      closeTo(courtRect.top + courtRect.bottom, 1),
+    );
     expect(
       tester.getCenter(find.byKey(const ValueKey('rotation-position-1-0'))).dy,
       lessThan(courtCenterY),
@@ -1836,18 +1899,20 @@ void main() {
     expect(positionTwoBefore.dx,
         greaterThan(courtRect.left + courtRect.width * 2 / 3));
     final playerBefore = tester.getCenter(
-      find.byKey(const ValueKey('match-rotation-position-0')),
+      find.byKey(const ValueKey('match-rotation-player-0')),
     );
 
     await tester.tap(find.text('Rechts'));
     await tester.pump();
     final playerAfter = tester.getCenter(
-      find.byKey(const ValueKey('match-rotation-position-0')),
+      find.byKey(const ValueKey('match-rotation-player-0')),
     );
     expect(
       (playerBefore.dx + playerAfter.dx) / 2,
       closeTo(courtRect.center.dx, 1),
     );
+    expect(playerBefore.dy, greaterThan(courtRect.center.dy));
+    expect(playerAfter.dy, lessThan(courtRect.center.dy));
     final positionTwoAfter = tester.getCenter(
       find.byKey(const ValueKey('match-rotation-player-1')),
     );

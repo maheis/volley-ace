@@ -717,7 +717,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
   }
 
   Widget _buildFullCourt(int count) {
-    final layout = _courtLayout(count);
+    final layout = _courtLayout();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -768,27 +768,23 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                         _dropPlayerOnCourt(
                           details.data,
                           details.offset,
-                          count,
                         );
                       },
                       builder: (context, candidates, rejected) => CustomPaint(
                         painter: const _VolleyballCourtPainter(),
                         child: Stack(
                           children: [
-                            for (final slot in layout) ...[
-                              _courtPosition(
-                                side: 0,
-                                position: slot.position,
-                                x: slot.x,
-                                y: slot.y,
-                              ),
-                              _courtPosition(
-                                side: 1,
-                                position: slot.position,
-                                x: 1 - slot.x,
-                                y: 1 - slot.y,
-                              ),
-                            ],
+                            for (final slot in layout)
+                              for (final side in [0, 1])
+                                _courtPosition(
+                                  side: side,
+                                  position: slot.position,
+                                  coordinates: rotationCourtScreenPosition(
+                                    slot,
+                                    showOnLeft: side == 0,
+                                    fullCourt: true,
+                                  ),
+                                ),
                           ],
                         ),
                       ),
@@ -803,31 +799,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     );
   }
 
-  List<({int position, double x, double y})> _courtLayout(int count) {
-    if (count == 6) {
-      return const [
-        (position: 4, x: 0.15, y: 0.18),
-        (position: 3, x: 0.38, y: 0.18),
-        (position: 5, x: 0.15, y: 0.5),
-        (position: 2, x: 0.38, y: 0.5),
-        (position: 0, x: 0.15, y: 0.82),
-        (position: 1, x: 0.38, y: 0.82),
-      ];
-    }
-    if (count == 4) {
-      return const [
-        (position: 0, x: 0.08, y: 0.5),
-        (position: 1, x: 0.24, y: 0.82),
-        (position: 2, x: 0.39, y: 0.5),
-        (position: 3, x: 0.24, y: 0.18),
-      ];
-    }
-    return const [
-      (position: 0, x: 0.19, y: 0.82),
-      (position: 1, x: 0.39, y: 0.5),
-      (position: 2, x: 0.17, y: 0.18),
-    ];
-  }
+  List<RotationCourtPosition> _courtLayout() => rotationCourtPositions(_league);
 
   int activeCount(int side, int count) =>
       _teamAt(side).positions.take(count).whereType<String>().toSet().length;
@@ -835,7 +807,6 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
   void _dropPlayerOnCourt(
     RotationPlayer player,
     Offset globalPosition,
-    int count,
   ) {
     final side = _teamAt(0).players.any((entry) => entry.id == player.id)
         ? 0
@@ -846,12 +817,17 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
     if (side == null || renderObject is! RenderBox) return;
 
     final localPosition = renderObject.globalToLocal(globalPosition);
-    final slots = _courtLayout(count);
+    final slots = _courtLayout();
     var nearestPosition = slots.first.position;
     var nearestDistance = double.infinity;
     for (final slot in slots) {
-      final x = renderObject.size.width * (side == 0 ? slot.x : 1 - slot.x);
-      final y = renderObject.size.height * slot.y;
+      final coordinates = rotationCourtScreenPosition(
+        slot,
+        showOnLeft: side == 0,
+        fullCourt: true,
+      );
+      final x = renderObject.size.width * coordinates.x;
+      final y = renderObject.size.height * coordinates.y;
       final distance = (localPosition.dx - x) * (localPosition.dx - x) +
           (localPosition.dy - y) * (localPosition.dy - y);
       if (distance < nearestDistance) {
@@ -865,8 +841,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
   Widget _courtPosition({
     required int side,
     required int position,
-    required double x,
-    required double y,
+    required ({double x, double y}) coordinates,
   }) {
     final team = _teamAt(side);
     final playerId =
@@ -877,7 +852,10 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
         side == 0 ? const Color(0xFF1976D2) : const Color(0xFFC7434D);
 
     return Align(
-      alignment: Alignment(x * 2 - 1, y * 2 - 1),
+      alignment: Alignment(
+        coordinates.x * 2 - 1,
+        coordinates.y * 2 - 1,
+      ),
       child: Tooltip(
         message: 'Position ${position + 1} auswählen',
         child: Material(

@@ -3487,32 +3487,6 @@ class _MatchRotationViewState extends State<MatchRotationView> {
     }
   }
 
-  List<({int position, double x, double y})> _courtLayout(int count) {
-    if (count == 6) {
-      return const [
-        (position: 4, x: 0.24, y: 0.18),
-        (position: 3, x: 0.76, y: 0.18),
-        (position: 5, x: 0.24, y: 0.5),
-        (position: 2, x: 0.76, y: 0.5),
-        (position: 0, x: 0.24, y: 0.82),
-        (position: 1, x: 0.76, y: 0.82),
-      ];
-    }
-    if (count == 4) {
-      return const [
-        (position: 0, x: 0.24, y: 0.5),
-        (position: 1, x: 0.76, y: 0.82),
-        (position: 2, x: 0.76, y: 0.5),
-        (position: 3, x: 0.76, y: 0.18),
-      ];
-    }
-    return const [
-      (position: 0, x: 0.24, y: 0.82),
-      (position: 1, x: 0.76, y: 0.5),
-      (position: 2, x: 0.76, y: 0.18),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final rotation = widget.rotation;
@@ -3593,33 +3567,40 @@ class _MatchRotationViewState extends State<MatchRotationView> {
                         ),
                         child: Stack(
                           children: [
-                            for (final slot in _courtLayout(count))
-                              Align(
-                                alignment: Alignment(
-                                  _showOnLeft ? slot.x * 2 - 1 : 1 - slot.x * 2,
-                                  slot.y * 2 - 1,
-                                ),
-                                child: SizedBox(
-                                  width: math.min(88, courtSize * 0.25),
-                                  child: InkWell(
-                                    key: ValueKey(
-                                      'edit-rotation-position-${slot.position}',
-                                    ),
-                                    borderRadius: BorderRadius.circular(36),
-                                    onTap: widget.onSubstitute == null
-                                        ? null
-                                        : () => widget.onSubstitute!(
-                                              slot.position,
-                                            ),
-                                    child: _playerMarker(
-                                      team: team,
-                                      position: slot.position,
-                                      serving: slot.position == 0 &&
-                                          rotation.servingSide == 0,
+                            for (final slot
+                                in rotationCourtPositions(rotation.league))
+                              Builder(builder: (context) {
+                                final coordinates = rotationCourtScreenPosition(
+                                  slot,
+                                  showOnLeft: _showOnLeft,
+                                );
+                                return Align(
+                                  alignment: Alignment(
+                                    coordinates.x * 2 - 1,
+                                    coordinates.y * 2 - 1,
+                                  ),
+                                  child: SizedBox(
+                                    width: math.min(88, courtSize * 0.25),
+                                    child: InkWell(
+                                      key: ValueKey(
+                                        'edit-rotation-position-${slot.position}',
+                                      ),
+                                      borderRadius: BorderRadius.circular(36),
+                                      onTap: widget.onSubstitute == null
+                                          ? null
+                                          : () => widget.onSubstitute!(
+                                                slot.position,
+                                              ),
+                                      child: _playerMarker(
+                                        team: team,
+                                        position: slot.position,
+                                        serving: slot.position == 0 &&
+                                            rotation.servingSide == 0,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
+                                );
+                              }),
                           ],
                         ),
                       ),

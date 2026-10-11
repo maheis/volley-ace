@@ -34,6 +34,62 @@ bool usesTwoServeRotation(String league) =>
     league == 'U12' || league == 'U13' || league == 'U14' || league == 'U15';
 
 @immutable
+class RotationCourtPosition {
+  const RotationCourtPosition({
+    required this.position,
+    required this.depth,
+    required this.lateral,
+  });
+
+  final int position;
+  final double depth;
+  final double lateral;
+}
+
+List<RotationCourtPosition> rotationCourtPositions(String league) {
+  switch (rotationPlayerCount(league)) {
+    case 3:
+      return const [
+        RotationCourtPosition(position: 0, depth: 0.22, lateral: 0.82),
+        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.82),
+        RotationCourtPosition(position: 2, depth: 0.76, lateral: 0.18),
+      ];
+    case 4:
+      return const [
+        RotationCourtPosition(position: 0, depth: 0.22, lateral: 0.82),
+        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.82),
+        RotationCourtPosition(position: 2, depth: 0.76, lateral: 0.18),
+        RotationCourtPosition(position: 3, depth: 0.22, lateral: 0.18),
+      ];
+    default:
+      return const [
+        RotationCourtPosition(position: 0, depth: 0.22, lateral: 0.82),
+        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.82),
+        RotationCourtPosition(position: 2, depth: 0.76, lateral: 0.5),
+        RotationCourtPosition(position: 3, depth: 0.76, lateral: 0.18),
+        RotationCourtPosition(position: 4, depth: 0.22, lateral: 0.18),
+        RotationCourtPosition(position: 5, depth: 0.22, lateral: 0.5),
+      ];
+  }
+}
+
+({double x, double y}) rotationCourtScreenPosition(
+  RotationCourtPosition position, {
+  required bool showOnLeft,
+  bool fullCourt = false,
+}) =>
+    (
+      x: fullCourt
+          ? showOnLeft
+              ? position.depth * 0.5
+              : 1 - position.depth * 0.5
+          : showOnLeft
+              ? position.depth
+              : 1 - position.depth,
+      y: showOnLeft ? position.lateral : 1 - position.lateral,
+    );
+
+@immutable
 class RotationPlayer {
   const RotationPlayer({
     required this.id,
