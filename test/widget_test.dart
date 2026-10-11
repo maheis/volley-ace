@@ -1288,6 +1288,27 @@ void main() {
     expect(trendChartMaxTimeScale(1000), 64);
   });
 
+  test('multiselect trend timeline removes gaps between match ranges', () {
+    final firstStart = DateTime(2026, 9, 1, 18);
+    final firstEnd = DateTime(2026, 9, 1, 18, 30);
+    final secondStart = DateTime(2026, 9, 8, 22);
+    final secondEnd = DateTime(2026, 9, 8, 22, 45);
+    final ranges = [
+      MatchTimeRange(start: firstStart, end: firstEnd),
+      MatchTimeRange(start: secondStart, end: secondEnd),
+    ];
+
+    expect(
+      compressedMatchTimelinePosition(firstEnd, ranges),
+      compressedMatchTimelinePosition(secondStart, ranges),
+    );
+    expect(
+      compressedMatchTimelinePosition(secondEnd, ranges) -
+          compressedMatchTimelinePosition(firstStart, ranges),
+      const Duration(minutes: 75).inMilliseconds,
+    );
+  });
+
   test('legacy receive error categories load without the word error', () {
     final event = MatchEvent.fromJson({
       'id': 1,

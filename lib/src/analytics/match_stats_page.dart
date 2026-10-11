@@ -357,6 +357,54 @@ int compareMatchesByGameTime(MatchGame first, MatchGame second) {
       : second.createdAt.compareTo(first.createdAt);
 }
 
+class MatchTimeRange {
+  const MatchTimeRange({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+
+  int get durationMilliseconds {
+    final duration = end.difference(start).inMilliseconds;
+    return duration > 0 ? duration : const Duration(minutes: 1).inMilliseconds;
+  }
+}
+
+List<MatchTimeRange> matchTimeRangesFor(List<MatchGame> matches) {
+  final ranges = <MatchTimeRange>[];
+  for (final match in matches) {
+    final times = match.events
+        .where((event) => event.kind == 'point' || event.kind == 'error')
+        .map((event) => event.occurredAt)
+        .toList()
+      ..sort();
+    if (times.isNotEmpty) {
+      ranges.add(MatchTimeRange(start: times.first, end: times.last));
+    }
+  }
+  ranges.sort((first, second) => first.start.compareTo(second.start));
+  return ranges;
+}
+
+double compressedMatchTimelinePosition(
+  DateTime time,
+  List<MatchTimeRange> ranges,
+) {
+  if (ranges.isEmpty) return time.millisecondsSinceEpoch.toDouble();
+  var offset = 0.0;
+  for (final range in ranges) {
+    final duration = range.durationMilliseconds;
+    if (time.isBefore(range.start)) return offset;
+    if (!time.isAfter(range.end)) {
+      final elapsed = range.start == range.end
+          ? duration
+          : time.difference(range.start).inMilliseconds;
+      return offset + elapsed;
+    }
+    offset += duration;
+  }
+  return offset;
+}
+
 MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
   if (matches.isEmpty) {
     throw ArgumentError.value(matches, 'matches', 'Must not be empty');
@@ -3157,21 +3205,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final points = _pointSummary(match);
     final errors = _errorSummary(match);
     final sets = _computeSets(match);
-    final matchTimes = sourceMatches == null
-        ? const <DateTime>[]
-        : (sourceMatches
-            .map((sourceMatch) {
-              final eventTimes = sourceMatch.events
-                  .where(
-                      (event) => event.kind == 'point' || event.kind == 'error')
-                  .map((event) => event.occurredAt)
-                  .toList()
-                ..sort();
-              return eventTimes.firstOrNull;
-            })
-            .whereType<DateTime>()
-            .toList()
-          ..sort());
+    final matchRanges = sourceMatches == null
+        ? const <MatchTimeRange>[]
+        : matchTimeRangesFor(sourceMatches);
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
@@ -3212,7 +3248,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               title: 'Zeitverlauf gesamt',
               samples: _trendSamples(match),
               timeoutMarkers: _timeoutMarkers(match),
-              matchTimes: matchTimes,
+              matchRanges: matchRanges,
               height: 220,
             ),
             const SizedBox(height: 12),
@@ -3248,7 +3284,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   title: player.name,
                   samples: _trendSamples(match, playerId: player.id),
                   timeoutMarkers: _timeoutMarkers(match),
-                  matchTimes: matchTimes,
+                  matchRanges: matchRanges,
                   height: 180,
                 ),
                 const SizedBox(height: 12),
@@ -3994,14 +4030,14 @@ class _TrendChartCard extends StatefulWidget {
     required this.title,
     required this.samples,
     required this.timeoutMarkers,
-    this.matchTimes = const <DateTime>[],
+    this.matchRanges = const <MatchTimeRange>[],
     required this.height,
   });
 
   final String title;
   final List<_TrendSample> samples;
   final List<DateTime> timeoutMarkers;
-  final List<DateTime> matchTimes;
+  final List<MatchTimeRange> matchRanges;
   final double height;
 
   @override
@@ -4091,7 +4127,7 @@ class _TrendChartCardState extends State<_TrendChartCard> {
                             painter: _TrendChartPainter(
                               samples: widget.samples,
                               timeoutMarkers: widget.timeoutMarkers,
-                              matchTimes: widget.matchTimes,
+                              matchRanges: widget.matchRanges,
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -4152,12 +4188,12 @@ class _TrendChartPainter extends CustomPainter {
   _TrendChartPainter({
     required this.samples,
     required this.timeoutMarkers,
-    required this.matchTimes,
+    required this.matchRanges,
   });
 
   final List<_TrendSample> samples;
   final List<DateTime> timeoutMarkers;
-  final List<DateTime> matchTimes;
+  final List<MatchTimeRange> matchRanges;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -4177,33 +4213,39 @@ class _TrendChartPainter extends CustomPainter {
 
     final firstTime = samples.first.time;
     final lastTime = samples.last.time;
-    final spanMillis = math.max(
-      1,
-      lastTime.difference(firstTime).inMilliseconds,
-    );
+    double timePosition(DateTime time) => matchRanges.length > 1
+        ? compressedMatchTimelinePosition(time, matchRanges)
+        : time.millisecondsSinceEpoch.toDouble();
+    final firstPosition = timePosition(firstTime);
+    final lastPosition = timePosition(lastTime);
+    final span = math.max(1.0, lastPosition - firstPosition);
 
     double xFor(DateTime time) {
-      final relative = time.difference(firstTime).inMilliseconds / spanMillis;
+      final relative = (timePosition(time) - firstPosition) / span;
       return chartRect.left + chartRect.width * relative;
     }
 
-    if (matchTimes.length > 1) {
-      final boundaries = matchTimes
-          .map((time) => xFor(time).clamp(chartRect.left, chartRect.right))
-          .toList()
-        ..sort();
+    if (matchRanges.length > 1) {
       final bandColors = [
         const Color(0xFF42A5F5).withValues(alpha: 0.1),
         const Color(0xFFFFB74D).withValues(alpha: 0.1),
       ];
-      for (var index = 0; index < boundaries.length; index++) {
-        final left = boundaries[index].toDouble();
-        final right = index + 1 < boundaries.length
-            ? boundaries[index + 1].toDouble()
-            : chartRect.right;
+      var rangeOffset = 0.0;
+      for (var index = 0; index < matchRanges.length; index++) {
+        final range = matchRanges[index];
+        final left = chartRect.left +
+            (rangeOffset - firstPosition) / span * chartRect.width;
+        rangeOffset += range.durationMilliseconds;
+        final right = chartRect.left +
+            (rangeOffset - firstPosition) / span * chartRect.width;
         if (right <= left) continue;
         canvas.drawRect(
-          Rect.fromLTRB(left, chartRect.top, right, chartRect.bottom),
+          Rect.fromLTRB(
+            left.clamp(chartRect.left, chartRect.right),
+            chartRect.top,
+            right.clamp(chartRect.left, chartRect.right),
+            chartRect.bottom,
+          ),
           Paint()..color = bandColors[index % bandColors.length],
         );
       }
@@ -4334,9 +4376,13 @@ class _TrendChartPainter extends CustomPainter {
     )..layout();
     startLabel.paint(canvas, Offset(chartRect.left, chartRect.bottom + 4));
 
-    final middleTime = firstTime.add(
-      Duration(milliseconds: spanMillis ~/ 2),
-    );
+    final middlePosition = firstPosition + span / 2;
+    final middleTime = samples.reduce((closest, sample) {
+      final closestDistance =
+          (timePosition(closest.time) - middlePosition).abs();
+      final sampleDistance = (timePosition(sample.time) - middlePosition).abs();
+      return sampleDistance < closestDistance ? sample : closest;
+    }).time;
     final middleLabel = TextPainter(
       text: TextSpan(text: formatTime(middleTime), style: axisLabelStyle),
       textDirection: TextDirection.ltr,
@@ -4363,7 +4409,7 @@ class _TrendChartPainter extends CustomPainter {
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
     return oldDelegate.samples != samples ||
         oldDelegate.timeoutMarkers != timeoutMarkers ||
-        oldDelegate.matchTimes != matchTimes;
+        oldDelegate.matchRanges != matchRanges;
   }
 }
 
