@@ -92,7 +92,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [ ] Punktewertung
       - [ ] Trainingsstatistik
     - [ ] Spielerbewertung
-    - [ ] Trainingsteilnahme
+    - [ ] Trainingsteilnahmepdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne seitenumbruch?)
+
     - [ ] Trainingsbewertungen
     - [ ] Trainingsstände
     - [ ] Achievements
@@ -149,7 +150,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Ball ins Netz
               - Ball zu Kurz
               - Übertritt
-            - Annahmefehler
+            - Annahme
               - Zugeschaut
               - Tusch
               - Untere Annahme
@@ -319,7 +320,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] diagramm zoom soll nicht einfach zoom sein! sondern die zeitachse sich nach rechts ausdehnen! also länger nach rechts werden
 - [x] sonstiges, auswahl der letzten eingabe wird nicht angeboten
 - [x] annahmefehler das "fehler" rausnehmen
-- [ ] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne seitenumbruch?)
+- [x] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne erzwungene seitenumbrüche zwischen partien)
 - [x] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
 - [ ] diagramm bei multiselect zusammen dampfen, die zeiträume, in der kein spiel war, ausschneiden
 - [ ] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt

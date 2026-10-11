@@ -247,19 +247,19 @@ class AppBackupService {
               ),
             ],
           ],
+          if (sourceMatches != null && sourceMatches.length > 1) ...[
+            pw.SizedBox(height: 24),
+            pw.Divider(color: pdf.PdfColors.grey400),
+            pw.Text(
+              'Einzelstatistiken',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+            for (final sourceMatch in sourceMatches)
+              ..._individualMatchReportWidgets(sourceMatch),
+          ],
         ],
       ),
     );
-
-    if (sourceMatches != null && sourceMatches.length > 1) {
-      for (final sourceMatch in sourceMatches) {
-        _addIndividualMatchReport(
-          document,
-          sourceMatch,
-          pageFormat: pageFormat,
-        );
-      }
-    }
 
     return document.save();
   }
@@ -271,11 +271,7 @@ class AppBackupService {
         : portrait;
   }
 
-  static void _addIndividualMatchReport(
-    pw.Document document,
-    MatchGame match, {
-    required pdf.PdfPageFormat pageFormat,
-  }) {
+  static List<pw.Widget> _individualMatchReportWidgets(MatchGame match) {
     final statisticsMatch = combineMatchesForStatistics([match]);
     final events = List<MatchEvent>.from(statisticsMatch.events)
       ..sort((a, b) {
@@ -289,123 +285,111 @@ class AppBackupService {
     final pointCount = events.where((event) => event.kind == 'point').length;
     final errorCount = events.where((event) => event.kind == 'error').length;
 
-    document.addPage(
-      pw.MultiPage(
-        pageFormat: pageFormat,
-        margin: const pw.EdgeInsets.all(32),
-        header: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(bottom: 12),
-          child: pw.Text(
-            'VolleyAce · Einzelstatistik',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 9,
-            ),
+    return <pw.Widget>[
+      pw.SizedBox(height: 16),
+      pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 10),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: const pw.BoxDecoration(
+          color: pdf.PdfColors.grey200,
+          border: pw.Border(
+            left: pw.BorderSide(color: pdf.PdfColors.blue, width: 3),
           ),
         ),
-        footer: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(top: 12),
-          child: pw.Text(
-            '${context.pageNumber} / ${context.pagesCount}',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 9,
-            ),
-          ),
-        ),
-        build: (context) => <pw.Widget>[
-          pw.Text(
-            'Einzelstatistik · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
-            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            '${_formatPdfDateTime(match.matchDateTime)} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 10,
-            ),
-          ),
-          pw.SizedBox(height: 16),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child:
-                    _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
-              ),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
-              ),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                child: _summaryCard(
-                  'Einträge',
-                  '${pointCount + errorCount}',
-                  pdf.PdfColors.blue,
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 20),
-          pw.Text(
-            'Punkte und Fehler nach Art',
-            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 8),
-          if (categories.isEmpty)
-            pw.Text('Noch keine Punkte oder Fehler erfasst.')
-          else
-            pw.SizedBox(
-              height: 220,
-              child: _categoryChart(categories, points, errors),
-            ),
-          pw.SizedBox(height: 16),
-          pw.Text(
-            'Zeitverlauf',
-            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 8),
-          pw.SizedBox(
-            height: 200,
-            child: _timelineChart(events),
-          ),
-          if (statisticsMatch.players.isNotEmpty) ...[
-            pw.SizedBox(height: 18),
-            pw.Text(
-              'Spielerübersicht',
-              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 8),
-            _playerTable(statisticsMatch, events),
-            pw.SizedBox(height: 16),
-            pw.Text(
-              'Zeitverlauf pro Spieler',
-              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
-            ),
-            for (final player in statisticsMatch.players) ...[
-              pw.SizedBox(height: 10),
-              pw.Text(
-                '${player.name} · ${player.number}',
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          children: [
+            pw.Expanded(
+              child: pw.Text(
+                match.opponentTeam.isEmpty
+                    ? 'Einzelpartie · ${match.matchType}'
+                    : 'Einzelpartie · vs. ${match.opponentTeam}',
                 style: pw.TextStyle(
-                  fontSize: 11,
+                  fontSize: 15,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-              pw.SizedBox(height: 4),
-              pw.SizedBox(
-                height: 140,
-                child: _timelineChart(
-                  events.where((event) => event.playerId == player.id).toList(),
-                ),
+            ),
+            pw.Text(
+              _formatPdfDateTime(match.matchDateTime),
+              style: const pw.TextStyle(
+                color: pdf.PdfColors.grey700,
+                fontSize: 9,
               ),
-            ],
+            ),
           ],
+        ),
+      ),
+      pw.Text(
+        '${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+        style: const pw.TextStyle(color: pdf.PdfColors.grey700, fontSize: 9),
+      ),
+      pw.SizedBox(height: 10),
+      pw.Row(
+        children: [
+          pw.Expanded(
+            child: _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
+          ),
+          pw.SizedBox(width: 10),
+          pw.Expanded(
+            child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
+          ),
+          pw.SizedBox(width: 10),
+          pw.Expanded(
+            child: _summaryCard(
+              'Einträge',
+              '${pointCount + errorCount}',
+              pdf.PdfColors.blue,
+            ),
+          ),
         ],
       ),
-    );
+      pw.SizedBox(height: 14),
+      pw.Text(
+        'Punkte und Fehler nach Art',
+        style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 6),
+      if (categories.isEmpty)
+        pw.Text('Noch keine Punkte oder Fehler erfasst.')
+      else
+        pw.SizedBox(
+            height: 190, child: _categoryChart(categories, points, errors)),
+      pw.SizedBox(height: 12),
+      pw.Text(
+        'Zeitverlauf',
+        style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 6),
+      pw.SizedBox(height: 170, child: _timelineChart(events)),
+      if (statisticsMatch.players.isNotEmpty) ...[
+        pw.SizedBox(height: 14),
+        pw.Text(
+          'Spielerübersicht',
+          style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 6),
+        _playerTable(statisticsMatch, events),
+        pw.SizedBox(height: 12),
+        pw.Text(
+          'Zeitverlauf pro Spieler',
+          style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+        ),
+        for (final player in statisticsMatch.players) ...[
+          pw.SizedBox(height: 8),
+          pw.Text(
+            '${player.name} · ${player.number}',
+            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(
+            height: 120,
+            child: _timelineChart(
+              events.where((event) => event.playerId == player.id).toList(),
+            ),
+          ),
+        ],
+      ],
+    ];
   }
 
   static Map<String, int> _eventSummary(
