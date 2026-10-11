@@ -294,10 +294,12 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] spielernummern werden nicht gespeichert
 - [ ] spielernummern aus mannschaft übernehmen (nachträglich!)
 - [ ] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
-- [ ] gegnerfehler im diagramm (dritte linie)
-- [ ] multistatistik
-  - [ ] Aufslistun ausgewählten partien
-  - [ ] im diagramm die partien im wechsel farblich hinterlegen
+- [x] gegnerfehler im diagramm (dritte linie)
+- [x] multistatistik
+  - [x] Aufslistun ausgewählten partien
+  - [x] im diagramm die partien im wechsel farblich hinterlegen
+- [ ] diagramme zoomen und scrollen können
+- [ ] multiexport und import!
 
 ## Datenschutz
 

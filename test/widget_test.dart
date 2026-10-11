@@ -1213,14 +1213,46 @@ void main() {
         ),
       ],
     );
+    final secondMatch = MatchGame(
+      id: 8,
+      createdAt: DateTime(2026, 6, 2),
+      location: 'Halle B',
+      opponentTeam: 'Team Blau',
+      matchDateTime: DateTime(2026, 6, 2, 19),
+      matchTag: '',
+      matchType: 'Turnier',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+      ],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: null,
+          playerName: 'Gegner',
+          playerNumber: 0,
+          kind: 'point',
+          category: 'Gegner Fehler',
+          occurredAt: DateTime(2026, 6, 2, 19),
+        ),
+      ],
+    );
+    final selectedMatches = [match, secondMatch];
+    final combinedMatch = combineMatchesForStatistics(selectedMatches);
 
     final bytes = await AppBackupService.buildMatchStatsPdf(
-      match,
-      title: 'Statistik · Team Rot',
+      combinedMatch,
+      title: 'Statistik · 2 Spiele',
+      sourceMatches: selectedMatches,
     );
 
     expect(bytes.length, greaterThan(1000));
     expect(bytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+
+    final singleMatchBytes = await AppBackupService.buildMatchStatsPdf(
+      match,
+      title: 'Statistik · Team Rot',
+    );
+    expect(singleMatchBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
   });
 
   test('match rotation follows scored point events', () {

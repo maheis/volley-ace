@@ -52,6 +52,7 @@ class AppBackupService {
   static Future<Uint8List> buildMatchStatsPdf(
     MatchGame match, {
     required String title,
+    List<MatchGame>? sourceMatches,
   }) async {
     final sortedEvents = List<MatchEvent>.from(match.events)
       ..sort((a, b) {
@@ -66,6 +67,21 @@ class AppBackupService {
         sortedEvents.where((event) => event.kind == 'error').length;
     final categories = <String>{...points.keys, ...errors.keys}.toList()
       ..sort();
+    final matchTimes = sourceMatches == null
+        ? const <DateTime>[]
+        : (sourceMatches
+            .map((sourceMatch) {
+              final eventTimes = sourceMatch.events
+                  .where(
+                      (event) => event.kind == 'point' || event.kind == 'error')
+                  .map((event) => event.occurredAt)
+                  .toList()
+                ..sort();
+              return eventTimes.firstOrNull;
+            })
+            .whereType<DateTime>()
+            .toList()
+          ..sort());
     final scoredEvents = sortedEvents
         .where((event) => event.kind == 'point' || event.kind == 'error')
         .toList();
@@ -112,6 +128,15 @@ class AppBackupService {
             match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
             style: const pw.TextStyle(fontSize: 13),
           ),
+          if (sourceMatches != null && sourceMatches.isNotEmpty) ...[
+            pw.SizedBox(height: 14),
+            pw.Text(
+              'Ausgewählte Partien (${sourceMatches.length})',
+              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 6),
+            _selectedMatchesTable(sourceMatches),
+          ],
           pw.Text(
             '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
             style: const pw.TextStyle(
@@ -153,7 +178,6 @@ class AppBackupService {
               height: 230,
               child: _categoryChart(categories, points, errors),
             ),
-          pw.SizedBox(height: 18),
           pw.Text(
             'Zeitverlauf',
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
@@ -164,7 +188,7 @@ class AppBackupService {
           else
             pw.SizedBox(
               height: 220,
-              child: _timelineChart(sortedEvents),
+              child: _timelineChart(sortedEvents, matchTimes: matchTimes),
             ),
           if (match.players.isNotEmpty) ...[
             pw.SizedBox(height: 22),
@@ -195,6 +219,7 @@ class AppBackupService {
                   sortedEvents
                       .where((event) => event.playerId == player.id)
                       .toList(),
+                  matchTimes: matchTimes,
                 ),
               ),
             ],
@@ -313,7 +338,10 @@ class AppBackupService {
     );
   }
 
-  static pw.Widget _timelineChart(List<MatchEvent> events) {
+  static pw.Widget _timelineChart(
+    List<MatchEvent> events, {
+    List<DateTime> matchTimes = const <DateTime>[],
+  }) {
     final scoredEvents = events
         .where((event) => event.kind == 'point' || event.kind == 'error')
         .toList();
@@ -321,15 +349,22 @@ class AppBackupService {
 
     var points = 0;
     var errors = 0;
+    var opponentErrors = 0;
     final pointData = <pw.PointChartValue>[
       const pw.PointChartValue(0, 0),
     ];
     final errorData = <pw.PointChartValue>[
       const pw.PointChartValue(0, 0),
     ];
+    final opponentErrorData = <pw.PointChartValue>[
+      const pw.PointChartValue(0, 0),
+    ];
     for (var index = 0; index < scoredEvents.length; index++) {
       if (scoredEvents[index].kind == 'point') {
         points++;
+        if (scoredEvents[index].category == 'Gegner Fehler') {
+          opponentErrors++;
+        }
       } else {
         errors++;
       }
@@ -337,6 +372,9 @@ class AppBackupService {
           .add(pw.PointChartValue((index + 1).toDouble(), points.toDouble()));
       errorData
           .add(pw.PointChartValue((index + 1).toDouble(), errors.toDouble()));
+      opponentErrorData.add(
+        pw.PointChartValue((index + 1).toDouble(), opponentErrors.toDouble()),
+      );
     }
 
     final end = scoredEvents.length.toDouble();
@@ -346,7 +384,26 @@ class AppBackupService {
           (position - 1).round().clamp(0, scoredEvents.length - 1);
       return _formatPdfDateTime(scoredEvents[eventIndex].occurredAt);
     }).toList();
-    final maxValue = math.max(points, errors).toDouble();
+    final maxValue =
+        math.max(points, math.max(errors, opponentErrors)).toDouble();
+    final matchStarts = matchTimes
+        .map((time) => scoredEvents.indexWhere(
+              (event) => !event.occurredAt.isBefore(time),
+            ))
+        .where((index) => index >= 0)
+        .toSet()
+        .toList()
+      ..sort();
+    if (matchStarts.isEmpty || matchStarts.first > 0) matchStarts.insert(0, 0);
+    final segmentWidths = <int>[];
+    for (var index = 0; index < matchStarts.length; index++) {
+      final next = index + 1 < matchStarts.length
+          ? matchStarts[index + 1]
+          : scoredEvents.length;
+      if (next > matchStarts[index]) {
+        segmentWidths.add(next - matchStarts[index]);
+      }
+    }
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -356,46 +413,98 @@ class AppBackupService {
             _chartLegend(pdf.PdfColors.green, 'Punkte'),
             pw.SizedBox(width: 16),
             _chartLegend(pdf.PdfColors.red, 'Fehler'),
+            pw.SizedBox(width: 16),
+            _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
           ],
         ),
         pw.SizedBox(height: 8),
         pw.Expanded(
-          child: pw.Chart(
-            grid: pw.CartesianGrid(
-              xAxis: pw.FixedAxis<double>(
-                [0, middle, end],
-                format: (value) {
-                  if (value <= 0) return dateLabels.first;
-                  if (value >= end) return dateLabels.last;
-                  return dateLabels[1];
-                },
-                textStyle: const pw.TextStyle(fontSize: 7),
-              ),
-              yAxis: pw.FixedAxis<double>(
-                [0, math.max(1, maxValue)],
-                format: (value) => value.toStringAsFixed(0),
-                divisions: true,
-                textStyle: const pw.TextStyle(fontSize: 8),
-              ),
-            ),
-            datasets: [
-              pw.LineDataSet<pw.PointChartValue>(
-                data: pointData,
-                legend: 'Punkte',
-                color: pdf.PdfColors.green,
-                drawPoints: false,
-                isCurved: true,
-              ),
-              pw.LineDataSet<pw.PointChartValue>(
-                data: errorData,
-                legend: 'Fehler',
-                color: pdf.PdfColors.red,
-                drawPoints: false,
-                isCurved: true,
+          child: pw.Stack(
+            fit: pw.StackFit.expand,
+            children: [
+              if (segmentWidths.length > 1)
+                pw.Positioned.fill(
+                  child: pw.Row(
+                    children: [
+                      for (var index = 0; index < segmentWidths.length; index++)
+                        pw.Expanded(
+                          flex: segmentWidths[index],
+                          child: pw.Container(
+                            color: index.isEven
+                                ? pdf.PdfColor(0.93, 0.97, 1)
+                                : pdf.PdfColor(1, 0.96, 0.9),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              pw.Chart(
+                grid: pw.CartesianGrid(
+                  xAxis: pw.FixedAxis<double>(
+                    [0, middle, end],
+                    format: (value) {
+                      if (value <= 0) return dateLabels.first;
+                      if (value >= end) return dateLabels.last;
+                      return dateLabels[1];
+                    },
+                    textStyle: const pw.TextStyle(fontSize: 7),
+                  ),
+                  yAxis: pw.FixedAxis<double>(
+                    [0, math.max(1, maxValue)],
+                    format: (value) => value.toStringAsFixed(0),
+                    divisions: true,
+                    textStyle: const pw.TextStyle(fontSize: 8),
+                  ),
+                ),
+                datasets: [
+                  pw.LineDataSet<pw.PointChartValue>(
+                    data: pointData,
+                    legend: 'Punkte',
+                    color: pdf.PdfColors.green,
+                    drawPoints: false,
+                    isCurved: true,
+                  ),
+                  pw.LineDataSet<pw.PointChartValue>(
+                    data: errorData,
+                    legend: 'Fehler',
+                    color: pdf.PdfColors.red,
+                    drawPoints: false,
+                    isCurved: true,
+                  ),
+                  pw.LineDataSet<pw.PointChartValue>(
+                    data: opponentErrorData,
+                    legend: 'Gegnerfehler',
+                    color: pdf.PdfColors.blue,
+                    drawPoints: false,
+                    isCurved: true,
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  static pw.Widget _selectedMatchesTable(List<MatchGame> matches) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+      columnWidths: const <int, pw.TableColumnWidth>{
+        0: pw.FlexColumnWidth(3),
+        1: pw.FlexColumnWidth(2),
+        2: pw.FlexColumnWidth(2),
+      },
+      children: [
+        _tableRow(['Partie', 'Spielart', 'Spielzeit'], header: true),
+        for (final sourceMatch in matches)
+          _tableRow([
+            sourceMatch.opponentTeam.isEmpty
+                ? 'Ohne Gegner'
+                : 'vs. ${sourceMatch.opponentTeam}',
+            sourceMatch.matchType,
+            _formatPdfDateTime(sourceMatch.matchDateTime),
+          ]),
       ],
     );
   }
@@ -538,8 +647,13 @@ class AppBackupService {
     BuildContext context,
     MatchGame match, {
     required String title,
+    List<MatchGame>? sourceMatches,
   }) async {
-    final bytes = await buildMatchStatsPdf(match, title: title);
+    final bytes = await buildMatchStatsPdf(
+      match,
+      title: title,
+      sourceMatches: sourceMatches,
+    );
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
     final suggestedName =

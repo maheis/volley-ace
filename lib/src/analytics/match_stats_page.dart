@@ -1287,6 +1287,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         title: 'Statistik · ${selectedMatches.length} Spiele',
         onBack: _handleSystemBack,
         showSets: false,
+        sourceMatches: selectedMatches,
       );
     } else if (selectedMatch != null && _activeSection == null) {
       page = _buildMatchDetailView(selectedMatch);
@@ -2262,10 +2263,26 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     String title = 'Statistik',
     VoidCallback? onBack,
     bool showSets = true,
+    List<MatchGame>? sourceMatches,
   }) {
     final points = _pointSummary(match);
     final errors = _errorSummary(match);
     final sets = _computeSets(match);
+    final matchTimes = sourceMatches == null
+        ? const <DateTime>[]
+        : (sourceMatches
+            .map((sourceMatch) {
+              final eventTimes = sourceMatch.events
+                  .where(
+                      (event) => event.kind == 'point' || event.kind == 'error')
+                  .map((event) => event.occurredAt)
+                  .toList()
+                ..sort();
+              return eventTimes.firstOrNull;
+            })
+            .whereType<DateTime>()
+            .toList()
+          ..sort());
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
@@ -2278,7 +2295,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             key: const ValueKey('export-match-stats-pdf'),
             tooltip: 'Statistik als PDF exportieren',
             icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: () => _exportStatisticsPdf(match, title: title),
+            onPressed: () => _exportStatisticsPdf(
+              match,
+              title: title,
+              sourceMatches: sourceMatches,
+            ),
           ),
         ],
       ),
@@ -2286,6 +2307,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (sourceMatches != null && sourceMatches.isNotEmpty) ...[
+              _SelectedMatchesSummary(matches: sourceMatches),
+              const SizedBox(height: 12),
+            ],
             if (showSets && sets.isNotEmpty) ...[
               _SetsOverview(sets: sets),
               const SizedBox(height: 12),
@@ -2298,6 +2323,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               title: 'Zeitverlauf gesamt',
               samples: _trendSamples(match),
               timeoutMarkers: _timeoutMarkers(match),
+              matchTimes: matchTimes,
               height: 220,
             ),
             const SizedBox(height: 12),
@@ -2333,6 +2359,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   title: player.name,
                   samples: _trendSamples(match, playerId: player.id),
                   timeoutMarkers: _timeoutMarkers(match),
+                  matchTimes: matchTimes,
                   height: 180,
                 ),
                 const SizedBox(height: 12),
@@ -2347,12 +2374,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Future<void> _exportStatisticsPdf(
     MatchGame match, {
     required String title,
+    List<MatchGame>? sourceMatches,
   }) async {
     try {
       await AppBackupService.exportMatchStatsPdf(
         context,
         match,
         title: title,
+        sourceMatches: sourceMatches,
       );
     } catch (error) {
       if (!mounted) return;
@@ -2381,13 +2410,16 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         time: events.first.occurredAt,
         points: 0,
         errors: 0,
+        opponentErrors: 0,
       ),
     ];
     var points = 0;
     var errors = 0;
+    var opponentErrors = 0;
     for (final event in events) {
       if (event.kind == 'point') {
         points++;
+        if (event.category == _opponentErrorCategory) opponentErrors++;
       } else if (event.kind == 'error') {
         errors++;
       }
@@ -2396,6 +2428,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           time: event.occurredAt,
           points: points,
           errors: errors,
+          opponentErrors: opponentErrors,
         ),
       );
     }
@@ -2945,16 +2978,65 @@ class _SetScore {
   final bool isFinished;
 }
 
+class _SelectedMatchesSummary extends StatelessWidget {
+  const _SelectedMatchesSummary({required this.matches});
+
+  final List<MatchGame> matches;
+
+  String _formatDateTime(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${value.year} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      key: const ValueKey('selected-match-summary'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ausgewählte Partien (${matches.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            for (var index = 0; index < matches.length; index++)
+              ListTile(
+                key: ValueKey('selected-match-summary-${matches[index].id}'),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: 14,
+                  child: Text('${index + 1}'),
+                ),
+                title: Text(
+                  matches[index].opponentTeam.isEmpty
+                      ? 'Spiel ohne Gegner'
+                      : 'vs. ${matches[index].opponentTeam}',
+                ),
+                subtitle: Text(
+                  '${matches[index].matchType} · ${_formatDateTime(matches[index].matchDateTime)}',
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TrendSample {
   const _TrendSample({
     required this.time,
     required this.points,
     required this.errors,
+    required this.opponentErrors,
   });
 
   final DateTime time;
   final int points;
   final int errors;
+  final int opponentErrors;
 }
 
 class _TrendChartCard extends StatelessWidget {
@@ -2962,12 +3044,14 @@ class _TrendChartCard extends StatelessWidget {
     required this.title,
     required this.samples,
     required this.timeoutMarkers,
+    this.matchTimes = const <DateTime>[],
     required this.height,
   });
 
   final String title;
   final List<_TrendSample> samples;
   final List<DateTime> timeoutMarkers;
+  final List<DateTime> matchTimes;
   final double height;
 
   @override
@@ -2978,23 +3062,22 @@ class _TrendChartCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: const [
+                _TrendLegendDot(color: Colors.greenAccent, label: 'Punkte'),
+                _TrendLegendDot(
+                  color: Color(0xFFe57373),
+                  label: 'Fehler',
                 ),
-                const _TrendLegendDot(
-                  color: Colors.greenAccent,
-                  label: 'Punkte',
+                _TrendLegendDot(
+                  color: Color(0xFF64B5F6),
+                  label: 'Gegnerfehler',
                 ),
-                const SizedBox(width: 12),
-                const _TrendLegendDot(
-                    color: Color(0xFFe57373), label: 'Fehler'),
-                const SizedBox(width: 12),
-                const _TrendLegendLine(
+                _TrendLegendLine(
                   color: Color(0xFFFFB74D),
                   label: 'Auszeit',
                 ),
@@ -3010,6 +3093,7 @@ class _TrendChartCard extends StatelessWidget {
                       painter: _TrendChartPainter(
                         samples: samples,
                         timeoutMarkers: timeoutMarkers,
+                        matchTimes: matchTimes,
                       ),
                       child: const SizedBox.expand(),
                     ),
@@ -3064,10 +3148,15 @@ class _TrendLegendLine extends StatelessWidget {
 }
 
 class _TrendChartPainter extends CustomPainter {
-  _TrendChartPainter({required this.samples, required this.timeoutMarkers});
+  _TrendChartPainter({
+    required this.samples,
+    required this.timeoutMarkers,
+    required this.matchTimes,
+  });
 
   final List<_TrendSample> samples;
   final List<DateTime> timeoutMarkers;
+  final List<DateTime> matchTimes;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -3084,6 +3173,40 @@ class _TrendChartPainter extends CustomPainter {
       math.max(0, size.width - leftPadding - rightPadding),
       math.max(0, size.height - topPadding - bottomPadding),
     );
+
+    final firstTime = samples.first.time;
+    final lastTime = samples.last.time;
+    final spanMillis = math.max(
+      1,
+      lastTime.difference(firstTime).inMilliseconds,
+    );
+
+    double xFor(DateTime time) {
+      final relative = time.difference(firstTime).inMilliseconds / spanMillis;
+      return chartRect.left + chartRect.width * relative;
+    }
+
+    if (matchTimes.length > 1) {
+      final boundaries = matchTimes
+          .map((time) => xFor(time).clamp(chartRect.left, chartRect.right))
+          .toList()
+        ..sort();
+      final bandColors = [
+        const Color(0xFF42A5F5).withValues(alpha: 0.1),
+        const Color(0xFFFFB74D).withValues(alpha: 0.1),
+      ];
+      for (var index = 0; index < boundaries.length; index++) {
+        final left = boundaries[index].toDouble();
+        final right = index + 1 < boundaries.length
+            ? boundaries[index + 1].toDouble()
+            : chartRect.right;
+        if (right <= left) continue;
+        canvas.drawRect(
+          Rect.fromLTRB(left, chartRect.top, right, chartRect.bottom),
+          Paint()..color = bandColors[index % bandColors.length],
+        );
+      }
+    }
 
     final gridPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.12)
@@ -3113,20 +3236,15 @@ class _TrendChartPainter extends CustomPainter {
     canvas.drawLine(chartRect.bottomLeft, chartRect.bottomRight, axisPaint);
 
     final maxValue = samples.fold<int>(0, (max, sample) {
-      return math.max(max, math.max(sample.points, sample.errors));
+      return math.max(
+        max,
+        math.max(
+          math.max(sample.points, sample.errors),
+          sample.opponentErrors,
+        ),
+      );
     });
     final maxY = math.max(1, maxValue);
-    final firstTime = samples.first.time;
-    final lastTime = samples.last.time;
-    final spanMillis = math.max(
-      1,
-      lastTime.difference(firstTime).inMilliseconds,
-    );
-
-    double xFor(DateTime time) {
-      final relative = time.difference(firstTime).inMilliseconds / spanMillis;
-      return chartRect.left + chartRect.width * relative;
-    }
 
     double yFor(int value) {
       final relative = value / maxY;
@@ -3178,10 +3296,14 @@ class _TrendChartPainter extends CustomPainter {
     final errorSeries = samples
         .map((sample) => Offset(xFor(sample.time), yFor(sample.errors)))
         .toList();
+    final opponentErrorSeries = samples
+        .map((sample) => Offset(xFor(sample.time), yFor(sample.opponentErrors)))
+        .toList();
 
     paintTimeoutMarkers(timeoutMarkers);
     paintSeries(pointSeries, Colors.greenAccent);
     paintSeries(errorSeries, const Color(0xFFe57373));
+    paintSeries(opponentErrorSeries, const Color(0xFF64B5F6));
 
     const labelStyle = TextStyle(
       color: Colors.white70,
@@ -3239,7 +3361,8 @@ class _TrendChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
     return oldDelegate.samples != samples ||
-        oldDelegate.timeoutMarkers != timeoutMarkers;
+        oldDelegate.timeoutMarkers != timeoutMarkers ||
+        oldDelegate.matchTimes != matchTimes;
   }
 }
 
