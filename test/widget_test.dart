@@ -1213,27 +1213,35 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.text('Gegner Fehler'), findsWidgets);
-    final zoomIn = find.byTooltip('Diagramm vergrößern');
+    final zoomIn = find.byTooltip('Zeitachse nach rechts erweitern');
     expect(zoomIn, findsOneWidget);
+    const viewportKey = ValueKey('trend-chart-scroll-Zeitverlauf gesamt');
+    const contentKey = ValueKey('trend-chart-content-Zeitverlauf gesamt');
+    final viewportWidth = tester.getSize(find.byKey(viewportKey)).width;
+    final initialContentSize = tester.getSize(find.byKey(contentKey));
     await tester.tap(zoomIn);
     await tester.pump();
-    final chartInteraction = tester.widget<InteractiveViewer>(
-      find.byType(InteractiveViewer),
+    final expandedContentSize = tester.getSize(find.byKey(contentKey));
+    expect(initialContentSize.width, closeTo(viewportWidth, 1));
+    expect(expandedContentSize.width, greaterThan(viewportWidth));
+    expect(expandedContentSize.height, initialContentSize.height);
+
+    final chartScrollable = find.descendant(
+      of: find.byKey(viewportKey),
+      matching: find.byType(Scrollable),
     );
     expect(
-      chartInteraction.transformationController!.value.getMaxScaleOnAxis(),
-      greaterThan(1),
+      tester.state<ScrollableState>(chartScrollable).position.maxScrollExtent,
+      greaterThan(0),
     );
+    await tester.ensureVisible(find.byKey(viewportKey));
+    await tester.pump();
+    await tester.drag(find.byKey(viewportKey), const Offset(-120, 0));
+    await tester.pump();
     expect(
-      chartInteraction.transformationController!.value.entry(1, 1),
-      1,
+      tester.state<ScrollableState>(chartScrollable).position.pixels,
+      greaterThan(0),
     );
-    expect(
-      chartInteraction.transformationController!.value.entry(1, 3),
-      0,
-    );
-    expect(chartInteraction.panEnabled, isTrue);
-    expect(chartInteraction.panAxis, PanAxis.horizontal);
   });
 
   test('Match stores selected team players with match-specific numbers', () {

@@ -312,14 +312,15 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] pdf export optional hoch- und querformat
 - [x] diagram "punkte und fehler nach art" balkenbreiter
 - [x] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
-- [ ] seitenwechsel in punkterwertung ist nicht korrekt umgesetzt
+- [ ] seitenwechsel in punktewertung ist nicht korrekt umgesetzt
 - [ ] automatisches buchen nach zeit klappt noch nicht 5 Sekunden
 - [x] rückgängig ist umgesetzt, ich brauche aber noch wiederholen (strg+z bzw. strg+y)
 - [ ] satzende soll automatisch erkannt werden?!
-- [ ] diagramm zoom soll nicht einfach zoom sein! sondern die zeitachse sich nach rechts ausdehnen! also länger nach rechts werden
-- [ ] sonstiges auswahl der letzten eingabe wird nicht angeboten
+- [x] diagramm zoom soll nicht einfach zoom sein! sondern die zeitachse sich nach rechts ausdehnen! also länger nach rechts werden
+- [ ] sonstiges, auswahl der letzten eingabe wird nicht angeboten
 - [ ] annahmefehler das "fehler" rausnehmen
 - [ ] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne seitenumbruch?)
+- [ ] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
 
 ## Datenschutz
 
