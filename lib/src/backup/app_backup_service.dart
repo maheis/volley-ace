@@ -511,14 +511,14 @@ class AppBackupService {
               pw.BarDataSet<pw.PointChartValue>(
                 data: pointData,
                 color: pdf.PdfColors.green,
-                width: 0.4,
-                offset: -0.21,
+                width: 16,
+                offset: -9,
               ),
               pw.BarDataSet<pw.PointChartValue>(
                 data: errorData,
                 color: pdf.PdfColors.red,
-                width: 0.4,
-                offset: 0.21,
+                width: 16,
+                offset: 9,
               ),
             ],
           ),

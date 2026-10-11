@@ -326,7 +326,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt
 - [ ] html export
 - [x] pdf ohne seitenumbrüche
-- [ ] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
+- [x] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
 
 ## Datenschutz
 
