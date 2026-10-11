@@ -81,6 +81,7 @@ class MatchEvent {
     required this.kind,
     required this.category,
     required this.occurredAt,
+    this.rotationPosition,
   });
 
   final int id;
@@ -90,6 +91,7 @@ class MatchEvent {
   final String kind;
   final String category;
   final DateTime occurredAt;
+  final int? rotationPosition;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -99,6 +101,7 @@ class MatchEvent {
         'kind': kind,
         'category': category,
         'occurredAtMillis': occurredAt.millisecondsSinceEpoch,
+        'rotationPosition': rotationPosition,
       };
 
   static MatchEvent fromJson(Map<String, dynamic> data) {
@@ -120,6 +123,9 @@ class MatchEvent {
       occurredAt: occurredAtMillis is num
           ? DateTime.fromMillisecondsSinceEpoch(occurredAtMillis.toInt())
           : DateTime.now(),
+      rotationPosition: data['rotationPosition'] is num
+          ? (data['rotationPosition'] as num).toInt()
+          : null,
     );
   }
 }
@@ -150,6 +156,7 @@ class MatchGame {
     this.league = '',
     this.teamId,
     this.rotationSetup,
+    this.rotationIsOnLeft = true,
     this.coaches = const <MatchCoach>[],
     required this.players,
     required this.events,
@@ -168,6 +175,7 @@ class MatchGame {
   final String league;
   final int? teamId;
   final ScoreboardRotationState? rotationSetup;
+  final bool rotationIsOnLeft;
   final List<MatchCoach> coaches;
   final List<MatchPlayer> players;
   final List<MatchEvent> events;
@@ -188,6 +196,7 @@ class MatchGame {
     bool clearTeamId = false,
     ScoreboardRotationState? rotationSetup,
     bool clearRotationSetup = false,
+    bool? rotationIsOnLeft,
     List<MatchCoach>? coaches,
     List<MatchPlayer>? players,
     List<MatchEvent>? events,
@@ -208,6 +217,7 @@ class MatchGame {
       teamId: clearTeamId ? null : (teamId ?? this.teamId),
       rotationSetup:
           clearRotationSetup ? null : (rotationSetup ?? this.rotationSetup),
+      rotationIsOnLeft: rotationIsOnLeft ?? this.rotationIsOnLeft,
       coaches: coaches ?? this.coaches,
       players: players ?? this.players,
       events: events ?? this.events,
@@ -230,6 +240,7 @@ class MatchGame {
         'league': league,
         'teamId': teamId,
         'rotationSetup': rotationSetup?.toJson(),
+        'rotationIsOnLeft': rotationIsOnLeft,
         'coaches': coaches.map((coach) => coach.toJson()).toList(),
         'players': players.map((player) => player.toJson()).toList(),
         'events': events.map((event) => event.toJson()).toList(),
@@ -296,6 +307,9 @@ class MatchGame {
       league: data['league'] is String ? data['league'] as String : '',
       teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
       rotationSetup: ScoreboardRotationState.fromJson(data['rotationSetup']),
+      rotationIsOnLeft: data['rotationIsOnLeft'] is bool
+          ? data['rotationIsOnLeft'] as bool
+          : true,
       coaches: coaches,
       players: players,
       events: events,
@@ -351,15 +365,36 @@ MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
     }
 
     for (final event in match.events) {
+      final int? combinedPlayerId;
+      if (event.playerId == null) {
+        combinedPlayerId = null;
+      } else if (event.playerId == _unknownScorerId ||
+          event.playerId == _teamScorerId) {
+        final specialKey = 'special:${event.playerId}';
+        var specialPlayer = playersByKey[specialKey];
+        if (specialPlayer == null) {
+          specialPlayer = MatchPlayer(
+            id: combinedPlayers.length + 1,
+            name: event.playerName,
+            number: 0,
+          );
+          playersByKey[specialKey] = specialPlayer;
+          combinedPlayers.add(specialPlayer);
+        }
+        combinedPlayerId = specialPlayer.id;
+      } else {
+        combinedPlayerId = playerIds[event.playerId];
+      }
       combinedEvents.add(
         MatchEvent(
           id: combinedEvents.length + 1,
-          playerId: event.playerId == null ? null : playerIds[event.playerId],
+          playerId: combinedPlayerId,
           playerName: event.playerName,
           playerNumber: event.playerNumber,
           kind: event.kind,
           category: event.category,
           occurredAt: event.occurredAt,
+          rotationPosition: event.rotationPosition,
         ),
       );
     }
@@ -397,6 +432,18 @@ ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
       rotation = rotation.copyWith(consecutiveServePoints: 0);
       continue;
     }
+    if (event.kind == 'substitution') {
+      final position = event.rotationPosition;
+      final playerId = event.playerId;
+      if (position != null && playerId != null) {
+        rotation = rotation.substitute(
+          side: 0,
+          position: position,
+          playerId: 'match-$playerId',
+        );
+      }
+      continue;
+    }
     if (event.kind != 'point' && event.kind != 'error') continue;
 
     final scoringSide = event.kind == 'point' ? 0 : 1;
@@ -415,6 +462,77 @@ ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
     }
   }
   return rotation;
+}
+
+List<MatchPlayer> fieldPlayersForScoring(MatchGame match) {
+  final rotation = rotationAfterMatchEvents(match);
+  if (rotation == null) return match.players;
+  final activeRotationIds = rotation.left.positions
+      .take(rotationPlayerCount(rotation.league))
+      .whereType<String>()
+      .toSet();
+  return match.players
+      .where((player) => activeRotationIds.contains('match-${player.id}'))
+      .toList();
+}
+
+MatchGame syncMatchPlayerNumbersFromTeam(MatchGame match, Team team) {
+  final numbersByTeamPlayerId = <int, int>{
+    for (final player in team.players)
+      if (player.number != null) player.id: player.number!,
+  };
+  final updatedPlayers = match.players.map((player) {
+    if (player.sourceTeamId != team.id) return player;
+    final number = numbersByTeamPlayerId[player.teamPlayerId];
+    return number == null ? player : player.copyWith(number: number);
+  }).toList();
+  final rotation = match.rotationSetup;
+  final syncedRotation = rotation?.copyWith(
+    left: rotation.left.copyWith(
+      players: rotation.left.players.map((rotationPlayer) {
+        final playerId = int.tryParse(
+          rotationPlayer.id.replaceFirst('match-', ''),
+        );
+        final player = playerId == null
+            ? null
+            : updatedPlayers.cast<MatchPlayer?>().firstWhere(
+                  (entry) => entry?.id == playerId,
+                  orElse: () => null,
+                );
+        return player == null
+            ? rotationPlayer
+            : RotationPlayer(
+                id: rotationPlayer.id,
+                name: rotationPlayer.name,
+                number: player.number,
+              );
+      }).toList(),
+    ),
+  );
+  return match.copyWith(
+    players: updatedPlayers,
+    rotationSetup: syncedRotation,
+  );
+}
+
+MatchGame undoLastMatchAction(MatchGame match) {
+  final actions = match.events
+      .where((event) =>
+          event.kind == 'point' ||
+          event.kind == 'error' ||
+          event.kind == 'timeout' ||
+          event.kind == 'manual_set_end' ||
+          event.kind == 'substitution')
+      .toList()
+    ..sort((first, second) {
+      final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+      return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+    });
+  if (actions.isEmpty) return match;
+  final lastActionId = actions.last.id;
+  return match.copyWith(
+    events: match.events.where((event) => event.id != lastActionId).toList(),
+  );
 }
 
 class MatchStatsState {
@@ -444,6 +562,21 @@ class MatchStatsState {
 }
 
 const String _timeoutKind = 'timeout';
+const String _manualSetEndKind = 'manual_set_end';
+const int _unknownScorerId = -1;
+const int _teamScorerId = -2;
+
+class _ScoringCategory {
+  const _ScoringCategory(
+    this.label, {
+    this.children = const <_ScoringCategory>[],
+    this.requiresText = false,
+  });
+
+  final String label;
+  final List<_ScoringCategory> children;
+  final bool requiresText;
+}
 
 class MatchStatsRepository {
   MatchStatsRepository(Database database) : _database = database;
@@ -501,26 +634,50 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   static const String _opponentErrorCategory = 'Gegner Fehler';
   static const String _timeoutKind = 'timeout';
-  static const String _manualSetEndKind = 'manual_set_end';
-  static const List<String> _pointTypes = <String>[
-    'Ass',
-    'Angriff',
-    'Block',
-    'Zuspieler-Finte',
-    _opponentErrorCategory,
-    'Sonstiges',
+  static const List<_ScoringCategory> _pointCategories = <_ScoringCategory>[
+    _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
+      _ScoringCategory('Ass'),
+      _ScoringCategory('Netzroller'),
+      _ScoringCategory('Scharf'),
+      _ScoringCategory('Gegenfehler'),
+    ]),
+    _ScoringCategory('Angriff', children: <_ScoringCategory>[
+      _ScoringCategory('Auge / Lücke'),
+      _ScoringCategory('Angriffsschlag'),
+      _ScoringCategory('Gegner Annahmefehler'),
+      _ScoringCategory('Zuspieler-Finte'),
+      _ScoringCategory('Netzroller'),
+    ]),
+    _ScoringCategory('Block'),
+    _ScoringCategory(_opponentErrorCategory),
+    _ScoringCategory('Sonstiges', requiresText: true),
   ];
-  static const List<String> _errorTypes = <String>[
-    'Aufschlag',
-    'Ball ins Aus',
-    'Ball ins Netz',
-    'Ball nicht rüber',
-    'Zugeschaut',
-    'Tusch',
-    'Übertritt',
-    'Netz Berührung',
-    'Fehler beim Hinterfeldangriff',
-    'Sonstiges',
+  static const List<_ScoringCategory> _errorCategories = <_ScoringCategory>[
+    _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
+      _ScoringCategory('Ball ins seitliche Aus'),
+      _ScoringCategory('Ball ins hintere Aus'),
+      _ScoringCategory('Ball ins Netz'),
+      _ScoringCategory('Ball zu kurz'),
+      _ScoringCategory('Übertritt'),
+    ]),
+    _ScoringCategory('Annahmefehler', children: <_ScoringCategory>[
+      _ScoringCategory('Zugeschaut'),
+      _ScoringCategory('Tusch'),
+      _ScoringCategory('Untere Annahme'),
+      _ScoringCategory('Obere Annahme'),
+    ]),
+    _ScoringCategory('Angriff', children: <_ScoringCategory>[
+      _ScoringCategory('Ball ins seitliche Aus'),
+      _ScoringCategory('Ball ins hintere Aus'),
+      _ScoringCategory('Ball ins Netz'),
+      _ScoringCategory('Ball nicht rüber'),
+      _ScoringCategory('Hinterfeldangriff'),
+    ]),
+    _ScoringCategory('Netz', children: <_ScoringCategory>[
+      _ScoringCategory('Berührung'),
+      _ScoringCategory('Übertritt'),
+    ]),
+    _ScoringCategory('Sonstiges', requiresText: true),
   ];
 
   late final MatchStatsRepository _repository = MatchStatsRepository(
@@ -535,6 +692,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   String? _activeSection;
   String? _pendingEventKind;
   String? _pendingCategory;
+  List<String> _pendingCategoryPath = <String>[];
   final Set<int> _selectedMatchIds = <int>{};
   bool _isLoaded = false;
   int _nextMatchId = 1;
@@ -545,6 +703,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _opponentController = TextEditingController();
   final TextEditingController _matchTagController = TextEditingController();
+  final Map<String, TextEditingController> _teamNumberControllers =
+      <String, TextEditingController>{};
+  int? _editingMatchPlayerId;
 
   DateTime _now = DateTime.now();
   Timer? _clockTimer;
@@ -630,6 +791,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   MatchGame _combinedStatsMatch(List<MatchGame> matches) {
     return combineMatchesForStatistics(matches);
+  }
+
+  MatchGame _matchWithAggregateScorerRows(MatchGame match) {
+    final players = List<MatchPlayer>.from(match.players);
+    for (final scorer in [
+      (_unknownScorerId, 'Unbekannt'),
+      (_teamScorerId, 'Mannschaft'),
+    ]) {
+      if (!match.events.any((event) => event.playerId == scorer.$1) ||
+          players.any((player) => player.id == scorer.$1)) {
+        continue;
+      }
+      players.add(MatchPlayer(id: scorer.$1, name: scorer.$2, number: 0));
+    }
+    return match.copyWith(players: players);
   }
 
   String _displayPlayerName(MatchGame match, MatchPlayer player) {
@@ -795,21 +971,61 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       return;
     }
 
-    final nextId = match.players.isEmpty
-        ? 1
-        : match.players
-                .map((player) => player.id)
-                .reduce((a, b) => a > b ? a : b) +
-            1;
-    final players = List<MatchPlayer>.from(match.players)
-      ..add(MatchPlayer(id: nextId, name: name, number: number));
+    final editingId = _editingMatchPlayerId;
+    final List<MatchPlayer> players;
+    if (editingId == null) {
+      final nextId = match.players.isEmpty
+          ? 1
+          : match.players
+                  .map((player) => player.id)
+                  .reduce((a, b) => a > b ? a : b) +
+              1;
+      players = List<MatchPlayer>.from(match.players)
+        ..add(MatchPlayer(id: nextId, name: name, number: number));
+    } else {
+      players = match.players
+          .map(
+            (player) => player.id == editingId
+                ? player.copyWith(name: name, number: number)
+                : player,
+          )
+          .toList();
+    }
 
     _replaceMatch(match.copyWith(
       players: players,
       clearRotationSetup: !_matchHasScoredPoints(match),
     ));
+    setState(() => _editingMatchPlayerId = null);
     _playerNameController.clear();
     _playerNumberController.clear();
+  }
+
+  void _startEditingMatchPlayer(MatchPlayer player) {
+    setState(() {
+      _editingMatchPlayerId = player.id;
+      _playerNameController.text = player.name;
+      _playerNumberController.text = player.number.toString();
+    });
+  }
+
+  void _cancelEditingMatchPlayer() {
+    setState(() {
+      _editingMatchPlayerId = null;
+      _playerNameController.clear();
+      _playerNumberController.clear();
+    });
+  }
+
+  TextEditingController _teamPlayerNumberController(
+    MatchGame match,
+    MatchPlayer player,
+  ) {
+    final key = '${match.id}:${player.id}';
+    return _teamNumberControllers.putIfAbsent(
+      key,
+      () => TextEditingController(text: player.number.toString()),
+    );
   }
 
   void _toggleTeamPlayer(MatchGame match, TeamPlayer player, bool selected) {
@@ -954,6 +1170,31 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     ));
   }
 
+  Future<void> _syncTeamPlayerNumbers(MatchGame match) async {
+    final teamId = match.teamId;
+    if (teamId == null) return;
+    final teams = await _teamsRepository.load();
+    if (!mounted) return;
+    final team = teams.cast<Team?>().firstWhere(
+          (entry) => entry?.id == teamId,
+          orElse: () => null,
+        );
+    if (team == null) return;
+    setState(() {
+      _teams
+        ..clear()
+        ..addAll(teams);
+    });
+    final updated = syncMatchPlayerNumbersFromTeam(match, team);
+    for (final player in updated.players) {
+      if (player.sourceTeamId == teamId) {
+        _teamNumberControllers['${match.id}:${player.id}']?.text =
+            player.number.toString();
+      }
+    }
+    _replaceMatch(updated);
+  }
+
   void _removePlayerFromMatch(MatchGame match, MatchPlayer player) {
     _confirmRemovePlayerFromMatch(match, player);
   }
@@ -1039,14 +1280,22 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     setState(() {
       _pendingEventKind = isPoint ? 'point' : 'error';
       _pendingCategory = null;
+      _pendingCategoryPath = <String>[];
       _activeSection = 'category-selection';
     });
+  }
+
+  void _undoLastMatchAction(MatchGame match) {
+    final updated = undoLastMatchAction(match);
+    if (identical(updated, match)) return;
+    _replaceMatch(updated);
   }
 
   void _cancelEventSelection() {
     setState(() {
       _pendingEventKind = null;
       _pendingCategory = null;
+      _pendingCategoryPath = <String>[];
       _activeSection = 'scoring';
     });
   }
@@ -1055,6 +1304,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final sets = _computeSets(match);
     final currentSet = sets.lastOrNull;
     if (currentSet == null ||
+        currentSet.isFinished ||
         (currentSet.us == 0 && currentSet.opponent == 0)) {
       return;
     }
@@ -1142,8 +1392,77 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _createEvent(match, playerId: player.id, category: category);
   }
 
-  void _selectCategoryForEvent(MatchGame match, String category) {
-    if (category == _opponentErrorCategory) {
+  List<MatchPlayer> _fieldPlayersForScoring(MatchGame match) {
+    return fieldPlayersForScoring(match);
+  }
+
+  void _selectSpecialScorer(MatchGame match, int scorerId) {
+    final category = _pendingCategory;
+    if (category == null) return;
+    final playerName =
+        scorerId == _unknownScorerId ? 'Unbekannt' : 'Mannschaft';
+    _createEvent(
+      match,
+      playerId: scorerId,
+      category: category,
+      playerName: playerName,
+      playerNumber: 0,
+    );
+  }
+
+  List<_ScoringCategory> _categoriesAtPendingPath() {
+    var categories =
+        _pendingEventKind == 'point' ? _pointCategories : _errorCategories;
+    for (final label in _pendingCategoryPath) {
+      categories =
+          categories.firstWhere((category) => category.label == label).children;
+    }
+    return categories;
+  }
+
+  Future<void> _selectCategoryForEvent(
+    MatchGame match,
+    _ScoringCategory selected,
+  ) async {
+    final path = <String>[..._pendingCategoryPath, selected.label];
+    if (selected.children.isNotEmpty) {
+      setState(() => _pendingCategoryPath = path);
+      return;
+    }
+
+    var category = path.join(' · ');
+    if (selected.requiresText) {
+      final controller = TextEditingController();
+      final details = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Sonstiges beschreiben'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Beschreibung'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Weiter'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (!mounted) return;
+      if (details == null || details.isEmpty) return;
+      category = '$category: $details';
+    }
+
+    if (_pendingEventKind == 'point' &&
+        selected.label == _opponentErrorCategory) {
       _createEvent(
         match,
         playerId: null,
@@ -1191,8 +1510,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     setState(() {
       _pendingEventKind = null;
       _pendingCategory = null;
+      _pendingCategoryPath = <String>[];
       _activeSection = 'scoring';
     });
+  }
+
+  void _bookPendingEventAsUnknown(MatchGame match) {
+    final category = _pendingCategory;
+    if (category == null) return;
+    _selectSpecialScorer(match, _unknownScorerId);
   }
 
   Map<String, int> _pointSummary(MatchGame match) {
@@ -1210,6 +1536,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     }
     return summary;
   }
+
+  List<String> _categoriesInMatch(MatchGame match, String kind) => match.events
+      .where((event) => event.kind == kind)
+      .map((event) => event.category)
+      .toSet()
+      .toList();
 
   List<DateTime> _timeoutMarkers(MatchGame match) {
     return match.events
@@ -1260,8 +1592,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     required String kind,
   }) {
     final summary = <String, int>{};
+    final specialName = switch (playerId) {
+      _unknownScorerId => 'Unbekannt',
+      _teamScorerId => 'Mannschaft',
+      _ => null,
+    };
     for (final event in match.events.where(
-      (entry) => entry.playerId == playerId && entry.kind == kind,
+      (entry) =>
+          entry.kind == kind &&
+          (entry.playerId == playerId ||
+              (specialName != null &&
+                  entry.playerId == null &&
+                  entry.playerName == specialName)),
     )) {
       summary[event.category] = (summary[event.category] ?? 0) + 1;
     }
@@ -1866,10 +2208,70 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       teamColor: sourceTeam?.primaryColorValue == null
           ? const Color(0xFF1976D2)
           : Color(sourceTeam!.primaryColorValue!),
+      showOnLeft: match.rotationIsOnLeft,
+      onSideChanged: (showOnLeft) => _replaceMatch(
+        match.copyWith(rotationIsOnLeft: showOnLeft),
+      ),
+      onSubstitute: (position) => _chooseSubstituteForPosition(match, position),
       onEdit: _matchHasScoredPoints(match)
           ? null
           : () => _configureMatchRotation(match),
     );
+  }
+
+  Future<void> _chooseSubstituteForPosition(
+    MatchGame match,
+    int position,
+  ) async {
+    final rotation = _rotationAfterEvents(match);
+    if (rotation == null) return;
+    final activeRotationIds = rotation.left.positions.toSet();
+    final benchPlayers = match.players
+        .where((player) => !activeRotationIds.contains('match-${player.id}'))
+        .toList();
+    if (benchPlayers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keine weiteren Bankspieler verfügbar.')),
+      );
+      return;
+    }
+
+    final selectedPlayer = await showModalBottomSheet<MatchPlayer>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(title: Text('Einwechseln auf Position ${position + 1}')),
+            for (final player in benchPlayers)
+              ListTile(
+                key: ValueKey('substitute-match-player-${player.id}'),
+                leading: CircleAvatar(child: Text('${player.number}')),
+                title: Text(player.name),
+                subtitle: const Text('Bank'),
+                onTap: () => Navigator.of(sheetContext).pop(player),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selectedPlayer == null || !mounted) return;
+
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
+        MatchEvent(
+          id: match.events.length + 1,
+          playerId: selectedPlayer.id,
+          playerName: selectedPlayer.name,
+          playerNumber: selectedPlayer.number,
+          kind: 'substitution',
+          category: 'Spielerwechsel',
+          occurredAt: DateTime.now(),
+          rotationPosition: position,
+        ),
+      );
+    _replaceMatch(match.copyWith(events: events));
   }
 
   Widget _buildPlayerEditor(MatchGame match) {
@@ -1883,9 +2285,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (team != null) ...[
-          const Text(
-            'Kader für dieses Spiel',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Kader für dieses Spiel',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                key: const ValueKey('sync-team-player-numbers'),
+                tooltip: 'Trikotnummern aus Team übernehmen',
+                onPressed: () => _syncTeamPlayerNumbers(match),
+                icon: const Icon(Icons.sync),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           if (team.players.isEmpty)
@@ -1919,13 +2333,27 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                         child: TextFormField(
                           key: ValueKey('team-player-number-${teamPlayer.id}'),
                           enabled: isSelected,
-                          initialValue: matchPlayer?.number.toString() ??
-                              (teamPlayer.number?.toString() ?? ''),
+                          controller: matchPlayer == null
+                              ? null
+                              : _teamPlayerNumberController(match, matchPlayer),
+                          initialValue: matchPlayer == null
+                              ? teamPlayer.number?.toString() ?? ''
+                              : null,
                           keyboardType: TextInputType.number,
                           onFieldSubmitted: (value) {
                             if (matchPlayer != null) {
                               _updateTeamPlayerNumber(
                                   match, matchPlayer, value);
+                            }
+                          },
+                          onTapOutside: (_) {
+                            if (matchPlayer != null) {
+                              _updateTeamPlayerNumber(
+                                match,
+                                matchPlayer,
+                                _teamPlayerNumberController(match, matchPlayer)
+                                    .text,
+                              );
                             }
                           },
                           decoration: const InputDecoration(labelText: 'Nr.'),
@@ -1946,8 +2374,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 backgroundColor: AppPalette.green,
                 foregroundColor: Colors.white,
               ),
-              icon: const Icon(Icons.add, color: Colors.white),
-              tooltip: 'Spieler hinzufügen',
+              icon: Icon(
+                _editingMatchPlayerId == null ? Icons.add : Icons.save,
+                color: Colors.white,
+              ),
+              tooltip: _editingMatchPlayerId == null
+                  ? 'Spieler hinzufügen'
+                  : 'Spieler speichern',
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1973,6 +2406,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 ),
               ),
             ),
+            if (_editingMatchPlayerId != null)
+              IconButton(
+                key: const ValueKey('cancel-edit-match-player'),
+                tooltip: 'Bearbeitung abbrechen',
+                onPressed: _cancelEditingMatchPlayer,
+                icon: const Icon(Icons.close),
+              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -1984,10 +2424,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               contentPadding: EdgeInsets.zero,
               title: Text(player.name),
               subtitle: Text('Trikot ${player.number}'),
-              trailing: IconButton(
-                onPressed: () => _removePlayerFromMatch(match, player),
-                icon: const Icon(Icons.remove_circle_outline),
-                tooltip: 'Spieler entfernen',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    key: ValueKey('edit-match-player-${player.id}'),
+                    onPressed: () => _startEditingMatchPlayer(player),
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Spieler bearbeiten',
+                  ),
+                  IconButton(
+                    onPressed: () => _removePlayerFromMatch(match, player),
+                    icon: const Icon(Icons.remove_circle_outline),
+                    tooltip: 'Spieler entfernen',
+                  ),
+                ],
               ),
             ),
       ],
@@ -2018,6 +2469,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           onPressed: () => _showMatchDetail(match.id),
         ),
         actions: [
+          IconButton(
+            key: const ValueKey('undo-last-match-action'),
+            tooltip: 'Letzte Wertung rückgängig',
+            onPressed: match.events.any((event) =>
+                    event.kind == 'point' ||
+                    event.kind == 'error' ||
+                    event.kind == _timeoutKind ||
+                    event.kind == _manualSetEndKind ||
+                    event.kind == 'substitution')
+                ? () => _undoLastMatchAction(match)
+                : null,
+            icon: const Icon(Icons.undo),
+          ),
           IconButton(
             key: const ValueKey('match-history-appbar-button'),
             icon: const Icon(Icons.history),
@@ -2163,69 +2627,128 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildPlayerSelectionView(MatchGame match) {
+    final fieldPlayers = _fieldPlayersForScoring(match);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Spieler auswählen'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _cancelEventSelection,
+          tooltip: 'Ohne Spieler als Unbekannt buchen',
+          icon: const Icon(Icons.person_search_outlined),
+          onPressed: () => _bookPendingEventAsUnknown(match),
         ),
       ),
       body: SafeArea(
-        child: match.players.isEmpty
-            ? const Center(child: Text('Noch keine Spieler angelegt.'))
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: match.players.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final player = match.players[index];
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 140,
-                    child: Card(
-                      child: InkWell(
-                        key: ValueKey('select-player-${player.id}'),
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => _selectPlayerForEvent(match, player),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.person, size: 32),
-                              const SizedBox(height: 8),
-                              Text(
-                                _displayPlayerName(match, player),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text('Trikot ${player.number}'),
-                            ],
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: fieldPlayers.length + 2,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            if (index == fieldPlayers.length) {
+              return _specialScorerCard(
+                key: const ValueKey('select-scorer-unknown'),
+                icon: Icons.person_search_outlined,
+                title: 'Unbekannt',
+                onTap: () => _selectSpecialScorer(match, _unknownScorerId),
+              );
+            }
+            if (index == fieldPlayers.length + 1) {
+              return _specialScorerCard(
+                key: const ValueKey('select-scorer-team'),
+                icon: Icons.groups_outlined,
+                title: 'Mannschaft',
+                onTap: () => _selectSpecialScorer(match, _teamScorerId),
+              );
+            }
+
+            final player = fieldPlayers[index];
+            return SizedBox(
+              width: double.infinity,
+              height: 140,
+              child: Card(
+                child: InkWell(
+                  key: ValueKey('select-player-${player.id}'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _selectPlayerForEvent(match, player),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.person, size: 32),
+                        const SizedBox(height: 8),
+                        Text(
+                          _displayPlayerName(match, player),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
+                        Text('Trikot ${player.number}'),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _specialScorerCard({
+    required Key key,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 112,
+      child: Card(
+        child: InkWell(
+          key: key,
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 30),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildCategorySelectionView(MatchGame match) {
     final isPoint = _pendingEventKind == 'point';
-    final categories = isPoint ? _pointTypes : _errorTypes;
+    final categories = _categoriesAtPendingPath();
     return Scaffold(
       appBar: AppBar(
-        title: Text(isPoint ? 'Punktart auswählen' : 'Fehler auswählen'),
+        title: Text(
+          _pendingCategoryPath.isEmpty
+              ? isPoint
+                  ? 'Punktart auswählen'
+                  : 'Fehler auswählen'
+              : _pendingCategoryPath.last,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: _cancelEventSelection,
+          onPressed: _pendingCategoryPath.isEmpty
+              ? _cancelEventSelection
+              : () => setState(() {
+                    _pendingCategoryPath = _pendingCategoryPath.sublist(
+                        0, _pendingCategoryPath.length - 1);
+                  }),
         ),
       ),
       body: SafeArea(
@@ -2235,24 +2758,34 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final category = categories[index];
+            final categoryPath = <String>[
+              ..._pendingCategoryPath,
+              category.label,
+            ];
             return SizedBox(
               width: double.infinity,
               height: 140,
               child: Card(
                 child: InkWell(
-                  key: ValueKey('select-category-$category'),
+                  key: ValueKey(
+                    'select-category-${categoryPath.join('-')}',
+                  ),
                   borderRadius: BorderRadius.circular(12),
                   onTap: () => _selectCategoryForEvent(match, category),
                   child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        category,
+                    child: ListTile(
+                      title: Text(
+                        category.label,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      trailing:
+                          category.children.isNotEmpty || category.requiresText
+                              ? const Icon(Icons.chevron_right)
+                              : null,
+                      minVerticalPadding: 24,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
                       ),
                     ),
                   ),
@@ -2272,6 +2805,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     bool showSets = true,
     List<MatchGame>? sourceMatches,
   }) {
+    final statisticsMatch = _matchWithAggregateScorerRows(match);
     final points = _pointSummary(match);
     final errors = _errorSummary(match);
     final sets = _computeSets(match);
@@ -2303,7 +2837,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             tooltip: 'Statistik als PDF exportieren',
             icon: const Icon(Icons.picture_as_pdf_outlined),
             onPressed: () => _exportStatisticsPdf(
-              match,
+              statisticsMatch,
               title: title,
               sourceMatches: sourceMatches,
             ),
@@ -2334,7 +2868,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               height: 220,
             ),
             const SizedBox(height: 12),
-            if (match.players.isNotEmpty) ...[
+            if (statisticsMatch.players.isNotEmpty) ...[
               const Text(
                 'Spielerübersicht',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -2342,16 +2876,16 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               const SizedBox(height: 8),
               _PlayerStatsTable(
                 title: 'Punkte pro Spieler',
-                categories: _pointTypes,
-                players: match.players,
+                categories: _categoriesInMatch(statisticsMatch, 'point'),
+                players: statisticsMatch.players,
                 summaryFor: (player) =>
                     _playerSummary(match, player.id, kind: 'point'),
               ),
               const SizedBox(height: 12),
               _PlayerStatsTable(
                 title: 'Fehler pro Spieler',
-                categories: _errorTypes,
-                players: match.players,
+                categories: _categoriesInMatch(statisticsMatch, 'error'),
+                players: statisticsMatch.players,
                 summaryFor: (player) =>
                     _playerSummary(match, player.id, kind: 'error'),
               ),
@@ -2361,7 +2895,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              for (final player in match.players) ...[
+              for (final player in statisticsMatch.players) ...[
                 _TrendChartCard(
                   title: player.name,
                   samples: _trendSamples(match, playerId: player.id),
@@ -2533,6 +3067,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _locationController.dispose();
     _opponentController.dispose();
     _matchTagController.dispose();
+    for (final controller in _teamNumberControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 }
@@ -2543,12 +3080,18 @@ class MatchRotationView extends StatefulWidget {
     required this.rotation,
     required this.teamName,
     this.teamColor = const Color(0xFF1976D2),
+    this.showOnLeft = true,
+    this.onSideChanged,
+    this.onSubstitute,
     this.onEdit,
   });
 
   final ScoreboardRotationState rotation;
   final String teamName;
   final Color teamColor;
+  final bool showOnLeft;
+  final ValueChanged<bool>? onSideChanged;
+  final ValueChanged<int>? onSubstitute;
   final VoidCallback? onEdit;
 
   @override
@@ -2556,7 +3099,15 @@ class MatchRotationView extends StatefulWidget {
 }
 
 class _MatchRotationViewState extends State<MatchRotationView> {
-  bool _showOnLeft = true;
+  late bool _showOnLeft = widget.showOnLeft;
+
+  @override
+  void didUpdateWidget(covariant MatchRotationView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showOnLeft != widget.showOnLeft) {
+      _showOnLeft = widget.showOnLeft;
+    }
+  }
 
   List<({int position, double x, double y})> _courtLayout(int count) {
     if (count == 6) {
@@ -2633,8 +3184,11 @@ class _MatchRotationViewState extends State<MatchRotationView> {
                 ),
               ],
               selected: {_showOnLeft},
-              onSelectionChanged: (selection) =>
-                  setState(() => _showOnLeft = selection.single),
+              onSelectionChanged: (selection) {
+                final showOnLeft = selection.single;
+                setState(() => _showOnLeft = showOnLeft);
+                widget.onSideChanged?.call(showOnLeft);
+              },
             ),
             const SizedBox(height: 8),
             Text(
@@ -2664,18 +3218,27 @@ class _MatchRotationViewState extends State<MatchRotationView> {
                             for (final slot in _courtLayout(count))
                               Align(
                                 alignment: Alignment(
-                                  (_showOnLeft ? slot.x * 2 : 1 - slot.x * 2) *
-                                          2 -
-                                      1,
+                                  _showOnLeft ? slot.x * 2 - 1 : 1 - slot.x * 2,
                                   slot.y * 2 - 1,
                                 ),
                                 child: SizedBox(
                                   width: math.min(88, courtSize * 0.25),
-                                  child: _playerMarker(
-                                    team: team,
-                                    position: slot.position,
-                                    serving: slot.position == 0 &&
-                                        rotation.servingSide == 0,
+                                  child: InkWell(
+                                    key: ValueKey(
+                                      'edit-rotation-position-${slot.position}',
+                                    ),
+                                    borderRadius: BorderRadius.circular(36),
+                                    onTap: widget.onSubstitute == null
+                                        ? null
+                                        : () => widget.onSubstitute!(
+                                              slot.position,
+                                            ),
+                                    child: _playerMarker(
+                                      team: team,
+                                      position: slot.position,
+                                      serving: slot.position == 0 &&
+                                          rotation.servingSide == 0,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -3465,6 +4028,20 @@ class _MatchHistoryPage extends StatelessWidget {
     var opponentScore = 0;
 
     for (final event in sortedEvents) {
+      if (event.kind == _manualSetEndKind) {
+        entries.add(
+          _HistoryEntry(
+            event: event,
+            setNumber: setNumber,
+            ourScore: ourScore,
+            opponentScore: opponentScore,
+          ),
+        );
+        setNumber++;
+        ourScore = 0;
+        opponentScore = 0;
+        continue;
+      }
       if (event.kind == 'point') {
         ourScore++;
       } else if (event.kind == 'error') {
@@ -3494,6 +4071,7 @@ class _MatchHistoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = _historyEntries();
     final finishedSets = entries.where((entry) {
+      if (entry.event.kind == _manualSetEndKind) return true;
       final scoreDifference = entry.ourScore - entry.opponentScore;
       return (entry.ourScore >= 25 && scoreDifference >= 2) ||
           (entry.opponentScore >= 25 && scoreDifference <= -2);
@@ -3543,6 +4121,8 @@ class _MatchHistoryTimeline extends StatelessWidget {
 
   String _kindLabel(MatchEvent entry) {
     if (entry.kind == _timeoutKind) return 'Auszeit';
+    if (entry.kind == _manualSetEndKind) return 'Satzende';
+    if (entry.kind == 'substitution') return 'Spielerwechsel';
     return entry.kind == 'point' ? 'Punkt' : 'Fehler';
   }
 
@@ -3585,13 +4165,17 @@ class _HistoryTimelineRow extends StatelessWidget {
     final event = entry.event;
     final isPoint = event.kind == 'point';
     final isTimeout = event.kind == _timeoutKind;
+    final isManualSetEnd = event.kind == _manualSetEndKind;
+    final isSubstitution = event.kind == 'substitution';
     final eventColor = isTimeout
         ? AppPalette.orange
-        : isPoint
-            ? AppPalette.green
-            : AppPalette.red;
+        : isManualSetEnd || isSubstitution
+            ? Theme.of(context).colorScheme.primary
+            : isPoint
+                ? AppPalette.green
+                : AppPalette.red;
     final textTheme = Theme.of(context).textTheme;
-    final scoreText = isTimeout
+    final scoreText = isTimeout || isManualSetEnd
         ? 'Satz ${entry.setNumber}'
         : '${entry.ourScore} : ${entry.opponentScore}';
 
@@ -3679,7 +4263,9 @@ class _HistoryTimelineRow extends StatelessWidget {
                       Text(
                         isTimeout
                             ? 'Team-Auszeit'
-                            : '${event.playerName}  •  ${event.category}',
+                            : isSubstitution
+                                ? '${event.playerName} · Position ${(event.rotationPosition ?? 0) + 1}'
+                                : '${event.playerName}  •  ${event.category}',
                         style: textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),

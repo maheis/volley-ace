@@ -129,15 +129,19 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
           - Punkte - Auswahl wie ein Punkt erreicht wurde.
             - Aufschlag
               - Ass
+              - Netzroller
+              - Scharf
+              - Gegenfehler
             - Angriff
-              - Auge
+              - Auge / Lücke
               - Angriffsschlag
-              - Annahmefehler
+              - Gegner Annahmefehler
               - Zuspieler-Finte
+              - Netzroller
             - Block
             - Gegnerfehler
             - Sonstiges
-              - Text-Eingabe
+              - Text-Eingabeb (Mit Auswahl letzter 10 Eingaben)
           - Fehler - Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag
               - Ball ins seitliche Aus
@@ -155,10 +159,12 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Ball ins hintere Aus
               - Ball ins Netz
               - Ball nicht rüber
-            - Netz Berührung
-            - Fehler beim Hinterfeldangriff
+              - Hinterfeldangriff
+            - Netz
+              - Berührung
+              - Übertritt
             - Sonstiges
-              - Text-Eingabe
+              - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
       - [x] Auszeit (wichtig für den Verlauf / Impact)
     - [x] Wer
           Spieler als Karte mit Name und Trikotnummer, die man nach oben oder unten scrollen kann, um den Spieler auszuwählen.
@@ -281,25 +287,31 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Diagramm mit Differenzpunkten?
 - [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
 - [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
-- [ ] satz beenden geht nicht
-- [ ] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
-- [ ] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
-- [ ] undefiniert und mannschaft als spieler zum buchen auswählen (wenn man es nicht eindeutig ist)
-- [ ] rückgängig machen von der letzten wertung (wertung um wertung) inkl. rotation!
-- [ ] zweite aufstellung (sitenwechsel rechts/links) fehler in der platz nummerierung bzw. plätze, platz 1 ist immer hinten rechts! d.h. auf der rechten seite muss platz 1 hinten rechts oben sein.
-- [ ] wird rechts als spielfeld in der punktewertung ausgewähl, wird das nicht gespeichert! soll aber gespeichert werden!
-- [ ] neuer baum zum buchen von spielpunkten (siehe oben)
-  - [ ] Annahmefehler
-  - [ ] aufschlagpunkt
-- [ ] spielernummern werden nicht gespeichert
-- [ ] spielernummern aus mannschaft übernehmen (nachträglich!)
-- [ ] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
+- [x] satz beenden geht nicht
+- [x] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
+- [x] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
+- [x] undefiniert und mannschaft als spieler zum buchen auswählen (wenn man es nicht eindeutig ist)
+- [x] rückgängig machen von der letzten wertung (wertung um wertung) inkl. rotation!
+- [x] zweite aufstellung (sitenwechsel rechts/links) fehler in der platz nummerierung bzw. plätze, platz 1 ist immer hinten rechts! d.h. auf der rechten seite muss platz 1 hinten rechts oben sein.
+- [x] wird rechts als spielfeld in der punktewertung ausgewählt, wird das nicht gespeichert! soll aber gespeichert werden!
+- [x] spielernummern werden nicht gespeichert
+- [x] spielernummern aus mannschaft übernehmen (nachträglich!)
+- [x] neuer baum zum buchen von spielpunkten (siehe oben)
+  - [x] Annahmefehler
+  - [x] aufschlagpunkt
+- [x] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
 - [x] gegnerfehler im diagramm (dritte linie)
 - [x] multistatistik
   - [x] Aufslistun ausgewählten partien
   - [x] im diagramm die partien im wechsel farblich hinterlegen
 - [x] diagramme zoomen und scrollen können
 - [x] multiexport und import!
+- [ ] nachträgliches editieren von statistiken (punkte zuordnung z.B.)
+- [x] gegnerfehler nur in der gesamtstatistik der mannschaft anzeigen, nicht bei den einzelspielern.
+- [ ] diagramme zoom nur von der zeitachse und scrollen in der horiziontal achse
+- [ ] pdf export optional hoch- und querformat
+- [ ] diagram "punkte und fehler nach art" balkenbreiter
+- [ ] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
 
 ## Datenschutz
 

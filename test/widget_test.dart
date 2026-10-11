@@ -159,6 +159,13 @@ void main() {
     );
     await _pumpUi(tester);
 
+    final courtCenterY =
+        tester.getRect(find.byKey(const ValueKey('rotation-court'))).center.dy;
+    expect(
+      tester.getCenter(find.byKey(const ValueKey('rotation-position-1-0'))).dy,
+      lessThan(courtCenterY),
+    );
+
     await tester.tap(find.byKey(const ValueKey('rotation-position-0-0')));
     await _pumpUi(tester);
     final reserveTile = tester.widget<ListTile>(
@@ -1054,6 +1061,22 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('add-player-button')));
     await _pumpUi(tester);
+    final editPlayerButton = find.byTooltip('Spieler bearbeiten');
+    await tester.ensureVisible(editPlayerButton);
+    await tester.tap(editPlayerButton);
+    await _pumpUi(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('player-name-input')),
+      'Ada Neu',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('player-number-input')),
+      '9',
+    );
+    await tester.tap(find.byKey(const ValueKey('add-player-button')));
+    await _pumpUi(tester);
+    expect(find.text('Ada Neu'), findsOneWidget);
+    expect(find.text('Trikot 9'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await _pumpUi(tester);
@@ -1062,17 +1085,52 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
     await _pumpUi(tester);
-    await tester.tap(find.byKey(const ValueKey('select-category-Ass')));
+    await tester.tap(
+      find.byKey(const ValueKey('select-category-Aufschlag')),
+    );
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('select-category-Aufschlag-Ass')),
+    );
     await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('select-player-1')));
     await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-category-Block')));
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byTooltip('Ohne Spieler als Unbekannt buchen'),
+    );
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('record-error-button')));
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('select-category-Annahmefehler')),
+    );
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byKey(
+        const ValueKey('select-category-Annahmefehler-Obere Annahme'),
+      ),
+    );
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-scorer-team')));
+    await _pumpUi(tester);
+
+    final finishSet = find.byKey(const ValueKey('finish-set-button'));
+    await tester.ensureVisible(finishSet);
+    await tester.tap(finishSet);
+    await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
     await _pumpUi(tester);
 
     expect(find.text('Verlauf'), findsOneWidget);
-    expect(find.text('1 Aktionen'), findsOneWidget);
+    expect(find.text('4 Aktionen'), findsOneWidget);
+    expect(find.text('1 abgeschlossene Sätze'), findsOneWidget);
+    expect(find.text('Satzende'), findsOneWidget);
   });
 
   testWidgets('Point scoring can record opponent error without player', (
@@ -1172,6 +1230,7 @@ void main() {
       matchTag: '',
       matchType: 'Liga',
       league: 'U13',
+      rotationIsOnLeft: false,
       players: const [],
       events: const [],
       rotationSetup: const ScoreboardRotationState(
@@ -1190,6 +1249,100 @@ void main() {
     expect(restored.rotationSetup?.league, 'U13');
     expect(restored.rotationSetup?.left.positions, ['match-1', null, null]);
     expect(restored.rotationSetup?.servingSide, 1);
+    expect(restored.rotationIsOnLeft, isFalse);
+  });
+
+  test('scoring only offers players currently on court', () {
+    final match = MatchGame(
+      id: 9,
+      createdAt: DateTime(2026),
+      location: '',
+      opponentTeam: '',
+      matchDateTime: DateTime(2026),
+      matchTag: '',
+      matchType: 'Liga',
+      league: 'U13',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+        MatchPlayer(id: 2, name: 'Berta', number: 4),
+        MatchPlayer(id: 3, name: 'Mara', number: 5),
+        MatchPlayer(id: 4, name: 'Eva', number: 12),
+      ],
+      events: const [],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          players: [
+            RotationPlayer(id: 'match-1', name: 'Ada', number: 7),
+            RotationPlayer(id: 'match-2', name: 'Berta', number: 4),
+            RotationPlayer(id: 'match-3', name: 'Mara', number: 5),
+            RotationPlayer(id: 'match-4', name: 'Eva', number: 12),
+          ],
+          positions: ['match-1', 'match-2', 'match-3'],
+        ),
+        right: RotationTeamState(),
+        servingSide: 0,
+      ),
+    );
+
+    expect(fieldPlayersForScoring(match).map((player) => player.id), [1, 2, 3]);
+  });
+
+  test('team jersey number sync updates match and rotation roster', () {
+    final match = MatchGame(
+      id: 10,
+      createdAt: DateTime(2026),
+      location: '',
+      opponentTeam: '',
+      matchDateTime: DateTime(2026),
+      matchTag: '',
+      matchType: 'Liga',
+      teamId: 3,
+      players: const [
+        MatchPlayer(
+          id: 1,
+          name: 'Ada',
+          number: 7,
+          teamPlayerId: 4,
+          sourceTeamId: 3,
+        ),
+        MatchPlayer(id: 2, name: 'Manual', number: 9),
+      ],
+      events: const [],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          players: [
+            RotationPlayer(id: 'match-1', name: 'Ada', number: 7),
+            RotationPlayer(id: 'match-2', name: 'Manual', number: 9),
+          ],
+          positions: ['match-1', 'match-2', null],
+        ),
+        right: RotationTeamState(),
+        servingSide: 0,
+      ),
+    );
+    const team = Team(
+      id: 3,
+      name: 'Team',
+      players: [
+        TeamPlayer(
+          id: 4,
+          name: 'Ada',
+          number: 15,
+          birthDate: null,
+          position: '',
+          profile: '',
+        ),
+      ],
+      coaches: [],
+    );
+
+    final synced = syncMatchPlayerNumbersFromTeam(match, team);
+
+    expect(synced.players.map((player) => player.number), [15, 9]);
+    expect(synced.rotationSetup?.left.players.first.number, 15);
+    expect(synced.rotationSetup?.left.players.last.number, 9);
   });
 
   test('match statistics export builds a PDF with chart data', () async {
@@ -1318,6 +1471,75 @@ void main() {
     expect(currentRotation?.servingSide, 0);
   });
 
+  test('undo replays match points and substitutions back to prior rotation',
+      () {
+    final match = MatchGame(
+      id: 8,
+      createdAt: DateTime(2026),
+      location: '',
+      opponentTeam: 'Team Rot',
+      matchDateTime: DateTime(2026),
+      matchTag: '',
+      matchType: 'Liga',
+      league: 'U13',
+      players: const [],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: 1,
+          playerName: 'Ada',
+          playerNumber: 7,
+          kind: 'point',
+          category: 'Ass',
+          occurredAt: DateTime(2026, 7, 1, 12),
+        ),
+        MatchEvent(
+          id: 2,
+          playerId: 4,
+          playerName: 'Eva',
+          playerNumber: 12,
+          kind: 'substitution',
+          category: 'Spielerwechsel',
+          occurredAt: DateTime(2026, 7, 1, 12, 1),
+          rotationPosition: 0,
+        ),
+      ],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          players: [
+            RotationPlayer(id: 'match-1', name: 'Ada', number: 7),
+            RotationPlayer(id: 'match-2', name: 'Berta', number: 4),
+            RotationPlayer(id: 'match-3', name: 'Mara', number: 5),
+            RotationPlayer(id: 'match-4', name: 'Eva', number: 12),
+          ],
+          positions: ['match-1', 'match-2', 'match-3'],
+        ),
+        right: RotationTeamState(),
+        servingSide: 1,
+      ),
+    );
+
+    final afterSubstitution = rotationAfterMatchEvents(match);
+    final afterUndoSubstitution =
+        rotationAfterMatchEvents(undoLastMatchAction(match));
+    final afterUndoPoint = rotationAfterMatchEvents(
+        undoLastMatchAction(undoLastMatchAction(match)));
+
+    expect(afterSubstitution?.left.positions, [
+      'match-4',
+      'match-3',
+      'match-1',
+    ]);
+    expect(afterUndoSubstitution?.left.positions, [
+      'match-2',
+      'match-3',
+      'match-1',
+    ]);
+    expect(afterUndoPoint?.left.positions, ['match-1', 'match-2', 'match-3']);
+    expect(undoLastMatchAction(undoLastMatchAction(match)).events, isEmpty);
+  });
+
   testWidgets('match rotation view mirrors its single team court', (
     WidgetTester tester,
   ) async {
@@ -1390,7 +1612,13 @@ void main() {
       find.byKey(const ValueKey('match-rotation-position-0')),
     );
 
-    expect(playerAfter.dx, greaterThan(playerBefore.dx));
+    final courtRect = tester.getRect(find.byKey(
+      const ValueKey('match-rotation-court'),
+    ));
+    expect(
+      (playerBefore.dx + playerAfter.dx) / 2,
+      closeTo(courtRect.center.dx, 1),
+    );
     expect(find.byKey(const ValueKey('match-rotation-court')), findsOneWidget);
   });
 
@@ -1472,6 +1700,50 @@ void main() {
         merged.firstWhere((match) => match.id == 1).opponentTeam, 'Team Eins');
     expect(merged.firstWhere((match) => match.id == 3).opponentTeam,
         'Unverändert');
+  });
+
+  test('Unknown and team scorers stay separate in combined statistics', () {
+    MatchGame matchWithScorers(int id) => MatchGame(
+          id: id,
+          createdAt: DateTime(2026, 8, id),
+          location: '',
+          opponentTeam: 'Team $id',
+          matchDateTime: DateTime(2026, 8, id),
+          matchTag: '',
+          matchType: 'Liga',
+          players: const [],
+          events: [
+            MatchEvent(
+              id: 1,
+              playerId: -1,
+              playerName: 'Unbekannt',
+              playerNumber: 0,
+              kind: 'point',
+              category: 'Sonstiges',
+              occurredAt: DateTime(2026, 8, id, 12),
+            ),
+            MatchEvent(
+              id: 2,
+              playerId: -2,
+              playerName: 'Mannschaft',
+              playerNumber: 0,
+              kind: 'point',
+              category: 'Gegner Fehler',
+              occurredAt: DateTime(2026, 8, id, 12, 1),
+            ),
+          ],
+        );
+
+    final combined = combineMatchesForStatistics([
+      matchWithScorers(1),
+      matchWithScorers(2),
+    ]);
+
+    expect(combined.players.map((player) => player.name), [
+      'Unbekannt',
+      'Mannschaft',
+    ]);
+    expect(combined.events.map((event) => event.playerId), [1, 2, 1, 2]);
   });
 
   test('match list ordering uses scheduled game date and time', () {

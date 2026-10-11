@@ -786,7 +786,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                                 side: 1,
                                 position: slot.position,
                                 x: 1 - slot.x,
-                                y: slot.y,
+                                y: 1 - slot.y,
                               ),
                             ],
                           ],
