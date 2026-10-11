@@ -323,10 +323,10 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne erzwungene seitenumbrüche zwischen partien)
 - [x] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
 - [x] diagramm bei multiselect zusammen dampfen, die zeiträume, in der kein spiel war, ausschneiden
-- [ ] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt
+- [x] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt
 - [ ] html export
 - [x] pdf ohne seitenumbrüche
-- [ ] balkenbreite bei "punkte und fehler nach art" breiter!!
+- [ ] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
 
 ## Datenschutz
 
