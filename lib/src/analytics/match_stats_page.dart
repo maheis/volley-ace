@@ -93,6 +93,25 @@ class MatchEvent {
   final DateTime occurredAt;
   final int? rotationPosition;
 
+  MatchEvent copyWith({
+    int? playerId,
+    bool clearPlayerId = false,
+    String? playerName,
+    int? playerNumber,
+    String? kind,
+    String? category,
+  }) =>
+      MatchEvent(
+        id: id,
+        playerId: clearPlayerId ? null : (playerId ?? this.playerId),
+        playerName: playerName ?? this.playerName,
+        playerNumber: playerNumber ?? this.playerNumber,
+        kind: kind ?? this.kind,
+        category: category ?? this.category,
+        occurredAt: occurredAt,
+        rotationPosition: rotationPosition,
+      );
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'playerId': playerId,
@@ -2621,7 +2640,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void _openMatchHistory(MatchGame match) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _MatchHistoryPage(match: match),
+        builder: (context) => _MatchHistoryPage(
+          match: match,
+          onMatchChanged: _replaceMatch,
+        ),
       ),
     );
   }
@@ -2918,11 +2940,33 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     List<MatchGame>? sourceMatches,
   }) async {
     try {
+      final landscape = await showModalBottomSheet<bool>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.stay_current_portrait_outlined),
+                title: const Text('Hochformat'),
+                onTap: () => Navigator.of(sheetContext).pop(false),
+              ),
+              ListTile(
+                leading: const Icon(Icons.stay_current_landscape_outlined),
+                title: const Text('Querformat'),
+                onTap: () => Navigator.of(sheetContext).pop(true),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (landscape == null || !mounted) return;
       await AppBackupService.exportMatchStatsPdf(
         context,
         match,
         title: title,
         sourceMatches: sourceMatches,
+        landscape: landscape,
       );
     } catch (error) {
       if (!mounted) return;
@@ -3643,7 +3687,7 @@ class _TrendChartCardState extends State<_TrendChartCard> {
     final nextScale = scale.clamp(1.0, 4.0).toDouble();
     setState(() => _scale = nextScale);
     _transformationController.value = Matrix4.identity()
-      ..scaleByDouble(nextScale, nextScale, 1, 1);
+      ..scaleByDouble(nextScale, 1, 1, 1);
   }
 
   @override
@@ -3712,13 +3756,22 @@ class _TrendChartCardState extends State<_TrendChartCard> {
                       minScale: 1,
                       maxScale: 4,
                       panEnabled: _scale > 1,
+                      panAxis: PanAxis.horizontal,
                       scaleEnabled: true,
-                      boundaryMargin: const EdgeInsets.all(80),
+                      boundaryMargin: const EdgeInsets.symmetric(
+                        horizontal: 80,
+                      ),
                       onInteractionUpdate: (_) {
-                        final nextScale = _transformationController.value
-                            .getMaxScaleOnAxis()
-                            .clamp(1.0, 4.0)
-                            .toDouble();
+                        final matrix = _transformationController.value;
+                        final nextScale =
+                            matrix.entry(0, 0).clamp(1.0, 4.0).toDouble();
+                        final verticalScale = matrix.entry(1, 1);
+                        final verticalOffset = matrix.entry(1, 3);
+                        if (verticalScale != 1 || verticalOffset != 0) {
+                          _transformationController.value = Matrix4.identity()
+                            ..setEntry(0, 0, nextScale)
+                            ..setEntry(0, 3, matrix.entry(0, 3));
+                        }
                         if ((nextScale - _scale).abs() < 0.02) return;
                         setState(() => _scale = nextScale);
                       },
@@ -4014,14 +4067,28 @@ class _HistoryEntry {
   final int opponentScore;
 }
 
-class _MatchHistoryPage extends StatelessWidget {
-  const _MatchHistoryPage({required this.match});
+class _MatchHistoryPage extends StatefulWidget {
+  const _MatchHistoryPage({
+    required this.match,
+    required this.onMatchChanged,
+  });
 
   final MatchGame match;
+  final ValueChanged<MatchGame> onMatchChanged;
+
+  @override
+  State<_MatchHistoryPage> createState() => _MatchHistoryPageState();
+}
+
+class _MatchHistoryPageState extends State<_MatchHistoryPage> {
+  late MatchGame _match = widget.match;
 
   List<_HistoryEntry> _historyEntries() {
-    final sortedEvents = List<MatchEvent>.from(match.events)
-      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    final sortedEvents = List<MatchEvent>.from(_match.events)
+      ..sort((a, b) {
+        final timeOrder = a.occurredAt.compareTo(b.occurredAt);
+        return timeOrder != 0 ? timeOrder : a.id.compareTo(b.id);
+      });
     final entries = <_HistoryEntry>[];
     var setNumber = 1;
     var ourScore = 0;
@@ -4067,6 +4134,24 @@ class _MatchHistoryPage extends StatelessWidget {
     return entries;
   }
 
+  Future<void> _editEvent(MatchEvent event) async {
+    final updatedEvent = await showDialog<MatchEvent>(
+      context: context,
+      builder: (context) => _EditMatchEventDialog(
+        event: event,
+        players: _match.players,
+      ),
+    );
+    if (updatedEvent == null || !mounted) return;
+    final updated = _match.copyWith(
+      events: _match.events
+          .map((entry) => entry.id == updatedEvent.id ? updatedEvent : entry)
+          .toList(),
+    );
+    widget.onMatchChanged(updated);
+    setState(() => _match = updated);
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = _historyEntries();
@@ -4098,7 +4183,10 @@ class _MatchHistoryPage extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 20),
-                  _MatchHistoryTimeline(entries: entries),
+                  _MatchHistoryTimeline(
+                    entries: entries,
+                    onEdit: _editEvent,
+                  ),
                 ],
               ),
       ),
@@ -4107,9 +4195,13 @@ class _MatchHistoryPage extends StatelessWidget {
 }
 
 class _MatchHistoryTimeline extends StatelessWidget {
-  const _MatchHistoryTimeline({required this.entries});
+  const _MatchHistoryTimeline({
+    required this.entries,
+    required this.onEdit,
+  });
 
   final List<_HistoryEntry> entries;
+  final ValueChanged<MatchEvent> onEdit;
 
   String _formatTimestamp(DateTime value) {
     final day = value.day.toString().padLeft(2, '0');
@@ -4139,7 +4231,153 @@ class _MatchHistoryTimeline extends StatelessWidget {
             lineColor: lineColor,
             formatTimestamp: _formatTimestamp,
             kindLabel: _kindLabel,
+            onEdit: entries[index].event.kind == 'point' ||
+                    entries[index].event.kind == 'error'
+                ? () => onEdit(entries[index].event)
+                : null,
           ),
+      ],
+    );
+  }
+}
+
+class _EditMatchEventDialog extends StatefulWidget {
+  const _EditMatchEventDialog({
+    required this.event,
+    required this.players,
+  });
+
+  final MatchEvent event;
+  final List<MatchPlayer> players;
+
+  @override
+  State<_EditMatchEventDialog> createState() => _EditMatchEventDialogState();
+}
+
+class _EditMatchEventDialogState extends State<_EditMatchEventDialog> {
+  late String _kind = widget.event.kind;
+  late String _selectedScorer = _initialScorerKey(widget.event);
+  late final TextEditingController _categoryController =
+      TextEditingController(text: widget.event.category);
+
+  String _initialScorerKey(MatchEvent event) {
+    if (event.playerId == _unknownScorerId) return 'unknown';
+    if (event.playerId == _teamScorerId) return 'team';
+    if (event.playerId == null) {
+      return event.playerName == 'Gegner' ? 'opponent' : 'unknown';
+    }
+    return widget.players.any((player) => player.id == event.playerId)
+        ? 'player:${event.playerId}'
+        : 'unknown';
+  }
+
+  void _save() {
+    final scorerKey = _selectedScorer;
+    final MatchEvent updated;
+    if (scorerKey == 'unknown') {
+      updated = widget.event.copyWith(
+        playerId: _unknownScorerId,
+        playerName: 'Unbekannt',
+        playerNumber: 0,
+        kind: _kind,
+        category: _categoryController.text.trim(),
+      );
+    } else if (scorerKey == 'team') {
+      updated = widget.event.copyWith(
+        playerId: _teamScorerId,
+        playerName: 'Mannschaft',
+        playerNumber: 0,
+        kind: _kind,
+        category: _categoryController.text.trim(),
+      );
+    } else if (scorerKey == 'opponent') {
+      updated = widget.event.copyWith(
+        clearPlayerId: true,
+        playerName: 'Gegner',
+        playerNumber: 0,
+        kind: _kind,
+        category: _categoryController.text.trim(),
+      );
+    } else {
+      final playerId = int.tryParse(scorerKey.substring('player:'.length));
+      final player = widget.players.cast<MatchPlayer?>().firstWhere(
+            (entry) => entry?.id == playerId,
+            orElse: () => null,
+          );
+      if (player == null) return;
+      updated = widget.event.copyWith(
+        playerId: player.id,
+        playerName: player.name,
+        playerNumber: player.number,
+        kind: _kind,
+        category: _categoryController.text.trim(),
+      );
+    }
+    Navigator.of(context).pop(updated);
+  }
+
+  @override
+  void dispose() {
+    _categoryController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Statistik bearbeiten'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _kind,
+            decoration: const InputDecoration(labelText: 'Wertung'),
+            items: const [
+              DropdownMenuItem(value: 'point', child: Text('Punkt')),
+              DropdownMenuItem(value: 'error', child: Text('Fehler')),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _kind = value);
+            },
+          ),
+          TextField(
+            controller: _categoryController,
+            decoration: const InputDecoration(labelText: 'Kategorie'),
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedScorer,
+            decoration: const InputDecoration(labelText: 'Scorer'),
+            items: [
+              for (final player in widget.players)
+                DropdownMenuItem(
+                  value: 'player:${player.id}',
+                  child: Text('${player.name} · ${player.number}'),
+                ),
+              const DropdownMenuItem(
+                value: 'unknown',
+                child: Text('Unbekannt'),
+              ),
+              const DropdownMenuItem(
+                value: 'team',
+                child: Text('Mannschaft'),
+              ),
+              const DropdownMenuItem(
+                value: 'opponent',
+                child: Text('Gegner'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _selectedScorer = value);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Speichern')),
       ],
     );
   }
@@ -4152,6 +4390,7 @@ class _HistoryTimelineRow extends StatelessWidget {
     required this.lineColor,
     required this.formatTimestamp,
     required this.kindLabel,
+    required this.onEdit,
   });
 
   final _HistoryEntry entry;
@@ -4159,6 +4398,7 @@ class _HistoryTimelineRow extends StatelessWidget {
   final Color lineColor;
   final String Function(DateTime) formatTimestamp;
   final String Function(MatchEvent) kindLabel;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -4257,6 +4497,13 @@ class _HistoryTimelineRow extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (onEdit != null)
+                            IconButton(
+                              key: ValueKey('edit-match-event-${event.id}'),
+                              tooltip: 'Statistik bearbeiten',
+                              onPressed: onEdit,
+                              icon: const Icon(Icons.edit_outlined, size: 20),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 6),

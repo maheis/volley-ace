@@ -1131,6 +1131,24 @@ void main() {
     expect(find.text('4 Aktionen'), findsOneWidget);
     expect(find.text('1 abgeschlossene Sätze'), findsOneWidget);
     expect(find.text('Satzende'), findsOneWidget);
+    final editPoint = find.byKey(const ValueKey('edit-match-event-1'));
+    await tester.ensureVisible(editPoint);
+    await tester.tap(editPoint);
+    await _pumpUi(tester);
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Aufschlag · Scharf',
+    );
+    await tester.tap(find.byType(DropdownButtonFormField<String>).last);
+    await _pumpUi(tester);
+    await tester.tap(find.text('Mannschaft').last);
+    await _pumpUi(tester);
+    await tester.tap(find.text('Speichern'));
+    await _pumpUi(tester);
+    expect(
+      find.text('Mannschaft  •  Aufschlag · Scharf'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Point scoring can record opponent error without player', (
@@ -1176,7 +1194,16 @@ void main() {
       chartInteraction.transformationController!.value.getMaxScaleOnAxis(),
       greaterThan(1),
     );
+    expect(
+      chartInteraction.transformationController!.value.entry(1, 1),
+      1,
+    );
+    expect(
+      chartInteraction.transformationController!.value.entry(1, 3),
+      0,
+    );
     expect(chartInteraction.panEnabled, isTrue);
+    expect(chartInteraction.panAxis, PanAxis.horizontal);
   });
 
   test('Match stores selected team players with match-specific numbers', () {
@@ -1409,15 +1436,30 @@ void main() {
       title: 'Statistik · 2 Spiele',
       sourceMatches: selectedMatches,
     );
+    final summaryOnlyBytes = await AppBackupService.buildMatchStatsPdf(
+      combinedMatch,
+      title: 'Statistik · 2 Spiele',
+    );
 
     expect(bytes.length, greaterThan(1000));
     expect(bytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    int pageCount(List<int> pdfBytes) => RegExp(r'/Type\s*/Page\b')
+        .allMatches(String.fromCharCodes(pdfBytes))
+        .length;
+    expect(pageCount(bytes), greaterThan(pageCount(summaryOnlyBytes)));
 
     final singleMatchBytes = await AppBackupService.buildMatchStatsPdf(
       match,
       title: 'Statistik · Team Rot',
     );
     expect(singleMatchBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    final landscapeBytes = await AppBackupService.buildMatchStatsPdf(
+      match,
+      title: 'Statistik · Team Rot',
+      landscape: true,
+    );
+    expect(landscapeBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    expect(landscapeBytes, isNot(singleMatchBytes));
   });
 
   test('match rotation follows scored point events', () {

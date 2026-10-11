@@ -306,12 +306,12 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] im diagramm die partien im wechsel farblich hinterlegen
 - [x] diagramme zoomen und scrollen können
 - [x] multiexport und import!
-- [ ] nachträgliches editieren von statistiken (punkte zuordnung z.B.)
 - [x] gegnerfehler nur in der gesamtstatistik der mannschaft anzeigen, nicht bei den einzelspielern.
-- [ ] diagramme zoom nur von der zeitachse und scrollen in der horiziontal achse
-- [ ] pdf export optional hoch- und querformat
-- [ ] diagram "punkte und fehler nach art" balkenbreiter
-- [ ] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
+- [x] nachträgliches editieren von statistiken (punkte zuordnung z.B.)
+- [x] diagramme zoom nur von der zeitachse und scrollen in der horiziontal achse
+- [x] pdf export optional hoch- und querformat
+- [x] diagram "punkte und fehler nach art" balkenbreiter
+- [x] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
 
 ## Datenschutz
 

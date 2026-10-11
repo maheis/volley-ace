@@ -74,6 +74,7 @@ class AppBackupService {
     MatchGame match, {
     required String title,
     List<MatchGame>? sourceMatches,
+    bool landscape = false,
   }) async {
     final sortedEvents = List<MatchEvent>.from(match.events)
       ..sort((a, b) {
@@ -112,10 +113,11 @@ class AppBackupService {
         ? _formatPdfDate(match.matchDateTime)
         : '${_formatPdfDateTime(firstEventTime)} – ${_formatPdfDateTime(lastEventTime)}';
     final document = pw.Document();
+    final pageFormat = _pageFormat(landscape);
 
     document.addPage(
       pw.MultiPage(
-        pageFormat: pdf.PdfPageFormat.a4,
+        pageFormat: pageFormat,
         margin: const pw.EdgeInsets.all(32),
         header: (context) => pw.Container(
           alignment: pw.Alignment.centerRight,
@@ -249,7 +251,161 @@ class AppBackupService {
       ),
     );
 
+    if (sourceMatches != null && sourceMatches.length > 1) {
+      for (final sourceMatch in sourceMatches) {
+        _addIndividualMatchReport(
+          document,
+          sourceMatch,
+          pageFormat: pageFormat,
+        );
+      }
+    }
+
     return document.save();
+  }
+
+  static pdf.PdfPageFormat _pageFormat(bool landscape) {
+    const portrait = pdf.PdfPageFormat.a4;
+    return landscape
+        ? pdf.PdfPageFormat(portrait.height, portrait.width)
+        : portrait;
+  }
+
+  static void _addIndividualMatchReport(
+    pw.Document document,
+    MatchGame match, {
+    required pdf.PdfPageFormat pageFormat,
+  }) {
+    final statisticsMatch = combineMatchesForStatistics([match]);
+    final events = List<MatchEvent>.from(statisticsMatch.events)
+      ..sort((a, b) {
+        final timeOrder = a.occurredAt.compareTo(b.occurredAt);
+        return timeOrder != 0 ? timeOrder : a.id.compareTo(b.id);
+      });
+    final points = _eventSummary(events, 'point');
+    final errors = _eventSummary(events, 'error');
+    final categories = <String>{...points.keys, ...errors.keys}.toList()
+      ..sort();
+    final pointCount = events.where((event) => event.kind == 'point').length;
+    final errorCount = events.where((event) => event.kind == 'error').length;
+
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: pageFormat,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(bottom: 12),
+          child: pw.Text(
+            'VolleyAce · Einzelstatistik',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 9,
+            ),
+          ),
+        ),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 12),
+          child: pw.Text(
+            '${context.pageNumber} / ${context.pagesCount}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 9,
+            ),
+          ),
+        ),
+        build: (context) => <pw.Widget>[
+          pw.Text(
+            'Einzelstatistik · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
+            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            '${_formatPdfDateTime(match.matchDateTime)} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 10,
+            ),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child:
+                    _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _summaryCard(
+                  'Einträge',
+                  '${pointCount + errorCount}',
+                  pdf.PdfColors.blue,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text(
+            'Punkte und Fehler nach Art',
+            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (categories.isEmpty)
+            pw.Text('Noch keine Punkte oder Fehler erfasst.')
+          else
+            pw.SizedBox(
+              height: 220,
+              child: _categoryChart(categories, points, errors),
+            ),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Zeitverlauf',
+            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          pw.SizedBox(
+            height: 200,
+            child: _timelineChart(events),
+          ),
+          if (statisticsMatch.players.isNotEmpty) ...[
+            pw.SizedBox(height: 18),
+            pw.Text(
+              'Spielerübersicht',
+              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            _playerTable(statisticsMatch, events),
+            pw.SizedBox(height: 16),
+            pw.Text(
+              'Zeitverlauf pro Spieler',
+              style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+            ),
+            for (final player in statisticsMatch.players) ...[
+              pw.SizedBox(height: 10),
+              pw.Text(
+                '${player.name} · ${player.number}',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.SizedBox(
+                height: 140,
+                child: _timelineChart(
+                  events.where((event) => event.playerId == player.id).toList(),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
   }
 
   static Map<String, int> _eventSummary(
@@ -343,14 +499,14 @@ class AppBackupService {
               pw.BarDataSet<pw.PointChartValue>(
                 data: pointData,
                 color: pdf.PdfColors.green,
-                width: 0.3,
-                offset: -0.16,
+                width: 0.4,
+                offset: -0.21,
               ),
               pw.BarDataSet<pw.PointChartValue>(
                 data: errorData,
                 color: pdf.PdfColors.red,
-                width: 0.3,
-                offset: 0.16,
+                width: 0.4,
+                offset: 0.21,
               ),
             ],
           ),
@@ -669,11 +825,13 @@ class AppBackupService {
     MatchGame match, {
     required String title,
     List<MatchGame>? sourceMatches,
+    bool landscape = false,
   }) async {
     final bytes = await buildMatchStatsPdf(
       match,
       title: title,
       sourceMatches: sourceMatches,
+      landscape: landscape,
     );
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
