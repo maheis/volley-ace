@@ -1157,6 +1157,34 @@ void main() {
     );
     await _pumpUi(tester);
 
+    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    await _pumpUi(tester);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-category-Sonstiges')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-player-1')));
+    await _pumpUi(tester);
+    await tester.enterText(find.byType(TextField).last, 'Punkt nach Abwehr');
+    await tester.tap(find.text('Weiter'));
+    await _pumpUi(tester);
+
+    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    await _pumpUi(tester);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-category-Sonstiges')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-player-1')));
+    await _pumpUi(tester);
+    final recentDetail = find.byKey(
+      const ValueKey('recent-other-detail-Punkt nach Abwehr'),
+    );
+    expect(recentDetail, findsOneWidget);
+    await tester.tap(recentDetail);
+    await _pumpUi(tester);
+    expect(find.text('Sonstiges beschreiben'), findsNothing);
+
     final finishSet = find.byKey(const ValueKey('finish-set-button'));
     await tester.ensureVisible(finishSet);
     await tester.tap(finishSet);
@@ -1165,7 +1193,7 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.text('Verlauf'), findsOneWidget);
-    expect(find.text('5 Aktionen'), findsOneWidget);
+    expect(find.text('7 Aktionen'), findsOneWidget);
     expect(find.text('Ada Neu  •  Annahme'), findsOneWidget);
     expect(find.text('1 abgeschlossene Sätze'), findsOneWidget);
     expect(find.text('Satzende'), findsOneWidget);
@@ -1272,6 +1300,52 @@ void main() {
     });
 
     expect(event.category, 'Annahme · Obere Annahme');
+  });
+
+  test('recent Other details are deduplicated and newest first', () {
+    MatchEvent otherDetail(int id, String detail, int minute) => MatchEvent(
+          id: id,
+          playerId: -1,
+          playerName: 'Unbekannt',
+          playerNumber: 0,
+          kind: 'point',
+          category: 'Sonstiges: $detail',
+          occurredAt: DateTime(2026, 9, 1, 12, minute),
+        );
+    MatchGame game(List<MatchEvent> events) => MatchGame(
+          id: 1,
+          createdAt: DateTime(2026, 9, 1),
+          location: '',
+          opponentTeam: '',
+          matchDateTime: DateTime(2026, 9, 1),
+          matchTag: '',
+          matchType: 'Liga',
+          players: const [],
+          events: events,
+        );
+
+    final recent = recentOtherCategoryDetails([
+      game([
+        otherDetail(1, 'Erster Ball', 1),
+        otherDetail(2, 'Kurzer Ball', 2),
+      ]),
+      game([
+        otherDetail(3, 'erster ball', 3),
+        otherDetail(4, 'Punkt nach Rally', 4),
+      ]),
+    ]);
+
+    expect(recent, ['Punkt nach Rally', 'erster ball', 'Kurzer Ball']);
+
+    final lastTen = recentOtherCategoryDetails([
+      game([
+        for (var minute = 0; minute < 12; minute++)
+          otherDetail(minute, 'Text $minute', minute),
+      ]),
+    ]);
+    expect(lastTen, hasLength(10));
+    expect(lastTen.first, 'Text 11');
+    expect(lastTen.last, 'Text 2');
   });
 
   test('Match stores selected team players with match-specific numbers', () {

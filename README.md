@@ -317,7 +317,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] rückgängig ist umgesetzt, ich brauche aber noch wiederholen (strg+z bzw. strg+y)
 - [ ] satzende soll automatisch erkannt werden?!
 - [x] diagramm zoom soll nicht einfach zoom sein! sondern die zeitachse sich nach rechts ausdehnen! also länger nach rechts werden
-- [ ] sonstiges, auswahl der letzten eingabe wird nicht angeboten
+- [x] sonstiges, auswahl der letzten eingabe wird nicht angeboten
 - [x] annahmefehler das "fehler" rausnehmen
 - [ ] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne seitenumbruch?)
 - [x] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)

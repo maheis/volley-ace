@@ -437,6 +437,35 @@ MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
   );
 }
 
+List<String> recentOtherCategoryDetails(
+  List<MatchGame> matches, {
+  int limit = 10,
+}) {
+  final events = <({DateTime matchTime, MatchEvent event})>[
+    for (final match in matches)
+      for (final event in match.events)
+        if (event.category.startsWith('Sonstiges:'))
+          (matchTime: match.matchDateTime, event: event),
+  ]..sort((first, second) {
+      final eventTime =
+          second.event.occurredAt.compareTo(first.event.occurredAt);
+      if (eventTime != 0) return eventTime;
+      final matchTime = second.matchTime.compareTo(first.matchTime);
+      if (matchTime != 0) return matchTime;
+      return second.event.id.compareTo(first.event.id);
+    });
+
+  final details = <String>[];
+  final seen = <String>{};
+  for (final entry in events) {
+    final detail = entry.event.category.substring('Sonstiges:'.length).trim();
+    if (detail.isEmpty || !seen.add(detail.toLowerCase())) continue;
+    details.add(detail);
+    if (details.length >= limit) break;
+  }
+  return details;
+}
+
 ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
   final initialRotation = match.rotationSetup;
   if (initialRotation == null) return null;
@@ -613,6 +642,84 @@ class _ScoringCategory {
   final String label;
   final List<_ScoringCategory> children;
   final bool requiresText;
+}
+
+class _OtherCategoryDetailsDialog extends StatefulWidget {
+  const _OtherCategoryDetailsDialog({required this.recentDetails});
+
+  final List<String> recentDetails;
+
+  @override
+  State<_OtherCategoryDetailsDialog> createState() =>
+      _OtherCategoryDetailsDialogState();
+}
+
+class _OtherCategoryDetailsDialogState
+    extends State<_OtherCategoryDetailsDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _selectRecentDetail(String detail) {
+    Navigator.of(context).pop(detail);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Sonstiges beschreiben'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Beschreibung'),
+              ),
+              if (widget.recentDetails.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Letzte Eingaben',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final detail in widget.recentDetails)
+                      ActionChip(
+                        key: ValueKey('recent-other-detail-$detail'),
+                        label: Text(detail),
+                        onPressed: () => _selectRecentDetail(detail),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Weiter'),
+        ),
+      ],
+    );
+  }
 }
 
 class MatchStatsRepository {
@@ -1531,35 +1638,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Future<String?> _requestOtherCategoryDetails() async {
-    final controller = TextEditingController();
+    final recentDetails = recentOtherCategoryDetails(_matches);
     final navigator = Navigator.of(context);
     final timeout = Timer(_scoringSelectionTimeout, () {
       navigator.maybePop(_otherCategoryTimeoutResult);
     });
     final details = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Sonstiges beschreiben'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Beschreibung'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('Weiter'),
-          ),
-        ],
+      builder: (_) => _OtherCategoryDetailsDialog(
+        recentDetails: recentDetails,
       ),
     );
     timeout.cancel();
-    controller.dispose();
     if (!mounted || details == null || details.isEmpty) return details;
     return details;
   }
