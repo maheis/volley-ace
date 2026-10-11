@@ -237,7 +237,6 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Farbe rosa in die App übernehmen?
       -> Nehme doch das hellblau/mint
 - [x] Verlaufdarstellung wie einen Versionsgraphen
-- [ ] Diagramm mit Differenzpunkten?
 - [x] Zurück Geste soll nur eine Seite zurück gehen
 - [x] Weitere Trainer in der Punktewertung optional hinzufügen
 - [x] Button für Spieler hinzufügen in der Punktewertung ist vollflächig Rot.
@@ -255,13 +254,11 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Trainingsplan-Kachel vorne das Trainingsplan Icon
 - [x] Punktewertung-Kachel vorne das Punktewertung Icon
 - [x] Taktiktafel mit Trainingsübungen Verknüpfen
-- [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
 - [x] Aktives bzw. nächstes Training / Punktewertung auf Startseite anzeigen
 - [x] Im Training mehrere Mannschaften hinzufügen (wenn U13 und U15 z.B. zusammen trainieren)
 - [x] Buttons in Burgermenü
 - [x] Training sortieren nach Datum desc
 - [x] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann
-- [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [x] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
 - [x] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
 - [x] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
@@ -281,6 +278,9 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Spielernummern müssen auch bei Mannschaften noch änderbar/eintragbar sein (Spielernummern können ggf. nicht fix sein!)
 - [x] tagesstatistik / multistatistik
 - [x] sortierung der punktewertungen nach eingetragener spiel uhrzeit!
+- [ ] Diagramm mit Differenzpunkten?
+- [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
+- [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [ ] satz beenden geht nicht
 - [ ] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
 - [ ] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
@@ -293,6 +293,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] spielernummern werden nicht gespeichert
 - [ ] spielernummern aus mannschaft übernehmen (nachträglich!)
 - [ ] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
+- [ ] gegnerfehler im diagramm (dritte linie)
 
 ## Datenschutz
 
