@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sembast/sembast.dart';
 
 import '../backup/app_backup_service.dart';
@@ -534,7 +535,7 @@ MatchGame syncMatchPlayerNumbersFromTeam(MatchGame match, Team team) {
   );
 }
 
-MatchGame undoLastMatchAction(MatchGame match) {
+MatchEvent? lastMatchActionEvent(MatchGame match) {
   final actions = match.events
       .where((event) =>
           event.kind == 'point' ||
@@ -547,10 +548,14 @@ MatchGame undoLastMatchAction(MatchGame match) {
       final timeOrder = first.occurredAt.compareTo(second.occurredAt);
       return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
     });
-  if (actions.isEmpty) return match;
-  final lastActionId = actions.last.id;
+  return actions.lastOrNull;
+}
+
+MatchGame undoLastMatchAction(MatchGame match) {
+  final lastAction = lastMatchActionEvent(match);
+  if (lastAction == null) return match;
   return match.copyWith(
-    events: match.events.where((event) => event.id != lastActionId).toList(),
+    events: match.events.where((event) => event.id != lastAction.id).toList(),
   );
 }
 
@@ -584,6 +589,14 @@ const String _timeoutKind = 'timeout';
 const String _manualSetEndKind = 'manual_set_end';
 const int _unknownScorerId = -1;
 const int _teamScorerId = -2;
+
+class _UndoScoringIntent extends Intent {
+  const _UndoScoringIntent();
+}
+
+class _RedoScoringIntent extends Intent {
+  const _RedoScoringIntent();
+}
 
 class _ScoringCategory {
   const _ScoringCategory(
@@ -707,6 +720,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   final List<MatchGame> _matches = <MatchGame>[];
   final List<Team> _teams = <Team>[];
+  final Map<int, List<MatchEvent>> _redoEventsByMatchId =
+      <int, List<MatchEvent>>{};
   int? _selectedMatchId;
   String? _activeSection;
   String? _pendingEventKind;
@@ -1247,8 +1262,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _replaceMatch(match.copyWith(players: players, events: events));
   }
 
-  void _replaceMatch(MatchGame updated) {
+  void _replaceMatch(MatchGame updated, {bool clearRedo = true}) {
     setState(() {
+      if (clearRedo) _redoEventsByMatchId.remove(updated.id);
       final index = _matches.indexWhere((match) => match.id == updated.id);
       if (index >= 0) {
         _matches[index] = updated;
@@ -1305,9 +1321,24 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _undoLastMatchAction(MatchGame match) {
+    final action = lastMatchActionEvent(match);
+    if (action == null) return;
     final updated = undoLastMatchAction(match);
-    if (identical(updated, match)) return;
-    _replaceMatch(updated);
+    _redoEventsByMatchId
+        .putIfAbsent(match.id, () => <MatchEvent>[])
+        .add(action);
+    _replaceMatch(updated, clearRedo: false);
+  }
+
+  void _redoLastMatchAction(MatchGame match) {
+    final redoEvents = _redoEventsByMatchId[match.id];
+    if (redoEvents == null || redoEvents.isEmpty) return;
+    final event = redoEvents.removeLast();
+    if (redoEvents.isEmpty) _redoEventsByMatchId.remove(match.id);
+    _replaceMatch(
+      match.copyWith(events: <MatchEvent>[...match.events, event]),
+      clearRedo: false,
+    );
   }
 
   void _cancelEventSelection() {
@@ -1666,12 +1697,48 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     } else {
       page = _buildMatchListView();
     }
+    final scoringPage = selectedMatch != null && _activeSection == 'scoring'
+        ? Actions(
+            actions: <Type, Action<Intent>>{
+              _UndoScoringIntent: CallbackAction<_UndoScoringIntent>(
+                onInvoke: (_) {
+                  _undoLastMatchAction(_selectedMatch ?? selectedMatch);
+                  return null;
+                },
+              ),
+              _RedoScoringIntent: CallbackAction<_RedoScoringIntent>(
+                onInvoke: (_) {
+                  _redoLastMatchAction(_selectedMatch ?? selectedMatch);
+                  return null;
+                },
+              ),
+            },
+            child: Shortcuts(
+              shortcuts: <ShortcutActivator, Intent>{
+                const SingleActivator(
+                  LogicalKeyboardKey.keyZ,
+                  control: true,
+                ): const _UndoScoringIntent(),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyY,
+                  control: true,
+                ): const _RedoScoringIntent(),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyZ,
+                  control: true,
+                  shift: true,
+                ): const _RedoScoringIntent(),
+              },
+              child: Focus(autofocus: true, child: page),
+            ),
+          )
+        : page;
     return PopScope(
       canPop: _selectedMatchId == null && _activeSection != 'multi-stats',
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _handleSystemBack();
       },
-      child: page,
+      child: scoringPage,
     );
   }
 
@@ -2490,16 +2557,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         actions: [
           IconButton(
             key: const ValueKey('undo-last-match-action'),
-            tooltip: 'Letzte Wertung rückgängig',
-            onPressed: match.events.any((event) =>
-                    event.kind == 'point' ||
-                    event.kind == 'error' ||
-                    event.kind == _timeoutKind ||
-                    event.kind == _manualSetEndKind ||
-                    event.kind == 'substitution')
-                ? () => _undoLastMatchAction(match)
-                : null,
+            tooltip: 'Rückgängig (Ctrl+Z)',
+            onPressed: lastMatchActionEvent(match) == null
+                ? null
+                : () => _undoLastMatchAction(match),
             icon: const Icon(Icons.undo),
+          ),
+          IconButton(
+            key: const ValueKey('redo-last-match-action'),
+            tooltip: 'Wiederholen (Ctrl+Y)',
+            onPressed: _redoEventsByMatchId[match.id]?.isNotEmpty == true
+                ? () => _redoLastMatchAction(match)
+                : null,
+            icon: const Icon(Icons.redo),
           ),
           IconButton(
             key: const ValueKey('match-history-appbar-button'),

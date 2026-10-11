@@ -1097,6 +1097,36 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
+    final redoButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('redo-last-match-action')),
+    );
+    expect(redoButton.onPressed, isNull);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await _pumpUi(tester);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const ValueKey('redo-last-match-action')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyY);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyY);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await _pumpUi(tester);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('redo-last-match-action')));
+    await _pumpUi(tester);
+
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
     await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('select-category-Block')));
