@@ -728,8 +728,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   int? _selectedMatchId;
   String? _activeSection;
   String? _pendingEventKind;
-  String? _pendingCategory;
   List<String> _pendingCategoryPath = <String>[];
+  int? _pendingScorerId;
+  String? _pendingScorerName;
+  int _pendingScorerNumber = 0;
   final Set<int> _selectedMatchIds = <int>{};
   bool _isLoaded = false;
   int _nextMatchId = 1;
@@ -892,7 +894,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _selectedMatchId = matchId;
       _activeSection = section;
       _pendingEventKind = null;
-      _pendingCategory = null;
+      _pendingCategoryPath = <String>[];
+      _pendingScorerId = null;
+      _pendingScorerName = null;
     });
   }
 
@@ -902,7 +906,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _selectedMatchId = null;
       _activeSection = null;
       _pendingEventKind = null;
-      _pendingCategory = null;
+      _pendingCategoryPath = <String>[];
+      _pendingScorerId = null;
+      _pendingScorerName = null;
     });
   }
 
@@ -915,11 +921,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     setState(() {
       if (_activeSection == 'player-selection') {
         _pendingEventKind = null;
-        _pendingCategory = null;
+        _pendingCategoryPath = <String>[];
+        _pendingScorerId = null;
+        _pendingScorerName = null;
         _activeSection = 'scoring';
       } else if (_activeSection == 'category-selection') {
         _pendingEventKind = null;
-        _pendingCategory = null;
+        _pendingCategoryPath = <String>[];
+        _pendingScorerId = null;
+        _pendingScorerName = null;
         _activeSection = 'scoring';
       } else if (_activeSection == 'info' ||
           _activeSection == 'scoring' ||
@@ -929,7 +939,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         _selectedMatchId = null;
         _activeSection = null;
         _pendingEventKind = null;
-        _pendingCategory = null;
       }
     });
   }
@@ -1317,8 +1326,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void _startEventSelection(MatchGame match, {required bool isPoint}) {
     setState(() {
       _pendingEventKind = isPoint ? 'point' : 'error';
-      _pendingCategory = null;
       _pendingCategoryPath = <String>[];
+      _pendingScorerId = null;
+      _pendingScorerName = null;
+      _pendingScorerNumber = 0;
       _activeSection = 'category-selection';
     });
   }
@@ -1347,8 +1358,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void _cancelEventSelection() {
     setState(() {
       _pendingEventKind = null;
-      _pendingCategory = null;
       _pendingCategoryPath = <String>[];
+      _pendingScorerId = null;
+      _pendingScorerName = null;
+      _pendingScorerNumber = 0;
       _activeSection = 'scoring';
     });
   }
@@ -1440,9 +1453,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _selectPlayerForEvent(MatchGame match, MatchPlayer player) {
-    final category = _pendingCategory;
-    if (category == null) return;
-    _createEvent(match, playerId: player.id, category: category);
+    _selectScorerForEvent(
+      match,
+      scorerId: player.id,
+      scorerName: player.name,
+      scorerNumber: player.number,
+    );
   }
 
   List<MatchPlayer> _fieldPlayersForScoring(MatchGame match) {
@@ -1450,17 +1466,79 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _selectSpecialScorer(MatchGame match, int scorerId) {
-    final category = _pendingCategory;
-    if (category == null) return;
     final playerName =
         scorerId == _unknownScorerId ? 'Unbekannt' : 'Mannschaft';
+    _selectScorerForEvent(
+      match,
+      scorerId: scorerId,
+      scorerName: playerName,
+      scorerNumber: 0,
+    );
+  }
+
+  Future<void> _selectScorerForEvent(
+    MatchGame match, {
+    required int scorerId,
+    required String scorerName,
+    required int scorerNumber,
+  }) async {
+    final categories = _categoriesAtPendingPath();
+    final mainCategory = (_pendingEventKind == 'point'
+            ? _pointCategories
+            : _errorCategories)
+        .firstWhere((category) => category.label == _pendingCategoryPath.first);
+    if (categories.isNotEmpty) {
+      setState(() {
+        _pendingScorerId = scorerId;
+        _pendingScorerName = scorerName;
+        _pendingScorerNumber = scorerNumber;
+        _activeSection = 'category-selection';
+      });
+      return;
+    }
+
+    var category = _pendingCategoryPath.join(' · ');
+    if (mainCategory.requiresText) {
+      final details = await _requestOtherCategoryDetails();
+      if (details == null || !mounted) return;
+      category = '$category: $details';
+    }
     _createEvent(
       match,
       playerId: scorerId,
+      playerName: scorerName,
+      playerNumber: scorerNumber,
       category: category,
-      playerName: playerName,
-      playerNumber: 0,
     );
+  }
+
+  Future<String?> _requestOtherCategoryDetails() async {
+    final controller = TextEditingController();
+    final details = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sonstiges beschreiben'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Beschreibung'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Weiter'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || details == null || details.isEmpty) return null;
+    return details;
   }
 
   List<_ScoringCategory> _categoriesAtPendingPath() {
@@ -1478,6 +1556,25 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _ScoringCategory selected,
   ) async {
     final path = <String>[..._pendingCategoryPath, selected.label];
+    if (_pendingCategoryPath.isEmpty) {
+      if (_pendingEventKind == 'point' &&
+          selected.label == _opponentErrorCategory) {
+        _createEvent(
+          match,
+          playerId: null,
+          category: selected.label,
+          playerName: 'Gegner',
+          playerNumber: 0,
+        );
+        return;
+      }
+      setState(() {
+        _pendingCategoryPath = path;
+        _activeSection = 'player-selection';
+      });
+      return;
+    }
+
     if (selected.children.isNotEmpty) {
       setState(() => _pendingCategoryPath = path);
       return;
@@ -1485,51 +1582,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
     var category = path.join(' · ');
     if (selected.requiresText) {
-      final controller = TextEditingController();
-      final details = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Sonstiges beschreiben'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Beschreibung'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Abbrechen'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: const Text('Weiter'),
-            ),
-          ],
-        ),
-      );
-      controller.dispose();
-      if (!mounted) return;
-      if (details == null || details.isEmpty) return;
+      final details = await _requestOtherCategoryDetails();
+      if (details == null) return;
       category = '$category: $details';
     }
 
-    if (_pendingEventKind == 'point' &&
-        selected.label == _opponentErrorCategory) {
-      _createEvent(
-        match,
-        playerId: null,
-        category: category,
-        playerName: 'Gegner',
-        playerNumber: 0,
-      );
-      return;
-    }
-
-    setState(() {
-      _pendingCategory = category;
-      _activeSection = 'player-selection';
-    });
+    _createEvent(
+      match,
+      playerId: _pendingScorerId,
+      playerName: _pendingScorerName,
+      playerNumber: _pendingScorerNumber,
+      category: category,
+    );
   }
 
   void _createEvent(
@@ -1562,16 +1626,30 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _replaceMatch(match.copyWith(events: events));
     setState(() {
       _pendingEventKind = null;
-      _pendingCategory = null;
       _pendingCategoryPath = <String>[];
+      _pendingScorerId = null;
+      _pendingScorerName = null;
+      _pendingScorerNumber = 0;
       _activeSection = 'scoring';
     });
   }
 
   void _bookPendingEventAsUnknown(MatchGame match) {
-    final category = _pendingCategory;
-    if (category == null) return;
     _selectSpecialScorer(match, _unknownScorerId);
+  }
+
+  void _backFromPlayerSelection() {
+    if (_pendingCategoryPath.isEmpty) {
+      _cancelEventSelection();
+      return;
+    }
+    setState(() {
+      _pendingCategoryPath = <String>[];
+      _pendingScorerId = null;
+      _pendingScorerName = null;
+      _pendingScorerNumber = 0;
+      _activeSection = 'category-selection';
+    });
   }
 
   Map<String, int> _pointSummary(MatchGame match) {
@@ -2725,12 +2803,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final fieldPlayers = _fieldPlayersForScoring(match);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spieler auswählen'),
+        title: const Text('Spieler buchen'),
         leading: IconButton(
-          tooltip: 'Ohne Spieler als Unbekannt buchen',
-          icon: const Icon(Icons.person_search_outlined),
-          onPressed: () => _bookPendingEventAsUnknown(match),
+          tooltip: 'Zur Hauptkategorie',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _backFromPlayerSelection,
         ),
+        actions: [
+          IconButton(
+            key: const ValueKey('book-unknown-scorer'),
+            tooltip: 'Ohne Spieler als Unbekannt buchen',
+            icon: const Icon(Icons.person_search_outlined),
+            onPressed: () => _bookPendingEventAsUnknown(match),
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView.separated(
@@ -2834,16 +2920,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ? isPoint
                   ? 'Punktart auswählen'
                   : 'Fehler auswählen'
-              : _pendingCategoryPath.last,
+              : _pendingScorerId != null
+                  ? '${_pendingCategoryPath.last} spezifizieren'
+                  : _pendingCategoryPath.last,
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: _pendingCategoryPath.isEmpty
               ? _cancelEventSelection
-              : () => setState(() {
-                    _pendingCategoryPath = _pendingCategoryPath.sublist(
-                        0, _pendingCategoryPath.length - 1);
-                  }),
+              : _pendingScorerId != null && _pendingCategoryPath.length == 1
+                  ? () => setState(() => _activeSection = 'player-selection')
+                  : () => setState(() {
+                        _pendingCategoryPath = _pendingCategoryPath.sublist(
+                            0, _pendingCategoryPath.length - 1);
+                      }),
         ),
       ),
       body: SafeArea(

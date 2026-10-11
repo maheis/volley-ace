@@ -1089,11 +1089,11 @@ void main() {
       find.byKey(const ValueKey('select-category-Aufschlag')),
     );
     await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-player-1')));
+    await _pumpUi(tester);
     await tester.tap(
       find.byKey(const ValueKey('select-category-Aufschlag-Ass')),
     );
-    await _pumpUi(tester);
-    await tester.tap(find.byKey(const ValueKey('select-player-1')));
     await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
@@ -1141,13 +1141,13 @@ void main() {
       find.byKey(const ValueKey('select-category-Annahme')),
     );
     await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-scorer-team')));
+    await _pumpUi(tester);
     await tester.tap(
       find.byKey(
         const ValueKey('select-category-Annahme-Obere Annahme'),
       ),
     );
-    await _pumpUi(tester);
-    await tester.tap(find.byKey(const ValueKey('select-scorer-team')));
     await _pumpUi(tester);
 
     final finishSet = find.byKey(const ValueKey('finish-set-button'));
