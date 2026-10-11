@@ -175,6 +175,10 @@ class AppBackupService {
           height: 230,
           child: _categoryChart(categories, points, errors),
         ),
+      if (categories.isNotEmpty) ...[
+        pw.SizedBox(height: 8),
+        _categorySummaryTable(categories, points, errors),
+      ],
       pw.Text(
         'Zeitverlauf',
         style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
@@ -383,6 +387,10 @@ class AppBackupService {
       else
         pw.SizedBox(
             height: 190, child: _categoryChart(categories, points, errors)),
+      if (categories.isNotEmpty) ...[
+        pw.SizedBox(height: 6),
+        _categorySummaryTable(categories, points, errors),
+      ],
       pw.SizedBox(height: 12),
       pw.Text(
         'Zeitverlauf',
@@ -450,6 +458,51 @@ class AppBackupService {
           ),
         ],
       ),
+    );
+  }
+
+  static pw.Widget _categorySummaryTable(
+    List<String> categories,
+    Map<String, int> points,
+    Map<String, int> errors,
+  ) {
+    final totalPoints = points.values.fold<int>(0, (sum, value) => sum + value);
+    final totalErrors = errors.values.fold<int>(0, (sum, value) => sum + value);
+    return pw.Table(
+      border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+      columnWidths: const <int, pw.TableColumnWidth>{
+        0: pw.FlexColumnWidth(4),
+        1: pw.FlexColumnWidth(1),
+        2: pw.FlexColumnWidth(1),
+      },
+      children: [
+        _tableRow(['Art', 'Punkte', 'Fehler'], header: true),
+        for (final category in categories)
+          _tableRow([
+            category,
+            '${points[category] ?? 0}',
+            '${errors[category] ?? 0}',
+          ]),
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: pdf.PdfColors.grey100),
+          children: [
+            for (final value in ['Gesamt', '$totalPoints', '$totalErrors'])
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text(
+                  value,
+                  textAlign: value == 'Gesamt'
+                      ? pw.TextAlign.left
+                      : pw.TextAlign.right,
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 

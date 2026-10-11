@@ -313,7 +313,6 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] pdf export optional hoch- und querformat
 - [x] diagram "punkte und fehler nach art" balkenbreiter
 - [x] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
-- [ ] seitenwechsel in punktewertung ist nicht korrekt umgesetzt
 - [x] automatisches buchen nach zeit klappt noch nicht, wird hauptkategorie gewählt, aber dann nicht weiter, soll auf unbekannt gebucht werden. wird spieler aber nicht spezifiziert, soll nur hauptkategorie gebucht werden. timeout auf 7 sekunden setzten.
 - [x] rückgängig ist umgesetzt, ich brauche aber noch wiederholen (strg+z bzw. strg+y)
 - [ ] satzende soll automatisch erkannt werden?!
@@ -327,7 +326,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] html export
 - [x] pdf ohne seitenumbrüche
 - [x] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
-- [ ] "punkte und fehler nach art" auch als tabelle (zusätlich!) als tabelle exportieren
+- [x] "punkte und fehler nach art" auch als tabelle (zusätlich!) als tabelle exportieren
+- [ ] seitenwechsel in punktewertung ist nicht korrekt umgesetzt
 
 ## Datenschutz
 
