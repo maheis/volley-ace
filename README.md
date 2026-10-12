@@ -152,6 +152,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Übertritt
             - Annahme
               - Zugeschaut
+              - Absprache
               - Tusch
               - Untere Annahme
               - Obere Annahme

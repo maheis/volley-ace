@@ -854,6 +854,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     ]),
     _ScoringCategory('Annahme', children: <_ScoringCategory>[
       _ScoringCategory('Zugeschaut'),
+      _ScoringCategory('Absprache'),
       _ScoringCategory('Tusch'),
       _ScoringCategory('Untere Annahme'),
       _ScoringCategory('Obere Annahme'),

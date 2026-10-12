@@ -1235,7 +1235,7 @@ void main() {
     await _pumpUi(tester);
     await tester.tap(
       find.byKey(
-        const ValueKey('select-category-Annahme-Obere Annahme'),
+        const ValueKey('select-category-Annahme-Absprache'),
       ),
     );
     await _pumpUi(tester);
