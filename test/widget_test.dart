@@ -1102,6 +1102,92 @@ void main() {
     expect(persisted.rightPoints, 0);
   });
 
+  testWidgets('long press selects multiple scorers in the player picker', (
+    WidgetTester tester,
+  ) async {
+    List<MatchPlayer>? selectedPlayers;
+    var multiSelectStarted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MatchScorerSelectionView(
+          players: const [
+            MatchPlayer(id: 1, name: 'Ada', number: 7),
+            MatchPlayer(id: 2, name: 'Berta', number: 8),
+          ],
+          displayPlayerName: (player) => player.name,
+          onBack: () {},
+          onBookUnknown: () {},
+          onSelectSpecial: (_) {},
+          onSelectPlayer: (_) {},
+          onSelectPlayers: (players) => selectedPlayers = players,
+          onMultiSelectStarted: () => multiSelectStarted = true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.longPress(find.byKey(const ValueKey('select-player-1')));
+    await tester.pump();
+    expect(multiSelectStarted, isTrue);
+    expect(
+      tester
+          .widget<Checkbox>(
+            find.byKey(const ValueKey('select-multiple-player-1')),
+          )
+          .value,
+      isTrue,
+    );
+    await tester.tap(find.byKey(const ValueKey('select-player-2')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Checkbox>(
+            find.byKey(const ValueKey('select-multiple-player-2')),
+          )
+          .value,
+      isTrue,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('continue-multi-scorer-selection')),
+    );
+    await tester.pump();
+    expect(selectedPlayers?.map((player) => player.id), [1, 2]);
+  });
+
+  test('one scoring event can credit multiple players', () {
+    final event = MatchEvent(
+      id: 1,
+      playerId: 1,
+      playerIds: const [1, 2],
+      playerName: 'Ada, Berta',
+      playerNumber: 7,
+      kind: 'point',
+      category: 'Block',
+      occurredAt: DateTime(2026, 10, 1, 18),
+    );
+    final restored = MatchEvent.fromJson(event.toJson());
+
+    expect(restored.scorerIds, [1, 2]);
+    final match = MatchGame(
+      id: 42,
+      createdAt: DateTime(2026, 10, 1),
+      location: '',
+      opponentTeam: 'Team Blau',
+      matchDateTime: DateTime(2026, 10, 1, 18),
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+        MatchPlayer(id: 2, name: 'Berta', number: 8),
+      ],
+      events: [restored],
+    );
+    final combined = combineMatchesForStatistics([match]);
+
+    expect(combined.events, hasLength(1));
+    expect(combined.events.single.scorerIds, [1, 2]);
+  });
+
   testWidgets(
       'Match statistics page allows creating a match and recording a point', (
     WidgetTester tester,

@@ -83,6 +83,7 @@ class MatchEvent {
     required this.category,
     required this.occurredAt,
     this.rotationPosition,
+    this.playerIds = const <int>[],
   });
 
   final int id;
@@ -93,6 +94,13 @@ class MatchEvent {
   final String category;
   final DateTime occurredAt;
   final int? rotationPosition;
+  final List<int> playerIds;
+
+  List<int> get scorerIds => playerIds.isNotEmpty
+      ? playerIds
+      : playerId == null
+          ? const <int>[]
+          : <int>[playerId!];
 
   MatchEvent copyWith({
     int? playerId,
@@ -101,6 +109,7 @@ class MatchEvent {
     int? playerNumber,
     String? kind,
     String? category,
+    List<int>? playerIds,
   }) =>
       MatchEvent(
         id: id,
@@ -111,6 +120,7 @@ class MatchEvent {
         category: category ?? this.category,
         occurredAt: occurredAt,
         rotationPosition: rotationPosition,
+        playerIds: playerIds ?? this.playerIds,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -122,6 +132,7 @@ class MatchEvent {
         'category': category,
         'occurredAtMillis': occurredAt.millisecondsSinceEpoch,
         'rotationPosition': rotationPosition,
+        'playerIds': playerIds,
       };
 
   static MatchEvent fromJson(Map<String, dynamic> data) {
@@ -131,6 +142,7 @@ class MatchEvent {
     final playerNumber = data['playerNumber'];
     final kind = data['kind'];
     final category = data['category'];
+    final playerIdsData = data['playerIds'];
     final categoryName = category is String ? category : 'Ass';
     final occurredAtMillis = data['occurredAtMillis'];
 
@@ -149,6 +161,9 @@ class MatchEvent {
       rotationPosition: data['rotationPosition'] is num
           ? (data['rotationPosition'] as num).toInt()
           : null,
+      playerIds: playerIdsData is List
+          ? playerIdsData.whereType<num>().map((id) => id.toInt()).toList()
+          : const <int>[],
     );
   }
 }
@@ -436,30 +451,38 @@ MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
     }
 
     for (final event in match.events) {
-      final int? combinedPlayerId;
-      if (event.playerId == null) {
-        combinedPlayerId = null;
-      } else if (event.playerId == _unknownScorerId ||
-          event.playerId == _teamScorerId) {
-        final specialKey = 'special:${event.playerId}';
-        var specialPlayer = playersByKey[specialKey];
-        if (specialPlayer == null) {
-          specialPlayer = MatchPlayer(
-            id: combinedPlayers.length + 1,
-            name: event.playerName,
-            number: 0,
-          );
-          playersByKey[specialKey] = specialPlayer;
-          combinedPlayers.add(specialPlayer);
+      final combinedScorerIds = <int>[];
+      for (final scorerId in event.scorerIds) {
+        if (scorerId == _unknownScorerId || scorerId == _teamScorerId) {
+          final specialKey = 'special:$scorerId';
+          var specialPlayer = playersByKey[specialKey];
+          if (specialPlayer == null) {
+            specialPlayer = MatchPlayer(
+              id: combinedPlayers.length + 1,
+              name: event.playerName,
+              number: 0,
+            );
+            playersByKey[specialKey] = specialPlayer;
+            combinedPlayers.add(specialPlayer);
+          }
+          combinedScorerIds.add(specialPlayer.id);
+        } else {
+          final combinedScorerId = playerIds[scorerId];
+          if (combinedScorerId != null) {
+            combinedScorerIds.add(combinedScorerId);
+          }
         }
-        combinedPlayerId = specialPlayer.id;
-      } else {
-        combinedPlayerId = playerIds[event.playerId];
       }
+      final combinedPlayerId = event.playerId == null
+          ? null
+          : combinedScorerIds.isNotEmpty
+              ? combinedScorerIds.first
+              : playerIds[event.playerId];
       combinedEvents.add(
         MatchEvent(
           id: combinedEvents.length + 1,
           playerId: combinedPlayerId,
+          playerIds: combinedScorerIds,
           playerName: event.playerName,
           playerNumber: event.playerNumber,
           kind: event.kind,
@@ -770,6 +793,200 @@ class _OtherCategoryDetailsDialogState
   }
 }
 
+class MatchScorerSelectionView extends StatefulWidget {
+  const MatchScorerSelectionView({
+    super.key,
+    required this.players,
+    required this.displayPlayerName,
+    required this.onBack,
+    required this.onBookUnknown,
+    required this.onSelectSpecial,
+    required this.onSelectPlayer,
+    required this.onSelectPlayers,
+    required this.onMultiSelectStarted,
+  });
+
+  final List<MatchPlayer> players;
+  final String Function(MatchPlayer) displayPlayerName;
+  final VoidCallback onBack;
+  final VoidCallback onBookUnknown;
+  final ValueChanged<int> onSelectSpecial;
+  final ValueChanged<MatchPlayer> onSelectPlayer;
+  final ValueChanged<List<MatchPlayer>> onSelectPlayers;
+  final VoidCallback onMultiSelectStarted;
+
+  @override
+  State<MatchScorerSelectionView> createState() =>
+      _MatchScorerSelectionViewState();
+}
+
+class _MatchScorerSelectionViewState extends State<MatchScorerSelectionView> {
+  final Set<int> _selectedPlayerIds = <int>{};
+  bool _multiSelect = false;
+
+  void _beginMultiSelect(MatchPlayer player) {
+    widget.onMultiSelectStarted();
+    setState(() {
+      _multiSelect = true;
+      _selectedPlayerIds
+        ..clear()
+        ..add(player.id);
+    });
+  }
+
+  void _togglePlayer(int playerId) {
+    setState(() {
+      if (!_selectedPlayerIds.add(playerId)) {
+        _selectedPlayerIds.remove(playerId);
+      }
+    });
+  }
+
+  void _confirmPlayers() {
+    final selectedPlayers = widget.players
+        .where((player) => _selectedPlayerIds.contains(player.id))
+        .toList();
+    if (selectedPlayers.isNotEmpty) widget.onSelectPlayers(selectedPlayers);
+  }
+
+  Widget _specialScorerCard({
+    required Key key,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 112,
+      child: Card(
+        child: InkWell(
+          key: key,
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 30),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_multiSelect
+            ? 'Spieler auswählen (${_selectedPlayerIds.length})'
+            : 'Spieler buchen'),
+        leading: IconButton(
+          tooltip: 'Zur Hauptkategorie',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
+        ),
+        actions: [
+          if (_multiSelect)
+            IconButton(
+              key: const ValueKey('continue-multi-scorer-selection'),
+              tooltip: 'Mit ${_selectedPlayerIds.length} Spielern fortfahren',
+              icon: const Icon(Icons.check),
+              onPressed: _selectedPlayerIds.isEmpty ? null : _confirmPlayers,
+            )
+          else
+            IconButton(
+              key: const ValueKey('book-unknown-scorer'),
+              tooltip: 'Ohne Spieler als Unbekannt buchen',
+              icon: const Icon(Icons.person_search_outlined),
+              onPressed: widget.onBookUnknown,
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: widget.players.length + (_multiSelect ? 0 : 2),
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            if (!_multiSelect && index == widget.players.length) {
+              return _specialScorerCard(
+                key: const ValueKey('select-scorer-unknown'),
+                icon: Icons.person_search_outlined,
+                title: 'Unbekannt',
+                onTap: () => widget.onSelectSpecial(_unknownScorerId),
+              );
+            }
+            if (!_multiSelect && index == widget.players.length + 1) {
+              return _specialScorerCard(
+                key: const ValueKey('select-scorer-team'),
+                icon: Icons.groups_outlined,
+                title: 'Mannschaft',
+                onTap: () => widget.onSelectSpecial(_teamScorerId),
+              );
+            }
+
+            final player = widget.players[index];
+            return SizedBox(
+              width: double.infinity,
+              height: 140,
+              child: Card(
+                child: InkWell(
+                  key: ValueKey('select-player-${player.id}'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _multiSelect
+                      ? _togglePlayer(player.id)
+                      : widget.onSelectPlayer(player),
+                  onLongPress: () => _beginMultiSelect(player),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.person, size: 32),
+                              const SizedBox(height: 8),
+                              Text(
+                                widget.displayPlayerName(player),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text('Trikot ${player.number}'),
+                            ],
+                          ),
+                        ),
+                        if (_multiSelect)
+                          Checkbox(
+                            key:
+                                ValueKey('select-multiple-player-${player.id}'),
+                            value: _selectedPlayerIds.contains(player.id),
+                            onChanged: (_) => _togglePlayer(player.id),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class MatchStatsRepository {
   MatchStatsRepository(Database database) : _database = database;
 
@@ -888,6 +1105,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   String? _pendingEventKind;
   List<String> _pendingCategoryPath = <String>[];
   int? _pendingScorerId;
+  List<int> _pendingScorerIds = <int>[];
   String? _pendingScorerName;
   int _pendingScorerNumber = 0;
   final Set<int> _selectedMatchIds = <int>{};
@@ -1056,6 +1274,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
       _pendingScorerId = null;
+      _pendingScorerIds = <int>[];
       _pendingScorerName = null;
     });
   }
@@ -1069,6 +1288,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
       _pendingScorerId = null;
+      _pendingScorerIds = <int>[];
       _pendingScorerName = null;
     });
   }
@@ -1085,12 +1305,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         _pendingEventKind = null;
         _pendingCategoryPath = <String>[];
         _pendingScorerId = null;
+        _pendingScorerIds = <int>[];
         _pendingScorerName = null;
         _activeSection = 'scoring';
       } else if (_activeSection == 'category-selection') {
         _pendingEventKind = null;
         _pendingCategoryPath = <String>[];
         _pendingScorerId = null;
+        _pendingScorerIds = <int>[];
         _pendingScorerName = null;
         _activeSection = 'scoring';
       } else if (_activeSection == 'info' ||
@@ -1431,8 +1653,24 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     if (confirmed != true || !mounted) return;
     final players = List<MatchPlayer>.from(match.players)
       ..removeWhere((entry) => entry.id == player.id);
-    final events = List<MatchEvent>.from(match.events)
-      ..removeWhere((event) => event.playerId == player.id);
+    final events = <MatchEvent>[];
+    for (final event in match.events) {
+      if (!event.scorerIds.contains(player.id)) {
+        events.add(event);
+        continue;
+      }
+      final remainingIds =
+          event.scorerIds.where((scorerId) => scorerId != player.id).toList();
+      if (remainingIds.isEmpty) continue;
+      final remainingPlayers =
+          players.where((entry) => remainingIds.contains(entry.id)).toList();
+      events.add(event.copyWith(
+        playerId: remainingIds.first,
+        playerIds: remainingIds,
+        playerName: remainingPlayers.map((entry) => entry.name).join(', '),
+        playerNumber: remainingPlayers.firstOrNull?.number ?? 0,
+      ));
+    }
     _replaceMatch(match.copyWith(players: players, events: events));
   }
 
@@ -1491,6 +1729,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _pendingEventKind = isPoint ? 'point' : 'error';
       _pendingCategoryPath = <String>[];
       _pendingScorerId = null;
+      _pendingScorerIds = <int>[];
       _pendingScorerName = null;
       _pendingScorerNumber = 0;
       _activeSection = 'category-selection';
@@ -1524,6 +1763,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
       _pendingScorerId = null;
+      _pendingScorerIds = <int>[];
       _pendingScorerName = null;
       _pendingScorerNumber = 0;
       _activeSection = 'scoring';
@@ -1617,9 +1857,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _selectPlayerForEvent(MatchGame match, MatchPlayer player) {
-    _selectScorerForEvent(
+    _selectScorersForEvent(
       match,
-      scorerId: player.id,
+      scorerIds: [player.id],
       scorerName: player.name,
       scorerNumber: player.number,
     );
@@ -1632,20 +1872,22 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void _selectSpecialScorer(MatchGame match, int scorerId) {
     final playerName =
         scorerId == _unknownScorerId ? 'Unbekannt' : 'Mannschaft';
-    _selectScorerForEvent(
+    _selectScorersForEvent(
       match,
-      scorerId: scorerId,
+      scorerIds: [scorerId],
       scorerName: playerName,
       scorerNumber: 0,
     );
   }
 
-  Future<void> _selectScorerForEvent(
+  Future<void> _selectScorersForEvent(
     MatchGame match, {
-    required int scorerId,
+    required List<int> scorerIds,
     required String scorerName,
     required int scorerNumber,
   }) async {
+    if (scorerIds.isEmpty) return;
+    final scorerId = scorerIds.first;
     final categories = _categoriesAtPendingPath();
     final mainCategory = (_pendingEventKind == 'point'
             ? _pointCategories
@@ -1654,6 +1896,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     if (categories.isNotEmpty) {
       setState(() {
         _pendingScorerId = scorerId;
+        _pendingScorerIds = scorerIds;
         _pendingScorerName = scorerName;
         _pendingScorerNumber = scorerNumber;
         _activeSection = 'category-selection';
@@ -1668,7 +1911,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       final details = await _requestOtherCategoryDetails();
       if (!mounted) return;
       if (details == _otherCategoryTimeoutResult) {
-        _createMainCategoryEvent(match, scorerId, scorerName, scorerNumber);
+        _createMainCategoryEvent(match);
         return;
       }
       if (details == null) {
@@ -1682,6 +1925,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       playerId: scorerId,
       playerName: scorerName,
       playerNumber: scorerNumber,
+      playerIds: scorerIds,
       category: category,
     );
   }
@@ -1707,25 +1951,20 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _scoringSelectionTimer?.cancel();
     _scoringSelectionTimer = Timer(_scoringSelectionTimeout, () {
       if (!mounted || _pendingCategoryPath.isEmpty) return;
-      final scorerId = _pendingScorerId ?? _unknownScorerId;
-      final scorerName = _pendingScorerName ?? 'Unbekannt';
-      final scorerNumber = _pendingScorerId == null ? 0 : _pendingScorerNumber;
-      _createMainCategoryEvent(match, scorerId, scorerName, scorerNumber);
+      _createMainCategoryEvent(match);
     });
   }
 
-  void _createMainCategoryEvent(
-    MatchGame match,
-    int scorerId,
-    String scorerName,
-    int scorerNumber,
-  ) {
+  void _createMainCategoryEvent(MatchGame match) {
     if (_pendingCategoryPath.isEmpty) return;
+    final scorerIds =
+        _pendingScorerIds.isEmpty ? <int>[_unknownScorerId] : _pendingScorerIds;
     _createEvent(
       match,
-      playerId: scorerId,
-      playerName: scorerName,
-      playerNumber: scorerNumber,
+      playerId: _pendingScorerId ?? _unknownScorerId,
+      playerName: _pendingScorerName ?? 'Unbekannt',
+      playerNumber: _pendingScorerNumber,
+      playerIds: scorerIds,
       category: _pendingCategoryPath.first,
     );
   }
@@ -1777,12 +2016,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       final details = await _requestOtherCategoryDetails();
       if (!mounted) return;
       if (details == _otherCategoryTimeoutResult) {
-        _createMainCategoryEvent(
-          match,
-          _pendingScorerId ?? _unknownScorerId,
-          _pendingScorerName ?? 'Unbekannt',
-          _pendingScorerNumber,
-        );
+        _createMainCategoryEvent(match);
         return;
       }
       if (details == null) {
@@ -1797,6 +2031,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       playerId: _pendingScorerId,
       playerName: _pendingScorerName,
       playerNumber: _pendingScorerNumber,
+      playerIds: _pendingScorerIds,
       category: category,
     );
   }
@@ -1807,6 +2042,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     required String category,
     String? playerName,
     int? playerNumber,
+    List<int>? playerIds,
   }) {
     _scoringSelectionTimer?.cancel();
     final player = match.players.cast<MatchPlayer?>().firstWhere(
@@ -1822,6 +2058,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         MatchEvent(
           id: match.events.length + 1,
           playerId: playerId,
+          playerIds:
+              playerIds ?? (playerId == null ? const <int>[] : <int>[playerId]),
           playerName: displayName,
           playerNumber: displayNumber,
           kind: _pendingEventKind ?? 'point',
@@ -1834,6 +2072,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
       _pendingScorerId = null;
+      _pendingScorerIds = <int>[];
       _pendingScorerName = null;
       _pendingScorerNumber = 0;
       _activeSection = 'scoring';
@@ -1853,6 +2092,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     setState(() {
       _pendingCategoryPath = <String>[];
       _pendingScorerId = null;
+      _pendingScorerIds = <int>[];
       _pendingScorerName = null;
       _pendingScorerNumber = 0;
       _activeSection = 'category-selection';
@@ -1943,7 +2183,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     for (final event in match.events.where(
       (entry) =>
           entry.kind == kind &&
-          (entry.playerId == playerId ||
+          (entry.scorerIds.contains(playerId) ||
               (specialName != null &&
                   entry.playerId == null &&
                   entry.playerName == specialName)),
@@ -2977,112 +3217,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildPlayerSelectionView(MatchGame match) {
-    final fieldPlayers = _fieldPlayersForScoring(match);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Spieler buchen'),
-        leading: IconButton(
-          tooltip: 'Zur Hauptkategorie',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _backFromPlayerSelection,
-        ),
-        actions: [
-          IconButton(
-            key: const ValueKey('book-unknown-scorer'),
-            tooltip: 'Ohne Spieler als Unbekannt buchen',
-            icon: const Icon(Icons.person_search_outlined),
-            onPressed: () => _bookPendingEventAsUnknown(match),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: fieldPlayers.length + 2,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            if (index == fieldPlayers.length) {
-              return _specialScorerCard(
-                key: const ValueKey('select-scorer-unknown'),
-                icon: Icons.person_search_outlined,
-                title: 'Unbekannt',
-                onTap: () => _selectSpecialScorer(match, _unknownScorerId),
-              );
-            }
-            if (index == fieldPlayers.length + 1) {
-              return _specialScorerCard(
-                key: const ValueKey('select-scorer-team'),
-                icon: Icons.groups_outlined,
-                title: 'Mannschaft',
-                onTap: () => _selectSpecialScorer(match, _teamScorerId),
-              );
-            }
-
-            final player = fieldPlayers[index];
-            return SizedBox(
-              width: double.infinity,
-              height: 140,
-              child: Card(
-                child: InkWell(
-                  key: ValueKey('select-player-${player.id}'),
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _selectPlayerForEvent(match, player),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.person, size: 32),
-                        const SizedBox(height: 8),
-                        Text(
-                          _displayPlayerName(match, player),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text('Trikot ${player.number}'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _specialScorerCard({
-    required Key key,
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 112,
-      child: Card(
-        child: InkWell(
-          key: key,
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 30),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
+    return MatchScorerSelectionView(
+      players: _fieldPlayersForScoring(match),
+      displayPlayerName: (player) => _displayPlayerName(match, player),
+      onBack: _backFromPlayerSelection,
+      onBookUnknown: () => _bookPendingEventAsUnknown(match),
+      onMultiSelectStarted: () => _scoringSelectionTimer?.cancel(),
+      onSelectSpecial: (scorerId) => _selectSpecialScorer(match, scorerId),
+      onSelectPlayer: (player) => _selectPlayerForEvent(match, player),
+      onSelectPlayers: (players) => _selectScorersForEvent(
+        match,
+        scorerIds: players.map((player) => player.id).toList(),
+        scorerName: players.map((player) => player.name).join(', '),
+        scorerNumber: players.first.number,
       ),
     );
   }
@@ -3312,7 +3459,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   List<_TrendSample> _trendSamples(MatchGame match, {int? playerId}) {
     final events = match.events
-        .where((event) => playerId == null || event.playerId == playerId)
+        .where(
+            (event) => playerId == null || event.scorerIds.contains(playerId))
         .toList()
       ..sort((a, b) {
         final timeComparison = a.occurredAt.compareTo(b.occurredAt);
@@ -4585,6 +4733,7 @@ class _EditMatchEventDialogState extends State<_EditMatchEventDialog> {
     if (scorerKey == 'unknown') {
       updated = widget.event.copyWith(
         playerId: _unknownScorerId,
+        playerIds: const [_unknownScorerId],
         playerName: 'Unbekannt',
         playerNumber: 0,
         kind: _kind,
@@ -4593,6 +4742,7 @@ class _EditMatchEventDialogState extends State<_EditMatchEventDialog> {
     } else if (scorerKey == 'team') {
       updated = widget.event.copyWith(
         playerId: _teamScorerId,
+        playerIds: const [_teamScorerId],
         playerName: 'Mannschaft',
         playerNumber: 0,
         kind: _kind,
@@ -4601,6 +4751,7 @@ class _EditMatchEventDialogState extends State<_EditMatchEventDialog> {
     } else if (scorerKey == 'opponent') {
       updated = widget.event.copyWith(
         clearPlayerId: true,
+        playerIds: const [],
         playerName: 'Gegner',
         playerNumber: 0,
         kind: _kind,
@@ -4615,6 +4766,7 @@ class _EditMatchEventDialogState extends State<_EditMatchEventDialog> {
       if (player == null) return;
       updated = widget.event.copyWith(
         playerId: player.id,
+        playerIds: [player.id],
         playerName: player.name,
         playerNumber: player.number,
         kind: _kind,

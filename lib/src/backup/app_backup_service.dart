@@ -218,7 +218,7 @@ class AppBackupService {
             height: 150,
             child: _timelineChart(
               sortedEvents
-                  .where((event) => event.playerId == player.id)
+                  .where((event) => event.scorerIds.contains(player.id))
                   .toList(),
               matchTimes: matchTimes,
             ),
@@ -420,7 +420,9 @@ class AppBackupService {
           pw.SizedBox(
             height: 120,
             child: _timelineChart(
-              events.where((event) => event.playerId == player.id).toList(),
+              events
+                  .where((event) => event.scorerIds.contains(player.id))
+                  .toList(),
             ),
           ),
         ],
@@ -764,8 +766,8 @@ class AppBackupService {
         for (final player in match.players)
           _tableRow([
             '${player.name} · ${player.number}',
-            '${events.where((event) => event.playerId == player.id && event.kind == 'point').length}',
-            '${events.where((event) => event.playerId == player.id && event.kind == 'error').length}',
+            '${events.where((event) => event.scorerIds.contains(player.id) && event.kind == 'point').length}',
+            '${events.where((event) => event.scorerIds.contains(player.id) && event.kind == 'error').length}',
           ]),
       ],
     );

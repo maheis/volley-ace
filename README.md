@@ -328,7 +328,10 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
 - [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [ ] satzende soll automatisch erkannt werden?!
-- [ ] html export
+- [ ] html exportich
+- [ ] balken zugeschaut und aufschlag fehlen bzw. sind außerhalb des diagrams beim pdf export
+- [ ] in der tabelle bei multiexport sollen die spielergebnise mit aufgeführt werden (sätze, ergebnisse pro satz)
+- [ ] gesamt statistik, hat ein spieler nicht gespielt, soll das spiel trotzdem in seinem diagram sein, dann aber die linie darüber hinaus laufen und sich nicht verändern.
 
 ## Datenschutz
 
