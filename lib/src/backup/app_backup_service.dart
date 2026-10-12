@@ -152,24 +152,38 @@ class AppBackupService {
         ),
       ),
       if (includeFullMatchDetails) ...[
-        pw.SizedBox(height: 18),
-        pw.Text(
-          'Spielbericht',
-          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          match.matchReport.trim().isEmpty
-              ? 'Kein Spielbericht erfasst.'
-              : match.matchReport,
-        ),
-        pw.SizedBox(height: 18),
-        pw.Text(
-          'Spielverlauf',
-          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        ..._matchHistoryWidgets(match, sortedEvents),
+        if (orderedSourceMatches != null &&
+            orderedSourceMatches.length > 1) ...[
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'Einzelspiele: Bericht, Verlauf und Statistik',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          ),
+          for (final sourceMatch in orderedSourceMatches)
+            ..._individualMatchReportWidgets(
+              sourceMatch,
+              includeMatchDetails: true,
+            ),
+        ] else ...[
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'Spielbericht',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            match.matchReport.trim().isEmpty
+                ? 'Kein Spielbericht erfasst.'
+                : match.matchReport,
+          ),
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'Spielverlauf',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 6),
+          ..._matchHistoryWidgets(match, sortedEvents),
+        ],
       ],
       pw.SizedBox(height: 18),
       pw.Row(
@@ -262,7 +276,9 @@ class AppBackupService {
           ),
         ],
       ],
-      if (orderedSourceMatches != null && orderedSourceMatches.length > 1) ...[
+      if (orderedSourceMatches != null &&
+          orderedSourceMatches.length > 1 &&
+          !includeFullMatchDetails) ...[
         pw.SizedBox(height: 24),
         pw.Divider(color: pdf.PdfColors.grey400),
         pw.Text(
@@ -282,12 +298,20 @@ class AppBackupService {
               match.players.length,
               (total, sourceMatch) => total + sourceMatch.players.length,
             );
+      final detailedMatches = orderedSourceMatches ?? <MatchGame>[match];
+      final eventCount = detailedMatches.fold<int>(
+        0,
+        (total, sourceMatch) => total + sourceMatch.events.length,
+      );
+      final reportLength = detailedMatches.fold<int>(
+        0,
+        (total, sourceMatch) => total + sourceMatch.matchReport.length,
+      );
       final eventHistoryHeight = includeFullMatchDetails
-          ? match.events.length * 42 + (match.events.length / 18).ceil() * 20
+          ? eventCount * 42 + (eventCount / 18).ceil() * 20
           : 0;
-      final matchReportHeight = includeFullMatchDetails
-          ? (match.matchReport.length / 80).ceil() * 14
-          : 0;
+      final matchReportHeight =
+          includeFullMatchDetails ? (reportLength / 80).ceil() * 14 : 0;
       final pageHeight = math
           .max(
             pageFormat.height,
@@ -494,7 +518,10 @@ class AppBackupService {
         : portrait;
   }
 
-  static List<pw.Widget> _individualMatchReportWidgets(MatchGame match) {
+  static List<pw.Widget> _individualMatchReportWidgets(
+    MatchGame match, {
+    bool includeMatchDetails = false,
+  }) {
     final statisticsMatch = combineMatchesForStatistics([match]);
     final events = List<MatchEvent>.from(statisticsMatch.events)
       ..sort((a, b) {
@@ -543,6 +570,26 @@ class AppBackupService {
           ],
         ),
       ),
+      if (includeMatchDetails) ...[
+        pw.Text(
+          'Spielbericht',
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          match.matchReport.trim().isEmpty
+              ? 'Kein Spielbericht erfasst.'
+              : match.matchReport,
+        ),
+        pw.SizedBox(height: 12),
+        pw.Text(
+          'Spielverlauf',
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 4),
+        ..._matchHistoryWidgets(match, events),
+        pw.SizedBox(height: 14),
+      ],
       pw.Text(
         '${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
         style: const pw.TextStyle(color: pdf.PdfColors.grey700, fontSize: 9),
@@ -1272,14 +1319,16 @@ class AppBackupService {
   }
 
   static Future<void> exportCompleteMatchPdf(
-    BuildContext context,
-    MatchGame match,
-  ) {
+      BuildContext context, MatchGame match,
+      {List<MatchGame>? sourceMatches}) {
     final opponent = match.opponentTeam.isEmpty ? 'Spiel' : match.opponentTeam;
     return exportMatchStatsPdf(
       context,
       match,
-      title: 'Gesamtexport · $opponent',
+      title: sourceMatches != null && sourceMatches.length > 1
+          ? 'Gesamtexport · ${sourceMatches.length} Spiele'
+          : 'Gesamtexport · $opponent',
+      sourceMatches: sourceMatches,
       includeFullMatchDetails: true,
     );
   }

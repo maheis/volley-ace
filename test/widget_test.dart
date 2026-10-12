@@ -1958,6 +1958,7 @@ void main() {
       matchDateTime: DateTime(2026, 6, 1, 18),
       matchTag: '',
       matchType: 'Liga',
+      matchReport: 'Schneller Start und starke Abwehr.',
       players: const [MatchPlayer(id: 1, name: 'Ada', number: 7)],
       events: [
         MatchEvent(
@@ -2006,6 +2007,7 @@ void main() {
       matchDateTime: DateTime(2026, 6, 2, 19),
       matchTag: '',
       matchType: 'Turnier',
+      matchReport: 'Entscheidung im letzten Satz.',
       players: const [MatchPlayer(id: 2, name: 'Berta', number: 8)],
       events: [
         MatchEvent(
@@ -2127,6 +2129,16 @@ void main() {
     expect(completeBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
     expect(completeBytes.length, greaterThan(continuousStatsBytes.length));
     expect(pageCount(completeBytes), 1);
+    final completeMultiBytes = await AppBackupService.buildMatchStatsPdf(
+      combinedMatch,
+      title: 'Gesamtexport · 2 Spiele',
+      sourceMatches: selectedMatches,
+      includeFullMatchDetails: true,
+      landscape: true,
+      continuous: true,
+    );
+    expect(pageCount(completeMultiBytes), 1);
+    expect(completeMultiBytes.length, greaterThan(continuousBytes.length));
   });
 
   test('match rotation follows scored point events', () {

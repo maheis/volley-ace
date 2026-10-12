@@ -3700,6 +3700,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               sourceMatches: sourceMatches,
             ),
           ),
+          if (sourceMatches != null && sourceMatches.length > 1)
+            IconButton(
+              key: const ValueKey('export-complete-multiexport-pdf'),
+              tooltip: 'Komplettexport',
+              icon: const Icon(Icons.library_books_outlined),
+              onPressed: () => AppBackupService.exportCompleteMatchPdf(
+                context,
+                statisticsMatch,
+                sourceMatches: sourceMatches,
+              ),
+            ),
         ],
       ),
       body: SafeArea(
