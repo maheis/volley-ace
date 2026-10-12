@@ -1213,10 +1213,12 @@ class MatchStatsPage extends StatefulWidget {
     super.key,
     required this.database,
     this.initialMatchId,
+    this.initialSection,
   });
 
   final Database database;
   final int? initialMatchId;
+  final String? initialSection;
 
   @override
   State<MatchStatsPage> createState() => _MatchStatsPageState();
@@ -1366,7 +1368,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     });
     if (widget.initialMatchId != null &&
         _matches.any((match) => match.id == widget.initialMatchId)) {
-      _showMatchDetail(widget.initialMatchId!);
+      _showMatchDetail(
+        widget.initialMatchId!,
+        section: widget.initialSection,
+      );
     }
   }
 
@@ -4571,6 +4576,32 @@ class _TrendChartCardState extends State<_TrendChartCard> {
       ),
     );
   }
+}
+
+class MatchStatsTrendChart extends StatelessWidget {
+  const MatchStatsTrendChart({
+    super.key,
+    required this.title,
+    required this.samples,
+    required this.timeoutMarkers,
+    this.matchRanges = const <MatchTimeRange>[],
+    required this.height,
+  });
+
+  final String title;
+  final List<MatchTrendSample> samples;
+  final List<DateTime> timeoutMarkers;
+  final List<MatchTimeRange> matchRanges;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => _TrendChartCard(
+        title: title,
+        samples: samples,
+        timeoutMarkers: timeoutMarkers,
+        matchRanges: matchRanges,
+        height: height,
+      );
 }
 
 class _TrendLegendDot extends StatelessWidget {

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
+import '../analytics/match_stats_page.dart';
 import '../backup/app_backup_service.dart';
 import '../theme/app_palette.dart';
 
@@ -1413,6 +1414,18 @@ class _TeamsPageState extends State<TeamsPage> {
         ),
       );
 
+  Future<void> _openPlayerMatch(_PlayerMatchStats game) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MatchStatsPage(
+          database: widget.database,
+          initialMatchId: game.matchId,
+          initialSection: 'scoring',
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlayerStats(Team team, TeamPlayer player) {
     final linkedTeams = _teams.where((linkedTeam) {
       return linkedTeam.players.any((linkedPlayer) {
@@ -1422,34 +1435,33 @@ class _TeamsPageState extends State<TeamsPage> {
         return linkedTeam.id == team.id && linkedPlayer.id == player.id;
       });
     }).toList();
-    final games = <_PlayerMatchStats>[];
-    for (final match in _matches) {
-      if (match['teamId'] is! num ||
-          (match['teamId'] as num).toInt() != team.id) {
-        continue;
-      }
-      final players = match['players'];
-      if (players is! List) continue;
-      final matchPlayer = players.whereType<Map>().cast<Map?>().firstWhere(
-            (entry) =>
-                entry?['teamPlayerId'] is num &&
-                (entry?['teamPlayerId'] as num).toInt() == player.id,
-            orElse: () => null,
+    final chartMatches = playerMatchRecordsForTeamPlayer(
+      matches: _matches.map((match) => MatchGame.fromJson(match)).toList(),
+      team: team,
+      player: player,
+      linkedTeams: linkedTeams,
+    );
+    final games = chartMatches
+        .map(
+          (match) => _PlayerMatchStats(
+            match: match.toJson(),
+            events: match.events.map((event) => event.toJson()).toList(),
+            matchId: match.id,
+          ),
+        )
+        .toList();
+    final chartSamples = chartMatches.isEmpty
+        ? const <MatchTrendSample>[]
+        : matchPlayerTrendSamples(
+            combineMatchesForStatistics(chartMatches),
+            chartMatches,
+            1,
           );
-      if (matchPlayer == null || matchPlayer['id'] is! num) continue;
-      final playerId = (matchPlayer['id'] as num).toInt();
-      final events = match['events'];
-      final playerEvents = events is List
-          ? events
-              .whereType<Map>()
-              .where((event) =>
-                  event['playerId'] is num &&
-                  (event['playerId'] as num).toInt() == playerId)
-              .map((event) => Map<String, dynamic>.from(event))
-              .toList()
-          : <Map<String, dynamic>>[];
-      games.add(_PlayerMatchStats(match: match, events: playerEvents));
-    }
+    final chartTimeouts = chartMatches
+        .expand((match) => match.events
+            .where((event) => event.kind == 'timeout')
+            .map((event) => event.occurredAt))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -1482,7 +1494,18 @@ class _TeamsPageState extends State<TeamsPage> {
             const Text(
                 'Für diesen Spieler wurden noch keine Punktewertungen erfasst.')
           else ...[
-            _MatchParticipationTable(games: games),
+            MatchStatsTrendChart(
+              title: 'Zeitverlauf Punkte und Fehler',
+              samples: chartSamples,
+              timeoutMarkers: chartTimeouts,
+              matchRanges: matchTimeRangesFor(chartMatches),
+              height: 220,
+            ),
+            const SizedBox(height: 12),
+            _MatchParticipationTable(
+              games: games,
+              onOpenMatch: _openPlayerMatch,
+            ),
             const SizedBox(height: 12),
             _PlayerCategoryStatsTable(
               title: 'Punkte pro Art',
@@ -1706,17 +1729,84 @@ class _DetailTile extends StatelessWidget {
       );
 }
 
+List<MatchGame> playerMatchRecordsForTeamPlayer({
+  required List<MatchGame> matches,
+  required Team team,
+  required TeamPlayer player,
+  required List<Team> linkedTeams,
+}) {
+  final linkedPlayers = [
+    for (final linkedTeam in linkedTeams)
+      for (final linkedPlayer in linkedTeam.players)
+        if (player.personId != null && linkedPlayer.personId != null
+            ? linkedPlayer.personId == player.personId
+            : linkedTeam.id == team.id && linkedPlayer.id == player.id)
+          MapEntry(linkedTeam, linkedPlayer),
+  ];
+  final result = <MatchGame>[];
+  for (final match in matches) {
+    MatchPlayer? matchPlayer;
+    for (final linkedPlayer in linkedPlayers) {
+      final linkedTeam = linkedPlayer.key;
+      final linkedTeamPlayer = linkedPlayer.value;
+      final rosterPlayer = match.players.where((candidate) {
+        final sourceTeamId = match.teamId ?? candidate.sourceTeamId;
+        return candidate.teamPlayerId == linkedTeamPlayer.id &&
+            sourceTeamId == linkedTeam.id;
+      }).firstOrNull;
+      final candidatePlayer = rosterPlayer ??
+          (match.teamId == linkedTeam.id
+              ? match.players
+                  .where((candidate) =>
+                      candidate.teamPlayerId == linkedTeamPlayer.id ||
+                      candidate.name.trim().toLowerCase() ==
+                          linkedTeamPlayer.name.trim().toLowerCase())
+                  .firstOrNull
+              : null);
+      if (candidatePlayer == null) continue;
+      matchPlayer = candidatePlayer;
+      break;
+    }
+    if (matchPlayer == null) continue;
+
+    result.add(
+      match.copyWith(
+        teamId: team.id,
+        players: [
+          matchPlayer.copyWith(
+            teamPlayerId: player.id,
+            sourceTeamId: team.id,
+          ),
+        ],
+        events: match.events
+            .where((event) => event.scorerIds.contains(matchPlayer!.id))
+            .toList(),
+      ),
+    );
+  }
+  return result;
+}
+
 class _PlayerMatchStats {
-  const _PlayerMatchStats({required this.match, required this.events});
+  const _PlayerMatchStats({
+    required this.match,
+    required this.events,
+    required this.matchId,
+  });
 
   final Map<String, dynamic> match;
   final List<Map<String, dynamic>> events;
+  final int matchId;
 }
 
 class _MatchParticipationTable extends StatelessWidget {
-  const _MatchParticipationTable({required this.games});
+  const _MatchParticipationTable({
+    required this.games,
+    required this.onOpenMatch,
+  });
 
   final List<_PlayerMatchStats> games;
+  final ValueChanged<_PlayerMatchStats> onOpenMatch;
 
   @override
   Widget build(BuildContext context) => _StatsTableCard(
@@ -1734,7 +1824,22 @@ class _MatchParticipationTable extends StatelessWidget {
           rows: [
             for (final game in games)
               DataRow(cells: [
-                DataCell(Text(_matchLabel(game.match))),
+                DataCell(
+                  InkWell(
+                    key: ValueKey('player-stat-match-${game.matchId}'),
+                    onTap: () => onOpenMatch(game),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        _matchLabel(game.match),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 DataCell(Text(_matchType(game.match))),
                 DataCell(Text('${_countEvents(game.events, 'point')}')),
                 DataCell(Text('${_countEvents(game.events, 'error')}')),

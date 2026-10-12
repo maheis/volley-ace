@@ -2797,6 +2797,86 @@ void main() {
     expect(find.textContaining('Cheftrainerin'), findsOneWidget);
   });
 
+  test('player statistics maps linked games and trend events', () {
+    const team = Team(
+      id: 7,
+      name: 'SV Beispiel',
+      players: [
+        TeamPlayer(
+          id: 1,
+          name: 'Ada',
+          number: 7,
+          birthDate: null,
+          position: 'Zuspiel',
+          profile: '',
+          personId: 100,
+        ),
+      ],
+      coaches: [],
+    );
+    const linkedTeam = Team(
+      id: 8,
+      name: 'SV Beispiel U18',
+      players: [
+        TeamPlayer(
+          id: 2,
+          name: 'Ada',
+          number: 3,
+          birthDate: null,
+          position: 'Zuspiel',
+          profile: '',
+          personId: 100,
+        ),
+      ],
+      coaches: [],
+    );
+    MatchGame match(int id, int teamId, int teamPlayerId, int scorerId) =>
+        MatchGame(
+          id: id,
+          createdAt: DateTime(2026, 6, id),
+          location: 'Halle',
+          opponentTeam: 'Team $id',
+          matchDateTime: DateTime(2026, 6, id, 18),
+          matchTag: '',
+          matchType: 'Liga',
+          teamId: teamId,
+          players: [
+            MatchPlayer(
+              id: scorerId,
+              name: 'Ada',
+              number: 7,
+              teamPlayerId: teamPlayerId,
+              sourceTeamId: teamId,
+            ),
+          ],
+          events: [
+            MatchEvent(
+              id: 1,
+              playerId: scorerId,
+              playerName: 'Ada',
+              playerNumber: 7,
+              kind: 'point',
+              category: 'Angriff',
+              occurredAt: DateTime(2026, 6, id, 18, 1),
+            ),
+          ],
+        );
+
+    final matches = playerMatchRecordsForTeamPlayer(
+      matches: [match(1, 7, 1, 22), match(2, 8, 2, 33), match(3, 9, 3, 44)],
+      team: team,
+      player: team.players.single,
+      linkedTeams: [team, linkedTeam],
+    );
+    final combined = combineMatchesForStatistics(matches);
+    final samples = matchPlayerTrendSamples(combined, matches, 1);
+
+    expect(matches.map((entry) => entry.id), [1, 2]);
+    expect(matches.every((entry) => entry.players.single.teamPlayerId == 1),
+        isTrue);
+    expect(samples.last.points, 2);
+  });
+
   testWidgets('Training shows team attendance matrix sorted by player number', (
     WidgetTester tester,
   ) async {
