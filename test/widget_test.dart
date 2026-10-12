@@ -1478,6 +1478,65 @@ void main() {
     );
   });
 
+  test('multiselect player trend stays flat during matches they did not score',
+      () {
+    MatchEvent point(int id, int playerId, DateTime time) => MatchEvent(
+          id: id,
+          playerId: playerId,
+          playerName: playerId == 1 ? 'Ada' : 'Berta',
+          playerNumber: playerId == 1 ? 7 : 8,
+          kind: 'point',
+          category: 'Block',
+          occurredAt: time,
+        );
+    MatchGame match({
+      required int id,
+      required DateTime date,
+      required List<MatchPlayer> players,
+      required List<MatchEvent> events,
+    }) =>
+        MatchGame(
+          id: id,
+          createdAt: date,
+          location: '',
+          opponentTeam: 'Team $id',
+          matchDateTime: date,
+          matchTag: '',
+          matchType: 'Liga',
+          players: players,
+          events: events,
+        );
+
+    final firstMatchTime = DateTime(2026, 10, 1, 18);
+    final secondMatchTime = DateTime(2026, 10, 8, 20);
+    final matches = [
+      match(
+        id: 1,
+        date: firstMatchTime,
+        players: const [MatchPlayer(id: 1, name: 'Ada', number: 7)],
+        events: [point(1, 1, firstMatchTime)],
+      ),
+      match(
+        id: 2,
+        date: secondMatchTime,
+        players: const [
+          MatchPlayer(id: 1, name: 'Ada', number: 7),
+          MatchPlayer(id: 2, name: 'Berta', number: 8),
+        ],
+        events: [point(1, 2, secondMatchTime)],
+      ),
+    ];
+    final combined = combineMatchesForStatistics(matches);
+    final ada = combined.players.singleWhere((player) => player.name == 'Ada');
+
+    final samples = matchPlayerTrendSamples(combined, matches, ada.id);
+
+    expect(samples, hasLength(6));
+    expect(samples.map((sample) => sample.points), [0, 1, 1, 1, 1, 1]);
+    expect(samples[3].time, secondMatchTime);
+    expect(samples.last.time, secondMatchTime.add(const Duration(minutes: 1)));
+  });
+
   test('legacy receive error categories load without the word error', () {
     final event = MatchEvent.fromJson({
       'id': 1,

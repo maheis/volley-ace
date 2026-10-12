@@ -440,12 +440,107 @@ List<MatchTimeRange> matchTimeRangesFor(List<MatchGame> matches) {
         .map((event) => event.occurredAt)
         .toList()
       ..sort();
-    if (times.isNotEmpty) {
-      ranges.add(MatchTimeRange(start: times.first, end: times.last));
-    }
+    final start = times.firstOrNull ?? match.matchDateTime;
+    final rawEnd = times.lastOrNull ?? start;
+    final end =
+        rawEnd.isAfter(start) ? rawEnd : start.add(const Duration(minutes: 1));
+    ranges.add(MatchTimeRange(start: start, end: end));
   }
   ranges.sort((first, second) => first.start.compareTo(second.start));
   return ranges;
+}
+
+class MatchTrendSample {
+  const MatchTrendSample({
+    required this.time,
+    required this.points,
+    required this.errors,
+    required this.opponentErrors,
+  });
+
+  final DateTime time;
+  final int points;
+  final int errors;
+  final int opponentErrors;
+}
+
+List<MatchTrendSample> matchPlayerTrendSamples(
+  MatchGame combinedMatch,
+  List<MatchGame> sourceMatches,
+  int combinedPlayerId,
+) {
+  final combinedPlayer = combinedMatch.players
+      .where((player) => player.id == combinedPlayerId)
+      .firstOrNull;
+  if (combinedPlayer == null) return const <MatchTrendSample>[];
+
+  MatchPlayer? sourcePlayerFor(MatchGame sourceMatch) {
+    return sourceMatch.players.where((sourcePlayer) {
+      if (combinedPlayer.teamPlayerId != null &&
+          sourcePlayer.teamPlayerId != null) {
+        return sourcePlayer.teamPlayerId == combinedPlayer.teamPlayerId &&
+            combinedPlayer.sourceTeamId ==
+                (sourceMatch.teamId ?? sourcePlayer.sourceTeamId);
+      }
+      return sourcePlayer.name.trim().toLowerCase() ==
+          combinedPlayer.name.trim().toLowerCase();
+    }).firstOrNull;
+  }
+
+  final orderedMatches = sourceMatches
+      .map((sourceMatch) => (
+            match: sourceMatch,
+            range: matchTimeRangesFor([sourceMatch]).single,
+          ))
+      .toList()
+    ..sort((first, second) => first.range.start.compareTo(second.range.start));
+
+  var points = 0;
+  var errors = 0;
+  var opponentErrors = 0;
+  final samples = <MatchTrendSample>[];
+  for (final entry in orderedMatches) {
+    final sourceMatch = entry.match;
+    final range = entry.range;
+    final sourcePlayer = sourcePlayerFor(sourceMatch);
+    final scoredEvents = sourceMatch.events
+        .where((event) => event.kind == 'point' || event.kind == 'error')
+        .toList()
+      ..sort((first, second) {
+        final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+        return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+      });
+
+    samples.add(MatchTrendSample(
+      time: range.start,
+      points: points,
+      errors: errors,
+      opponentErrors: opponentErrors,
+    ));
+    for (final event in scoredEvents) {
+      if (sourcePlayer != null && event.scorerIds.contains(sourcePlayer.id)) {
+        if (event.kind == 'point') {
+          points++;
+          if (event.category == 'Gegner Fehler') opponentErrors++;
+        } else {
+          errors++;
+        }
+      }
+      samples.add(MatchTrendSample(
+        time: event.occurredAt,
+        points: points,
+        errors: errors,
+        opponentErrors: opponentErrors,
+      ));
+    }
+    samples.add(MatchTrendSample(
+      time: range.end,
+      points: points,
+      errors: errors,
+      opponentErrors: opponentErrors,
+    ));
+  }
+  return samples;
 }
 
 double compressedMatchTimelinePosition(
@@ -3414,7 +3509,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               for (final player in statisticsMatch.players) ...[
                 _TrendChartCard(
                   title: player.name,
-                  samples: _trendSamples(match, playerId: player.id),
+                  samples: _trendSamples(
+                    match,
+                    playerId: player.id,
+                    sourceMatches: sourceMatches,
+                  ),
                   timeoutMarkers: _timeoutMarkers(match),
                   matchRanges: matchRanges,
                   height: 180,
@@ -3476,7 +3575,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     }
   }
 
-  List<_TrendSample> _trendSamples(MatchGame match, {int? playerId}) {
+  List<MatchTrendSample> _trendSamples(
+    MatchGame match, {
+    int? playerId,
+    List<MatchGame>? sourceMatches,
+  }) {
+    if (playerId != null && sourceMatches != null) {
+      return matchPlayerTrendSamples(match, sourceMatches, playerId);
+    }
     final events = match.events
         .where(
             (event) => playerId == null || event.scorerIds.contains(playerId))
@@ -3488,11 +3594,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       });
 
     if (events.isEmpty) {
-      return const <_TrendSample>[];
+      return const <MatchTrendSample>[];
     }
 
-    final samples = <_TrendSample>[
-      _TrendSample(
+    final samples = <MatchTrendSample>[
+      MatchTrendSample(
         time: events.first.occurredAt,
         points: 0,
         errors: 0,
@@ -3510,7 +3616,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         errors++;
       }
       samples.add(
-        _TrendSample(
+        MatchTrendSample(
           time: event.occurredAt,
           points: points,
           errors: errors,
@@ -4113,20 +4219,6 @@ class _SelectedMatchesSummary extends StatelessWidget {
   }
 }
 
-class _TrendSample {
-  const _TrendSample({
-    required this.time,
-    required this.points,
-    required this.errors,
-    required this.opponentErrors,
-  });
-
-  final DateTime time;
-  final int points;
-  final int errors;
-  final int opponentErrors;
-}
-
 double trendChartMaxTimeScale(int sampleCount) =>
     (sampleCount / 4).clamp(16.0, 64.0).toDouble();
 
@@ -4140,7 +4232,7 @@ class _TrendChartCard extends StatefulWidget {
   });
 
   final String title;
-  final List<_TrendSample> samples;
+  final List<MatchTrendSample> samples;
   final List<DateTime> timeoutMarkers;
   final List<MatchTimeRange> matchRanges;
   final double height;
@@ -4296,7 +4388,7 @@ class _TrendChartPainter extends CustomPainter {
     required this.matchRanges,
   });
 
-  final List<_TrendSample> samples;
+  final List<MatchTrendSample> samples;
   final List<DateTime> timeoutMarkers;
   final List<MatchTimeRange> matchRanges;
 
