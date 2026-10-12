@@ -84,6 +84,9 @@ class MatchEvent {
     required this.occurredAt,
     this.rotationPosition,
     this.playerIds = const <int>[],
+    this.replacedPlayerId,
+    this.replacedPlayerName,
+    this.replacedPlayerNumber,
   });
 
   final int id;
@@ -95,6 +98,9 @@ class MatchEvent {
   final DateTime occurredAt;
   final int? rotationPosition;
   final List<int> playerIds;
+  final int? replacedPlayerId;
+  final String? replacedPlayerName;
+  final int? replacedPlayerNumber;
 
   List<int> get scorerIds => playerIds.isNotEmpty
       ? playerIds
@@ -110,6 +116,10 @@ class MatchEvent {
     String? kind,
     String? category,
     List<int>? playerIds,
+    int? replacedPlayerId,
+    bool clearReplacedPlayerId = false,
+    String? replacedPlayerName,
+    int? replacedPlayerNumber,
   }) =>
       MatchEvent(
         id: id,
@@ -121,6 +131,11 @@ class MatchEvent {
         occurredAt: occurredAt,
         rotationPosition: rotationPosition,
         playerIds: playerIds ?? this.playerIds,
+        replacedPlayerId: clearReplacedPlayerId
+            ? null
+            : (replacedPlayerId ?? this.replacedPlayerId),
+        replacedPlayerName: replacedPlayerName ?? this.replacedPlayerName,
+        replacedPlayerNumber: replacedPlayerNumber ?? this.replacedPlayerNumber,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -133,6 +148,9 @@ class MatchEvent {
         'occurredAtMillis': occurredAt.millisecondsSinceEpoch,
         'rotationPosition': rotationPosition,
         'playerIds': playerIds,
+        'replacedPlayerId': replacedPlayerId,
+        'replacedPlayerName': replacedPlayerName,
+        'replacedPlayerNumber': replacedPlayerNumber,
       };
 
   static MatchEvent fromJson(Map<String, dynamic> data) {
@@ -143,6 +161,9 @@ class MatchEvent {
     final kind = data['kind'];
     final category = data['category'];
     final playerIdsData = data['playerIds'];
+    final replacedPlayerId = data['replacedPlayerId'];
+    final replacedPlayerName = data['replacedPlayerName'];
+    final replacedPlayerNumber = data['replacedPlayerNumber'];
     final categoryName = category is String ? category : 'Ass';
     final occurredAtMillis = data['occurredAtMillis'];
 
@@ -164,6 +185,12 @@ class MatchEvent {
       playerIds: playerIdsData is List
           ? playerIdsData.whereType<num>().map((id) => id.toInt()).toList()
           : const <int>[],
+      replacedPlayerId:
+          replacedPlayerId is num ? replacedPlayerId.toInt() : null,
+      replacedPlayerName:
+          replacedPlayerName is String ? replacedPlayerName : null,
+      replacedPlayerNumber:
+          replacedPlayerNumber is num ? replacedPlayerNumber.toInt() : null,
     );
   }
 }
@@ -641,6 +668,11 @@ MatchGame combineMatchesForStatistics(List<MatchGame> matches) {
           category: event.category,
           occurredAt: event.occurredAt,
           rotationPosition: event.rotationPosition,
+          replacedPlayerId: event.replacedPlayerId == null
+              ? null
+              : playerIds[event.replacedPlayerId],
+          replacedPlayerName: event.replacedPlayerName,
+          replacedPlayerNumber: event.replacedPlayerNumber,
         ),
       );
     }
@@ -949,6 +981,7 @@ class MatchScorerSelectionView extends StatefulWidget {
   const MatchScorerSelectionView({
     super.key,
     required this.players,
+    required this.countdownProgress,
     required this.displayPlayerName,
     required this.onBack,
     required this.onBookUnknown,
@@ -959,6 +992,7 @@ class MatchScorerSelectionView extends StatefulWidget {
   });
 
   final List<MatchPlayer> players;
+  final double countdownProgress;
   final String Function(MatchPlayer) displayPlayerName;
   final VoidCallback onBack;
   final VoidCallback onBookUnknown;
@@ -1061,6 +1095,15 @@ class _MatchScorerSelectionViewState extends State<MatchScorerSelectionView> {
             ),
         ],
       ),
+      bottomNavigationBar: widget.countdownProgress > 0
+          ? SizedBox(
+              height: 4,
+              child: LinearProgressIndicator(
+                value: widget.countdownProgress,
+                minHeight: 4,
+              ),
+            )
+          : null,
       body: SafeArea(
         child: ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -1277,6 +1320,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   DateTime _now = DateTime.now();
   Timer? _clockTimer;
   Timer? _scoringSelectionTimer;
+  Timer? _scoringProgressTimer;
+  double _scoringSelectionProgress = 0;
 
   @override
   void initState() {
@@ -1412,7 +1457,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _showMatchDetail(int matchId, {String? section}) {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     if (section == 'info') {
       final match = _matches.firstWhere((entry) => entry.id == matchId);
       _locationController.text = match.location;
@@ -1432,7 +1477,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _closeMatchDetail() {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     setState(() {
       _selectedMatchIds.clear();
       _selectedMatchId = null;
@@ -1446,7 +1491,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _handleSystemBack() {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     if (_activeSection == 'multi-stats') {
       setState(() => _activeSection = null);
       return;
@@ -1841,6 +1886,33 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     unawaited(_persist());
   }
 
+  Future<void> _editLastBooking(MatchGame match) async {
+    final bookings = match.events
+        .where((event) => event.kind == 'point' || event.kind == 'error')
+        .toList()
+      ..sort((first, second) {
+        final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+        return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+      });
+    if (bookings.isEmpty) return;
+    final event = bookings.last;
+    final updatedEvent = await showDialog<MatchEvent>(
+      context: context,
+      builder: (context) => _EditMatchEventDialog(
+        event: event,
+        players: match.players,
+      ),
+    );
+    if (updatedEvent == null || !mounted) return;
+    _replaceMatch(
+      match.copyWith(
+        events: match.events
+            .map((entry) => entry.id == updatedEvent.id ? updatedEvent : entry)
+            .toList(),
+      ),
+    );
+  }
+
   Future<void> _deleteMatch(MatchGame match) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -1876,7 +1948,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _startEventSelection(MatchGame match, {required bool isPoint}) {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     setState(() {
       _pendingEventKind = isPoint ? 'point' : 'error';
       _pendingCategoryPath = <String>[];
@@ -1910,7 +1982,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _cancelEventSelection() {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     setState(() {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
@@ -2059,7 +2131,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
     var category = _pendingCategoryPath.join(' · ');
     if (mainCategory.requiresText) {
-      _scoringSelectionTimer?.cancel();
+      _cancelScoringSelectionTimers();
       final details = await _requestOtherCategoryDetails();
       if (!mounted) return;
       if (details == _otherCategoryTimeoutResult) {
@@ -2100,11 +2172,36 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _scheduleScoringSelectionTimeout(MatchGame match) {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
+    var elapsedMilliseconds = 0;
+    setState(() => _scoringSelectionProgress = 1);
+    _scoringProgressTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (timer) {
+        elapsedMilliseconds += 100;
+        if (!mounted ||
+            elapsedMilliseconds >= _scoringSelectionTimeout.inMilliseconds) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          _scoringSelectionProgress =
+              1 - elapsedMilliseconds / _scoringSelectionTimeout.inMilliseconds;
+        });
+      },
+    );
     _scoringSelectionTimer = Timer(_scoringSelectionTimeout, () {
+      _scoringProgressTimer?.cancel();
+      _scoringSelectionProgress = 0;
       if (!mounted || _pendingCategoryPath.isEmpty) return;
       _createMainCategoryEvent(match);
     });
+  }
+
+  void _cancelScoringSelectionTimers() {
+    _scoringSelectionTimer?.cancel();
+    _scoringProgressTimer?.cancel();
+    _scoringSelectionProgress = 0;
   }
 
   void _createMainCategoryEvent(MatchGame match) {
@@ -2164,7 +2261,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
     var category = path.join(' · ');
     if (selected.requiresText) {
-      _scoringSelectionTimer?.cancel();
+      _cancelScoringSelectionTimers();
       final details = await _requestOtherCategoryDetails();
       if (!mounted) return;
       if (details == _otherCategoryTimeoutResult) {
@@ -2196,7 +2293,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     int? playerNumber,
     List<int>? playerIds,
   }) {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     final player = match.players.cast<MatchPlayer?>().firstWhere(
           (entry) => entry?.id == playerId,
           orElse: () => null,
@@ -2236,7 +2333,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _backFromPlayerSelection() {
-    _scoringSelectionTimer?.cancel();
+    _cancelScoringSelectionTimers();
     if (_pendingCategoryPath.isEmpty) {
       _cancelEventSelection();
       return;
@@ -2932,6 +3029,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   ) async {
     final rotation = _rotationAfterEvents(match);
     if (rotation == null) return;
+    final outgoingId = position < rotation.left.positions.length
+        ? rotation.left.positions[position]
+        : null;
+    final outgoingPlayer = outgoingId == null
+        ? null
+        : rotation.left.players
+            .where((player) => player.id == outgoingId)
+            .firstOrNull;
     final activeRotationIds = rotation.left.positions.toSet();
     final benchPlayers = match.players
         .where((player) => !activeRotationIds.contains('match-${player.id}'))
@@ -2976,6 +3081,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           category: 'Spielerwechsel',
           occurredAt: DateTime.now(),
           rotationPosition: position,
+          replacedPlayerId: outgoingPlayer == null
+              ? null
+              : int.tryParse(outgoingPlayer.id.replaceFirst('match-', '')),
+          replacedPlayerName: outgoingPlayer?.name,
+          replacedPlayerNumber: outgoingPlayer?.number,
         ),
       );
     _replaceMatch(match.copyWith(events: events));
@@ -3193,6 +3303,16 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             icon: const Icon(Icons.redo),
           ),
           IconButton(
+            key: const ValueKey('edit-last-booking'),
+            tooltip: 'Letzte Buchung bearbeiten',
+            onPressed: match.events.any(
+              (event) => event.kind == 'point' || event.kind == 'error',
+            )
+                ? () => _editLastBooking(match)
+                : null,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+          IconButton(
             key: const ValueKey('match-history-appbar-button'),
             icon: const Icon(Icons.history),
             tooltip: 'Verlauf',
@@ -3342,10 +3462,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Widget _buildPlayerSelectionView(MatchGame match) {
     return MatchScorerSelectionView(
       players: _fieldPlayersForScoring(match),
+      countdownProgress: _scoringSelectionProgress,
       displayPlayerName: (player) => _displayPlayerName(match, player),
       onBack: _backFromPlayerSelection,
       onBookUnknown: () => _bookPendingEventAsUnknown(match),
-      onMultiSelectStarted: () => _scoringSelectionTimer?.cancel(),
+      onMultiSelectStarted: () {
+        _cancelScoringSelectionTimers();
+        setState(() {});
+      },
       onSelectSpecial: (scorerId) => _selectSpecialScorer(match, scorerId),
       onSelectPlayer: (player) => _selectPlayerForEvent(match, player),
       onSelectPlayers: (players) => _selectScorersForEvent(
@@ -3383,6 +3507,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                       }),
         ),
       ),
+      bottomNavigationBar: _scoringSelectionProgress > 0
+          ? SizedBox(
+              height: 4,
+              child: LinearProgressIndicator(
+                value: _scoringSelectionProgress,
+                minHeight: 4,
+              ),
+            )
+          : null,
       body: SafeArea(
         child: ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -3722,6 +3855,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   void dispose() {
     _clockTimer?.cancel();
     _scoringSelectionTimer?.cancel();
+    _scoringProgressTimer?.cancel();
     _playerNameController.dispose();
     _playerNumberController.dispose();
     _coachNameController.dispose();
@@ -4729,7 +4863,17 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
     }).length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verlauf')),
+      appBar: AppBar(
+        title: const Text('Verlauf'),
+        actions: [
+          IconButton(
+            tooltip: 'Verlauf als PDF exportieren',
+            onPressed: () =>
+                AppBackupService.exportMatchHistoryPdf(context, _match),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: entries.isEmpty
             ? const Center(
@@ -5081,7 +5225,7 @@ class _HistoryTimelineRow extends StatelessWidget {
                         isTimeout
                             ? 'Team-Auszeit'
                             : isSubstitution
-                                ? '${event.playerName} · Position ${(event.rotationPosition ?? 0) + 1}'
+                                ? '${event.replacedPlayerName ?? 'Unbekannt'}${event.replacedPlayerNumber == null ? '' : ' · ${event.replacedPlayerNumber}'} → ${event.playerName} · Position ${(event.rotationPosition ?? 0) + 1}'
                                 : '${event.playerName}  •  ${event.category}',
                         style: textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,

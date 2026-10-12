@@ -1114,6 +1114,7 @@ void main() {
             MatchPlayer(id: 1, name: 'Ada', number: 7),
             MatchPlayer(id: 2, name: 'Berta', number: 8),
           ],
+          countdownProgress: 0.5,
           displayPlayerName: (player) => player.name,
           onBack: () {},
           onBookUnknown: () {},
@@ -1125,6 +1126,13 @@ void main() {
       ),
     );
     await tester.pump();
+
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+          .value,
+      0.5,
+    );
 
     await tester.longPress(find.byKey(const ValueKey('select-player-1')));
     await tester.pump();
@@ -1186,6 +1194,44 @@ void main() {
 
     expect(combined.events, hasLength(1));
     expect(combined.events.single.scorerIds, [1, 2]);
+  });
+
+  test('substitution events retain both player identities', () {
+    final event = MatchEvent(
+      id: 3,
+      playerId: 2,
+      playerName: 'Berta',
+      playerNumber: 8,
+      kind: 'substitution',
+      category: 'Spielerwechsel',
+      occurredAt: DateTime(2026, 10, 1, 18),
+      rotationPosition: 3,
+      replacedPlayerId: 1,
+      replacedPlayerName: 'Ada',
+      replacedPlayerNumber: 7,
+    );
+    final restored = MatchEvent.fromJson(event.toJson());
+    final match = MatchGame(
+      id: 43,
+      createdAt: DateTime(2026, 10, 1),
+      location: '',
+      opponentTeam: 'Team Blau',
+      matchDateTime: DateTime(2026, 10, 1, 18),
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+        MatchPlayer(id: 2, name: 'Berta', number: 8),
+      ],
+      events: [restored],
+    );
+
+    expect(restored.replacedPlayerId, 1);
+    expect(restored.replacedPlayerName, 'Ada');
+    expect(restored.replacedPlayerNumber, 7);
+    final combined = combineMatchesForStatistics([match]);
+    expect(combined.events.single.replacedPlayerName, 'Ada');
+    expect(combined.events.single.replacedPlayerNumber, 7);
   });
 
   testWidgets(
@@ -1384,6 +1430,20 @@ void main() {
       find.text('Mannschaft  •  Aufschlag · Scharf'),
       findsOneWidget,
     );
+
+    await tester.tap(find.byIcon(Icons.arrow_back).last);
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('edit-last-booking')));
+    await _pumpUi(tester);
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Letzte Buchung angepasst',
+    );
+    await tester.tap(find.text('Speichern'));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
+    await _pumpUi(tester);
+    expect(find.text('Ada Neu  •  Letzte Buchung angepasst'), findsOneWidget);
   });
 
   testWidgets('Point scoring can record opponent error without player', (
@@ -1968,6 +2028,29 @@ void main() {
     );
     expect(landscapeBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
     expect(landscapeBytes, isNot(singleMatchBytes));
+
+    final historyMatch = match.copyWith(
+      events: [
+        ...match.events,
+        MatchEvent(
+          id: 5,
+          playerId: 2,
+          playerName: 'Berta',
+          playerNumber: 8,
+          kind: 'substitution',
+          category: 'Spielerwechsel',
+          occurredAt: DateTime(2026, 6, 1, 18, 8),
+          rotationPosition: 3,
+          replacedPlayerId: 1,
+          replacedPlayerName: 'Ada',
+          replacedPlayerNumber: 7,
+        ),
+      ],
+    );
+    final historyBytes =
+        await AppBackupService.buildMatchHistoryPdf(historyMatch);
+    expect(historyBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    expect(historyBytes.length, greaterThan(1000));
   });
 
   test('match rotation follows scored point events', () {

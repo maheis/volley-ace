@@ -312,6 +312,138 @@ class AppBackupService {
     return document.save();
   }
 
+  static Future<Uint8List> buildMatchHistoryPdf(MatchGame match) async {
+    final events = List<MatchEvent>.from(match.events)
+      ..sort((first, second) {
+        final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+        return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+      });
+    final rows = <List<String>>[];
+    var setNumber = 1;
+    var us = 0;
+    var opponent = 0;
+    for (final event in events) {
+      if (event.kind == 'point') {
+        us++;
+      } else if (event.kind == 'error') {
+        opponent++;
+      }
+      final manualSetEnd = event.kind == 'manual_set_end';
+      final setFinished = manualSetEnd ||
+          (us >= 25 && us - opponent >= 2) ||
+          (opponent >= 25 && opponent - us >= 2);
+      final String action;
+      final String details;
+      if (event.kind == 'point') {
+        action = 'Punkt';
+        details = '${event.playerName} · ${event.category}';
+      } else if (event.kind == 'error') {
+        action = 'Fehler';
+        details = '${event.playerName} · ${event.category}';
+      } else if (event.kind == 'substitution') {
+        action = 'Spielerwechsel';
+        final outgoing = event.replacedPlayerName ?? 'Unbekannt';
+        final outgoingNumber = event.replacedPlayerNumber == null
+            ? ''
+            : ' · ${event.replacedPlayerNumber}';
+        final position = event.rotationPosition == null
+            ? ''
+            : ' · Position ${event.rotationPosition! + 1}';
+        details = '$outgoing$outgoingNumber -> ${event.playerName}$position';
+      } else if (event.kind == 'timeout') {
+        action = 'Auszeit';
+        details = event.category;
+      } else if (event.kind == 'manual_set_end') {
+        action = 'Satzende';
+        details = 'Manuell';
+      } else {
+        action = event.kind;
+        details = event.category;
+      }
+      rows.add([
+        _formatPdfDateTime(event.occurredAt).replaceAll('–', '-'),
+        '$setNumber',
+        '$us:$opponent',
+        action,
+        details,
+      ]);
+      if (setFinished) {
+        setNumber++;
+        us = 0;
+        opponent = 0;
+      }
+    }
+
+    final document = pw.Document();
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: pdf.PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(bottom: 12),
+          child: pw.Text(
+            'VolleyAce · Spielverlauf',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 9,
+            ),
+          ),
+        ),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 12),
+          child: pw.Text(
+            '${context.pageNumber} / ${context.pagesCount}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 9,
+            ),
+          ),
+        ),
+        build: (_) => <pw.Widget>[
+          pw.Text(
+            'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
+            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 10,
+            ),
+          ),
+          pw.SizedBox(height: 18),
+          if (rows.isEmpty)
+            pw.Text('Noch keine Verlaufseinträge vorhanden.')
+          else
+            pw.Table(
+              border: pw.TableBorder.all(
+                color: pdf.PdfColors.grey400,
+                width: 0.5,
+              ),
+              columnWidths: const <int, pw.TableColumnWidth>{
+                0: pw.FlexColumnWidth(1.5),
+                1: pw.FlexColumnWidth(0.6),
+                2: pw.FlexColumnWidth(0.8),
+                3: pw.FlexColumnWidth(1),
+                4: pw.FlexColumnWidth(3.2),
+              },
+              children: [
+                _tableRow(
+                  ['Zeit', 'Satz', 'Stand', 'Aktion', 'Spieler / Details'],
+                  header: true,
+                ),
+                for (final row in rows) _tableRow(row),
+              ],
+            ),
+        ],
+      ),
+    );
+    return document.save();
+  }
+
   static pdf.PdfPageFormat _pageFormat(bool landscape) {
     const portrait = pdf.PdfPageFormat.a4;
     return landscape
@@ -1152,6 +1284,56 @@ class AppBackupService {
       ShareParams(
         files: [XFile(file.path, mimeType: 'application/pdf')],
         subject: title,
+      ),
+    );
+  }
+
+  static Future<void> exportMatchHistoryPdf(
+    BuildContext context,
+    MatchGame match,
+  ) async {
+    final bytes = await buildMatchHistoryPdf(match);
+    if (!context.mounted) return;
+    final platform = Theme.of(context).platform;
+    final suggestedName =
+        'volleyace-verlauf-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+    if (platform == TargetPlatform.linux ||
+        platform == TargetPlatform.windows) {
+      try {
+        final selectedPath = await FilePicker.saveFile(
+          dialogTitle: 'Spielverlauf als PDF speichern',
+          fileName: suggestedName,
+          type: FileType.custom,
+          allowedExtensions: const ['pdf'],
+          bytes: bytes,
+        );
+        if (selectedPath == null || !context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF gespeichert: $selectedPath')),
+        );
+      } catch (_) {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$suggestedName');
+        await file.writeAsBytes(bytes, flush: true);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF gespeichert unter ${file.path}'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
+    }
+
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}/$suggestedName');
+    await file.writeAsBytes(bytes, flush: true);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'application/pdf')],
+        subject: 'Spielverlauf',
       ),
     );
   }
