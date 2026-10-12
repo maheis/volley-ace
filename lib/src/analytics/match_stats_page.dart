@@ -3573,6 +3573,7 @@ class _MatchRotationViewState extends State<MatchRotationView> {
                                 final coordinates = rotationCourtScreenPosition(
                                   slot,
                                   showOnLeft: _showOnLeft,
+                                  courtWidth: courtSize,
                                 );
                                 return Align(
                                   alignment: Alignment(

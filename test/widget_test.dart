@@ -76,11 +76,11 @@ void main() {
     expect(threePlayerPositions.map((position) => position.depth), [
       0.22,
       0.76,
-      0.76,
+      0.22,
     ]);
     expect(threePlayerPositions.map((position) => position.lateral), [
       0.82,
-      0.82,
+      0.5,
       0.18,
     ]);
 
@@ -88,9 +88,29 @@ void main() {
     expect(fourPlayerPositions.map((position) => position.depth), [
       0.22,
       0.76,
-      0.76,
+      0.22,
       0.22,
     ]);
+    expect(fourPlayerPositions.map((position) => position.lateral), [
+      0.82,
+      0.5,
+      0.18,
+      0.5,
+    ]);
+    expect(fourPlayerPositions[3].backOffsetPixels, 3);
+    const courtWidth = 420.0;
+    final leftPositionFour = rotationCourtScreenPosition(
+      fourPlayerPositions[3],
+      showOnLeft: true,
+      courtWidth: courtWidth,
+    );
+    final rightPositionFour = rotationCourtScreenPosition(
+      fourPlayerPositions[3],
+      showOnLeft: false,
+      courtWidth: courtWidth,
+    );
+    expect((0.22 - leftPositionFour.x) * courtWidth, closeTo(3, 0.001));
+    expect((rightPositionFour.x - 0.78) * courtWidth, closeTo(3, 0.001));
 
     final sixPlayerPositions = rotationCourtPositions('Damen');
     expect(sixPlayerPositions.map((position) => position.depth), [

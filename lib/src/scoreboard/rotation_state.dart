@@ -39,11 +39,13 @@ class RotationCourtPosition {
     required this.position,
     required this.depth,
     required this.lateral,
+    this.backOffsetPixels = 0,
   });
 
   final int position;
   final double depth;
   final double lateral;
+  final double backOffsetPixels;
 }
 
 List<RotationCourtPosition> rotationCourtPositions(String league) {
@@ -51,15 +53,20 @@ List<RotationCourtPosition> rotationCourtPositions(String league) {
     case 3:
       return const [
         RotationCourtPosition(position: 0, depth: 0.22, lateral: 0.82),
-        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.82),
-        RotationCourtPosition(position: 2, depth: 0.76, lateral: 0.18),
+        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.5),
+        RotationCourtPosition(position: 2, depth: 0.22, lateral: 0.18),
       ];
     case 4:
       return const [
         RotationCourtPosition(position: 0, depth: 0.22, lateral: 0.82),
-        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.82),
-        RotationCourtPosition(position: 2, depth: 0.76, lateral: 0.18),
-        RotationCourtPosition(position: 3, depth: 0.22, lateral: 0.18),
+        RotationCourtPosition(position: 1, depth: 0.76, lateral: 0.5),
+        RotationCourtPosition(position: 2, depth: 0.22, lateral: 0.18),
+        RotationCourtPosition(
+          position: 3,
+          depth: 0.22,
+          lateral: 0.5,
+          backOffsetPixels: 3,
+        ),
       ];
     default:
       return const [
@@ -77,15 +84,24 @@ List<RotationCourtPosition> rotationCourtPositions(String league) {
   RotationCourtPosition position, {
   required bool showOnLeft,
   bool fullCourt = false,
+  double courtWidth = 0,
 }) =>
     (
       x: fullCourt
           ? showOnLeft
-              ? position.depth * 0.5
-              : 1 - position.depth * 0.5
+              ? position.depth * 0.5 -
+                  (courtWidth == 0 ? 0 : position.backOffsetPixels / courtWidth)
+              : 1 -
+                  position.depth * 0.5 +
+                  (courtWidth == 0 ? 0 : position.backOffsetPixels / courtWidth)
           : showOnLeft
-              ? position.depth
-              : 1 - position.depth,
+              ? position.depth -
+                  (courtWidth == 0 ? 0 : position.backOffsetPixels / courtWidth)
+              : 1 -
+                  position.depth +
+                  (courtWidth == 0
+                      ? 0
+                      : position.backOffsetPixels / courtWidth),
       y: showOnLeft ? position.lateral : 1 - position.lateral,
     );
 

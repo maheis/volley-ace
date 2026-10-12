@@ -285,9 +285,6 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Spielernummern müssen auch bei Mannschaften noch änderbar/eintragbar sein (Spielernummern können ggf. nicht fix sein!)
 - [x] tagesstatistik / multistatistik
 - [x] sortierung der punktewertungen nach eingetragener spiel uhrzeit!
-- [ ] Diagramm mit Differenzpunkten?
-- [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
-- [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [x] satz beenden geht nicht
 - [x] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
 - [x] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
@@ -315,7 +312,6 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
 - [x] automatisches buchen nach zeit klappt noch nicht, wird hauptkategorie gewählt, aber dann nicht weiter, soll auf unbekannt gebucht werden. wird spieler aber nicht spezifiziert, soll nur hauptkategorie gebucht werden. timeout auf 7 sekunden setzten.
 - [x] rückgängig ist umgesetzt, ich brauche aber noch wiederholen (strg+z bzw. strg+y)
-- [ ] satzende soll automatisch erkannt werden?!
 - [x] diagramm zoom soll nicht einfach zoom sein! sondern die zeitachse sich nach rechts ausdehnen! also länger nach rechts werden
 - [x] sonstiges, auswahl der letzten eingabe wird nicht angeboten
 - [x] annahmefehler das "fehler" rausnehmen
@@ -323,11 +319,15 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
 - [x] diagramm bei multiselect zusammen dampfen, die zeiträume, in der kein spiel war, ausschneiden
 - [x] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt
-- [ ] html export
 - [x] pdf ohne seitenumbrüche
 - [x] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
 - [x] "punkte und fehler nach art" auch als tabelle (zusätlich!) als tabelle exportieren
-- [ ] seitenwechsel in punktewertung ist nicht korrekt umgesetzt
+- [x] seitenwechsel in punktewertung ist nicht korrekt umgesetzt
+- [ ] Diagramm mit Differenzpunkten?
+- [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
+- [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
+- [ ] satzende soll automatisch erkannt werden?!
+- [ ] html export
 
 ## Datenschutz
 

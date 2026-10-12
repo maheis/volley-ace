@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 
@@ -783,6 +785,10 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
                                     slot,
                                     showOnLeft: side == 0,
                                     fullCourt: true,
+                                    courtWidth: math.min(
+                                      constraints.maxWidth,
+                                      760,
+                                    ),
                                   ),
                                 ),
                           ],
@@ -825,6 +831,7 @@ class _RotationSetupPageState extends State<RotationSetupPage> {
         slot,
         showOnLeft: side == 0,
         fullCourt: true,
+        courtWidth: renderObject.size.width,
       );
       final x = renderObject.size.width * coordinates.x;
       final y = renderObject.size.height * coordinates.y;
