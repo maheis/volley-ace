@@ -1519,10 +1519,7 @@ void main() {
       match(
         id: 2,
         date: secondMatchTime,
-        players: const [
-          MatchPlayer(id: 1, name: 'Ada', number: 7),
-          MatchPlayer(id: 2, name: 'Berta', number: 8),
-        ],
+        players: const [MatchPlayer(id: 2, name: 'Berta', number: 8)],
         events: [point(1, 2, secondMatchTime)],
       ),
     ];
@@ -1533,6 +1530,15 @@ void main() {
 
     expect(samples, hasLength(6));
     expect(samples.map((sample) => sample.points), [0, 1, 1, 1, 1, 1]);
+    expect(samples.map((sample) => sample.matchIndex), [0, 0, 0, 1, 1, 1]);
+    expect(samples.map((sample) => sample.beginsMatch), [
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+    ]);
     expect(samples[3].time, secondMatchTime);
     expect(samples.last.time, secondMatchTime.add(const Duration(minutes: 1)));
   });
@@ -1842,9 +1848,7 @@ void main() {
       matchDateTime: DateTime(2026, 6, 1, 18),
       matchTag: '',
       matchType: 'Liga',
-      players: const [
-        MatchPlayer(id: 1, name: 'Ada', number: 7),
-      ],
+      players: const [MatchPlayer(id: 1, name: 'Ada', number: 7)],
       events: [
         MatchEvent(
           id: 1,
@@ -1874,9 +1878,7 @@ void main() {
       matchDateTime: DateTime(2026, 6, 2, 19),
       matchTag: '',
       matchType: 'Turnier',
-      players: const [
-        MatchPlayer(id: 1, name: 'Ada', number: 7),
-      ],
+      players: const [MatchPlayer(id: 2, name: 'Berta', number: 8)],
       events: [
         MatchEvent(
           id: 1,

@@ -456,12 +456,16 @@ class MatchTrendSample {
     required this.points,
     required this.errors,
     required this.opponentErrors,
+    this.matchIndex = 0,
+    this.beginsMatch = false,
   });
 
   final DateTime time;
   final int points;
   final int errors;
   final int opponentErrors;
+  final int matchIndex;
+  final bool beginsMatch;
 }
 
 List<MatchTrendSample> matchPlayerTrendSamples(
@@ -499,7 +503,8 @@ List<MatchTrendSample> matchPlayerTrendSamples(
   var errors = 0;
   var opponentErrors = 0;
   final samples = <MatchTrendSample>[];
-  for (final entry in orderedMatches) {
+  for (var matchIndex = 0; matchIndex < orderedMatches.length; matchIndex++) {
+    final entry = orderedMatches[matchIndex];
     final sourceMatch = entry.match;
     final range = entry.range;
     final sourcePlayer = sourcePlayerFor(sourceMatch);
@@ -516,6 +521,8 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       points: points,
       errors: errors,
       opponentErrors: opponentErrors,
+      matchIndex: matchIndex,
+      beginsMatch: true,
     ));
     for (final event in scoredEvents) {
       if (sourcePlayer != null && event.scorerIds.contains(sourcePlayer.id)) {
@@ -531,6 +538,7 @@ List<MatchTrendSample> matchPlayerTrendSamples(
         points: points,
         errors: errors,
         opponentErrors: opponentErrors,
+        matchIndex: matchIndex,
       ));
     }
     samples.add(MatchTrendSample(
@@ -538,6 +546,7 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       points: points,
       errors: errors,
       opponentErrors: opponentErrors,
+      matchIndex: matchIndex,
     ));
   }
   return samples;
