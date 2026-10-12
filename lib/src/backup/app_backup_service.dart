@@ -1597,6 +1597,23 @@ class AppBackupService {
     );
   }
 
+  static Future<void> shareFullBackup(
+    BuildContext context,
+    Database database,
+  ) async {
+    final payload = await _readBackup(database);
+    final jsonText = encodeBackup(payload);
+    final suggestedName =
+        'volleyace-gesamt-${DateTime.now().millisecondsSinceEpoch}.json';
+    await shareOrSaveJson(
+      context,
+      suggestedName: suggestedName,
+      jsonText: jsonText,
+      subject: 'VolleyAce Teams und Daten',
+      dialogTitle: 'Alle Teams und Daten teilen',
+    );
+  }
+
   static Future<void> exportTeam(
     BuildContext context,
     Database database,

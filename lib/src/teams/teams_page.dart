@@ -909,6 +909,15 @@ class _TeamsPageState extends State<TeamsPage> {
           title: const Text('Teams'),
           actions: [
             IconButton(
+              key: const ValueKey('export-all-team-data'),
+              tooltip: 'Alle Teams exportieren',
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () => AppBackupService.shareFullBackup(
+                context,
+                widget.database,
+              ),
+            ),
+            IconButton(
               tooltip: 'Import',
               icon: const Icon(Icons.upload_outlined),
               onPressed: _importBackup,
@@ -917,7 +926,6 @@ class _TeamsPageState extends State<TeamsPage> {
         ),
         body: LayoutBuilder(
           builder: (context, constraints) {
-            final compactActions = constraints.maxWidth < 1000;
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -946,47 +954,7 @@ class _TeamsPageState extends State<TeamsPage> {
                             team.name.isEmpty ? 'Unbenanntes Team' : team.name),
                         subtitle: Text(
                             '${team.players.length} Spieler • ${team.coaches.length} Trainer'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (compactActions)
-                              PopupMenuButton<String>(
-                                tooltip: 'Weitere Aktionen',
-                                onSelected: (_) => AppBackupService.shareTeam(
-                                  context,
-                                  widget.database,
-                                  team,
-                                ),
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'share',
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.share_outlined,
-                                            color: Theme.of(context)
-                                                .iconTheme
-                                                .color),
-                                        const SizedBox(width: 12),
-                                        Text('Team mit Daten teilen'),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else
-                              IconButton(
-                                tooltip: 'Team mit Daten teilen',
-                                icon: const Icon(Icons.share_outlined),
-                                onPressed: () => AppBackupService.shareTeam(
-                                  context,
-                                  widget.database,
-                                  team,
-                                ),
-                              ),
-                            const Icon(Icons.chevron_right),
-                          ],
-                        ),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () => _openTeam(team),
                       ),
                     ),
@@ -1032,6 +1000,16 @@ class _TeamsPageState extends State<TeamsPage> {
                 subtitle: '${team.coaches.length} Trainer',
                 icon: Icons.sports_outlined,
                 onTap: () => _openTeam(team, section: 'coaches')),
+            const SizedBox(height: 12),
+            _DetailTile(
+                title: 'Team teilen',
+                subtitle: 'Team und zugehörige Daten teilen oder speichern',
+                icon: Icons.share_outlined,
+                onTap: () => AppBackupService.shareTeam(
+                      context,
+                      widget.database,
+                      team,
+                    )),
             const SizedBox(height: 12),
             _DetailTile(
                 title: 'Team löschen',

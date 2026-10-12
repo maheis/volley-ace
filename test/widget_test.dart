@@ -2700,6 +2700,7 @@ void main() {
     final database = await databaseFactoryMemory.openDatabase('teams.db');
     await tester.pumpWidget(MaterialApp(home: TeamsPage(database: database)));
     await _pumpUi(tester);
+    expect(find.byKey(const ValueKey('export-all-team-data')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('new-team-button')));
     await _pumpUi(tester);
@@ -2778,8 +2779,10 @@ void main() {
 
     expect(find.text('SV Beispiel'), findsOneWidget);
     expect(find.text('1 Spieler • 1 Trainer'), findsOneWidget);
+    expect(find.byTooltip('Team mit Daten teilen'), findsNothing);
     await tester.tap(find.text('SV Beispiel'));
     await _pumpUi(tester);
+    expect(find.text('Team teilen'), findsOneWidget);
     await tester.tap(find.text('Spieler'));
     await _pumpUi(tester);
     expect(find.textContaining('Ada'), findsOneWidget);
