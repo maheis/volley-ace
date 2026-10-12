@@ -742,11 +742,16 @@ class AppBackupService {
       border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
       columnWidths: const <int, pw.TableColumnWidth>{
         0: pw.FlexColumnWidth(3),
-        1: pw.FlexColumnWidth(2),
-        2: pw.FlexColumnWidth(2),
+        1: pw.FlexColumnWidth(1.5),
+        2: pw.FlexColumnWidth(1.7),
+        3: pw.FlexColumnWidth(0.8),
+        4: pw.FlexColumnWidth(3),
       },
       children: [
-        _tableRow(['Partie', 'Spielart', 'Spielzeit'], header: true),
+        _tableRow(
+          ['Partie', 'Spielart', 'Spielzeit', 'Sätze', 'Ergebnis pro Satz'],
+          header: true,
+        ),
         for (final sourceMatch in matches)
           _tableRow([
             sourceMatch.opponentTeam.isEmpty
@@ -754,10 +759,36 @@ class AppBackupService {
                 : 'vs. ${sourceMatch.opponentTeam}',
             sourceMatch.matchType,
             _formatPdfDateTime(sourceMatch.matchDateTime),
+            _matchSetWins(sourceMatch),
+            _matchSetScores(sourceMatch),
           ]),
+        if (matches.any(
+          (match) =>
+              computeMatchSetResults(match).any((set) => !set.isFinished),
+        ))
+          _tableRow(['* Laufender Satz', '', '', '', '']),
       ],
     );
   }
+
+  static String _matchSetWins(MatchGame match) {
+    var us = 0;
+    var opponent = 0;
+    for (final set
+        in computeMatchSetResults(match).where((set) => set.isFinished)) {
+      if (set.us > set.opponent) {
+        us++;
+      } else if (set.opponent > set.us) {
+        opponent++;
+      }
+    }
+    return '$us:$opponent';
+  }
+
+  static String _matchSetScores(MatchGame match) =>
+      computeMatchSetResults(match)
+          .map((set) => '${set.us}:${set.opponent}${set.isFinished ? '' : '*'}')
+          .join(' · ');
 
   static pw.Widget _playerTable(MatchGame match, List<MatchEvent> events) {
     return pw.Table(

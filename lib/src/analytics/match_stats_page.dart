@@ -372,6 +372,54 @@ int compareMatchesByGameTime(MatchGame first, MatchGame second) {
       : second.createdAt.compareTo(first.createdAt);
 }
 
+class MatchSetResult {
+  const MatchSetResult({
+    required this.us,
+    required this.opponent,
+    required this.isFinished,
+  });
+
+  final int us;
+  final int opponent;
+  final bool isFinished;
+}
+
+List<MatchSetResult> computeMatchSetResults(MatchGame match) {
+  final sortedEvents = List<MatchEvent>.from(match.events)
+    ..sort((first, second) {
+      final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+      return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+    });
+
+  final sets = <MatchSetResult>[];
+  var us = 0;
+  var opponent = 0;
+  for (final event in sortedEvents) {
+    if (event.kind == 'point') {
+      us++;
+    } else if (event.kind == 'error') {
+      opponent++;
+    }
+    if (event.kind == _manualSetEndKind && (us > 0 || opponent > 0)) {
+      sets.add(MatchSetResult(us: us, opponent: opponent, isFinished: true));
+      us = 0;
+      opponent = 0;
+      continue;
+    }
+    final usWon = us >= 25 && us - opponent >= 2;
+    final opponentWon = opponent >= 25 && opponent - us >= 2;
+    if (usWon || opponentWon) {
+      sets.add(MatchSetResult(us: us, opponent: opponent, isFinished: true));
+      us = 0;
+      opponent = 0;
+    }
+  }
+  if (us > 0 || opponent > 0) {
+    sets.add(MatchSetResult(us: us, opponent: opponent, isFinished: false));
+  }
+  return sets;
+}
+
 class MatchTimeRange {
   const MatchTimeRange({required this.start, required this.end});
 
@@ -2137,36 +2185,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   // the opponent, sets end at 25 with two points lead (same rule as the
   // scoreboard).
   List<_SetScore> _computeSets(MatchGame match) {
-    final sortedEvents = List<MatchEvent>.from(match.events)
-      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
-
-    final sets = <_SetScore>[];
-    var us = 0;
-    var opponent = 0;
-    for (final event in sortedEvents) {
-      if (event.kind == 'point') {
-        us++;
-      } else if (event.kind == 'error') {
-        opponent++;
-      }
-      if (event.kind == _manualSetEndKind && (us > 0 || opponent > 0)) {
-        sets.add(_SetScore(us: us, opponent: opponent, isFinished: true));
-        us = 0;
-        opponent = 0;
-        continue;
-      }
-      final usWon = us >= 25 && us - opponent >= 2;
-      final opponentWon = opponent >= 25 && opponent - us >= 2;
-      if (usWon || opponentWon) {
-        sets.add(_SetScore(us: us, opponent: opponent, isFinished: true));
-        us = 0;
-        opponent = 0;
-      }
-    }
-    if (us > 0 || opponent > 0) {
-      sets.add(_SetScore(us: us, opponent: opponent, isFinished: false));
-    }
-    return sets;
+    return computeMatchSetResults(match);
   }
 
   Map<String, int> _playerSummary(
@@ -4045,17 +4064,7 @@ class _PlayerStatsTableState extends State<_PlayerStatsTable> {
   }
 }
 
-class _SetScore {
-  const _SetScore({
-    required this.us,
-    required this.opponent,
-    required this.isFinished,
-  });
-
-  final int us;
-  final int opponent;
-  final bool isFinished;
-}
+typedef _SetScore = MatchSetResult;
 
 class _SelectedMatchesSummary extends StatelessWidget {
   const _SelectedMatchesSummary({required this.matches});

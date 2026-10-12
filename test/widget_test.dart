@@ -1492,6 +1492,76 @@ void main() {
     expect(event.category, 'Annahme · Obere Annahme');
   });
 
+  test('match set results include auto, manual, and ongoing sets', () {
+    var eventId = 0;
+    final events = <MatchEvent>[];
+    void addScoringEvents(String kind, int count) {
+      for (var index = 0; index < count; index++) {
+        eventId++;
+        events.add(
+          MatchEvent(
+            id: eventId,
+            playerId: null,
+            playerName: '',
+            playerNumber: 0,
+            kind: kind,
+            category: '',
+            occurredAt: DateTime(2026, 10, 1).add(
+              Duration(seconds: eventId),
+            ),
+          ),
+        );
+      }
+    }
+
+    addScoringEvents('error', 20);
+    addScoringEvents('point', 25);
+    addScoringEvents('error', 19);
+    addScoringEvents('point', 15);
+    eventId++;
+    events.add(
+      MatchEvent(
+        id: eventId,
+        playerId: null,
+        playerName: 'Satzende',
+        playerNumber: 0,
+        kind: 'manual_set_end',
+        category: 'Manuell',
+        occurredAt: DateTime(2026, 10, 1).add(Duration(seconds: eventId)),
+      ),
+    );
+    addScoringEvents('error', 1);
+    addScoringEvents('point', 4);
+    final match = MatchGame(
+      id: 61,
+      createdAt: DateTime(2026, 10, 1),
+      location: 'Halle',
+      opponentTeam: 'Team Beispiel',
+      matchDateTime: DateTime(2026, 10, 1, 18),
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: events,
+    );
+
+    final sets = computeMatchSetResults(match);
+
+    expect(sets.map((set) => '${set.us}:${set.opponent}'), [
+      '25:20',
+      '15:19',
+      '4:1',
+    ]);
+    expect(sets.map((set) => set.isFinished), [true, true, false]);
+    expect(
+      sets.where((set) => set.isFinished && set.us > set.opponent).length,
+      1,
+    );
+    expect(
+      sets.where((set) => set.isFinished && set.opponent > set.us).length,
+      1,
+    );
+  });
+
   test('recent Other details are deduplicated and newest first', () {
     MatchEvent otherDetail(int id, String detail, int minute) => MatchEvent(
           id: id,
