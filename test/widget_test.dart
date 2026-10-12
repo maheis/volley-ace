@@ -1254,16 +1254,32 @@ void main() {
       find.byKey(const ValueKey('match-opponent-input')),
       'Team B',
     );
+    await tester.tap(find.byIcon(Icons.arrow_back).last);
     await _pumpUi(tester);
-
+    await tester.tap(find.text('Spielbericht'));
+    await _pumpUi(tester);
+    final matchReport = find.byKey(const ValueKey('match-report-input'));
+    await tester.enterText(matchReport, 'Starker Auftakt, hart umkämpft.');
+    await _pumpUi(tester);
+    await tester.tap(find.byTooltip('Zur Spielübersicht'));
+    await _pumpUi(tester);
+    await tester.tap(find.text('Punktewertung'));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('scoring-more-menu')));
+    await _pumpUi(tester);
+    await tester.tap(find.text('Spielbericht'));
+    await _pumpUi(tester);
+    expect(
+      tester.widget<TextField>(matchReport).controller?.text,
+      'Starker Auftakt, hart umkämpft.',
+    );
+    await tester.tap(find.byTooltip('Zur Punktewertung'));
+    await _pumpUi(tester);
     await tester.tap(find.byIcon(Icons.arrow_back).last);
     await _pumpUi(tester);
     await tester.tap(find.text('Spielinfos'));
     await _pumpUi(tester);
-    await tester.drag(
-      find.byType(Scrollable).first,
-      const Offset(0, -600),
-    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
     await _pumpUi(tester);
 
     await tester.enterText(
@@ -1742,6 +1758,7 @@ void main() {
       matchDateTime: DateTime(2026),
       matchTag: '',
       matchType: 'Liga',
+      matchReport: 'Starker Start, knappes Ende.',
       teamId: 3,
       coaches: const [
         MatchCoach(id: 5, name: 'Mara Mustermann'),
@@ -1763,6 +1780,7 @@ void main() {
     final restored = MatchGame.fromJson(match.toJson());
 
     expect(restored.teamId, 3);
+    expect(restored.matchReport, 'Starker Start, knappes Ende.');
     expect(restored.coaches.map((coach) => coach.id), [5, 6]);
     expect(restored.coaches.map((coach) => coach.name), [
       'Mara Mustermann',

@@ -218,6 +218,7 @@ class MatchGame {
     required this.matchDateTime,
     required this.matchTag,
     required this.matchType,
+    this.matchReport = '',
     this.league = '',
     this.teamId,
     this.rotationSetup,
@@ -237,6 +238,7 @@ class MatchGame {
   final DateTime matchDateTime;
   final String matchTag;
   final String matchType;
+  final String matchReport;
   final String league;
   final int? teamId;
   final ScoreboardRotationState? rotationSetup;
@@ -256,6 +258,7 @@ class MatchGame {
     DateTime? matchDateTime,
     String? matchTag,
     String? matchType,
+    String? matchReport,
     String? league,
     int? teamId,
     bool clearTeamId = false,
@@ -278,6 +281,7 @@ class MatchGame {
       matchDateTime: matchDateTime ?? this.matchDateTime,
       matchTag: matchTag ?? this.matchTag,
       matchType: matchType ?? this.matchType,
+      matchReport: matchReport ?? this.matchReport,
       league: league ?? this.league,
       teamId: clearTeamId ? null : (teamId ?? this.teamId),
       rotationSetup:
@@ -302,6 +306,7 @@ class MatchGame {
         'matchDateTimeMillis': matchDateTime.millisecondsSinceEpoch,
         'matchTag': matchTag,
         'matchType': matchType,
+        'matchReport': matchReport,
         'league': league,
         'teamId': teamId,
         'rotationSetup': rotationSetup?.toJson(),
@@ -369,6 +374,8 @@ class MatchGame {
       matchType: data['matchType'] is String
           ? data['matchType'] as String
           : 'Freundschaftsspiel',
+      matchReport:
+          data['matchReport'] is String ? data['matchReport'] as String : '',
       league: data['league'] is String ? data['league'] as String : '',
       teamId: data['teamId'] is num ? (data['teamId'] as num).toInt() : null,
       rotationSetup: ScoreboardRotationState.fromJson(data['rotationSetup']),
@@ -1297,6 +1304,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       <int, List<MatchEvent>>{};
   int? _selectedMatchId;
   String? _activeSection;
+  String? _reportReturnSection = 'scoring';
   String? _pendingEventKind;
   List<String> _pendingCategoryPath = <String>[];
   int? _pendingScorerId;
@@ -1313,6 +1321,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _opponentController = TextEditingController();
   final TextEditingController _matchTagController = TextEditingController();
+  final TextEditingController _matchReportController = TextEditingController();
   final Map<String, TextEditingController> _teamNumberControllers =
       <String, TextEditingController>{};
   int? _editingMatchPlayerId;
@@ -1463,6 +1472,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _locationController.text = match.location;
       _opponentController.text = match.opponentTeam;
       _matchTagController.text = match.matchTag;
+      _matchReportController.text = match.matchReport;
     }
     setState(() {
       _selectedMatchIds.clear();
@@ -1516,6 +1526,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           _activeSection == 'scoring' ||
           _activeSection == 'stats') {
         _activeSection = null;
+      } else if (_activeSection == 'report') {
+        _activeSection = _reportReturnSection;
+        _reportReturnSection = 'scoring';
       } else {
         _selectedMatchId = null;
         _activeSection = null;
@@ -1541,6 +1554,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _locationController.clear();
     _opponentController.clear();
     _matchTagController.clear();
+    _matchReportController.clear();
     setState(() {
       _matches.insert(0, match);
       _selectedMatchId = match.id;
@@ -2440,6 +2454,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       page = _buildMatchInfoView(selectedMatch);
     } else if (selectedMatch != null && _activeSection == 'scoring') {
       page = _buildScoringView(selectedMatch);
+    } else if (selectedMatch != null && _activeSection == 'report') {
+      page = _buildMatchReportView(selectedMatch);
     } else if (selectedMatch != null && _activeSection == 'player-selection') {
       page = _buildPlayerSelectionView(selectedMatch);
     } else if (selectedMatch != null &&
@@ -2625,6 +2641,15 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   '${match.players.length} Spieler • ${match.events.length} Einträge',
               icon: Icons.sports_volleyball,
               onTap: () => _showMatchDetail(match.id, section: 'scoring'),
+            ),
+            const SizedBox(height: 12),
+            _DetailTile(
+              title: 'Spielbericht',
+              subtitle: match.matchReport.trim().isEmpty
+                  ? 'Freitext zum Spiel verfassen'
+                  : 'Spielbericht lesen oder bearbeiten',
+              icon: Icons.description_outlined,
+              onTap: () => _openMatchReport(match, returnSection: null),
             ),
             const SizedBox(height: 12),
             _DetailTile(
@@ -3318,6 +3343,23 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             tooltip: 'Verlauf',
             onPressed: () => _openMatchHistory(match),
           ),
+          PopupMenuButton<String>(
+            key: const ValueKey('scoring-more-menu'),
+            tooltip: 'Weitere Aktionen',
+            onSelected: (value) {
+              if (value == 'report') _openMatchReport(match);
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'report',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.description_outlined),
+                  title: Text('Spielbericht'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: SafeArea(
@@ -3442,6 +3484,61 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               else
                 _buildMatchRotation(match),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openMatchReport(
+    MatchGame match, {
+    String? returnSection = 'scoring',
+  }) {
+    _matchReportController.text = match.matchReport;
+    setState(() {
+      _reportReturnSection = returnSection;
+      _activeSection = 'report';
+    });
+  }
+
+  void _updateMatchReport(MatchGame match, String report) {
+    _replaceMatch(match.copyWith(matchReport: report));
+  }
+
+  Widget _buildMatchReportView(MatchGame match) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Spielbericht'),
+        leading: IconButton(
+          tooltip: _reportReturnSection == null
+              ? 'Zur Spielübersicht'
+              : 'Zur Punktewertung',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => setState(() {
+            _activeSection = _reportReturnSection;
+            _reportReturnSection = 'scoring';
+          }),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            key: const ValueKey('match-report-input'),
+            controller: _matchReportController,
+            onChanged: (value) => _updateMatchReport(match, value),
+            minLines: null,
+            maxLines: null,
+            expands: true,
+            textAlign: TextAlign.left,
+            textAlignVertical: TextAlignVertical.top,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Spielbericht verfassen ...',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
           ),
         ),
       ),
@@ -3862,6 +3959,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _locationController.dispose();
     _opponentController.dispose();
     _matchTagController.dispose();
+    _matchReportController.dispose();
     for (final controller in _teamNumberControllers.values) {
       controller.dispose();
     }

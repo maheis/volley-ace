@@ -72,6 +72,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Taktiken importieren
   - [x] Mehrere Seiten pro Taktik
   - [x] Text-Notizen pro Seite
+- [ ] Spieler?
 - [x] Team
   - [x] Info
     - [x] Teamname
@@ -186,7 +187,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [ ] Export
         - [x] PDF inkl. Grafiken
         - [ ] Format das in Excel importiert werden kann
-    - [ ] Spielbericht
+    - [x] Spielbericht
 - [x] Training
   - [x] Training
     - [x] Mehrere Trainings speichern
