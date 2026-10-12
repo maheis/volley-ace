@@ -1723,7 +1723,7 @@ void main() {
           playerName: 'Ada',
           playerNumber: 7,
           kind: 'point',
-          category: 'Ass',
+          category: 'Aufschlag · Ass',
           occurredAt: DateTime(2026, 6, 1, 18),
         ),
         MatchEvent(
@@ -1732,7 +1732,7 @@ void main() {
           playerName: 'Ada',
           playerNumber: 7,
           kind: 'error',
-          category: 'Aufschlag',
+          category: 'Annahme · Zugeschaut',
           occurredAt: DateTime(2026, 6, 1, 18, 5),
         ),
       ],

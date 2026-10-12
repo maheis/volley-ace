@@ -172,7 +172,7 @@ class AppBackupService {
         pw.Text('Noch keine Punkte oder Fehler erfasst.')
       else
         pw.SizedBox(
-          height: 230,
+          height: _categoryChartHeight(categories.length),
           child: _categoryChart(categories, points, errors),
         ),
       if (categories.isNotEmpty) ...[
@@ -386,7 +386,9 @@ class AppBackupService {
         pw.Text('Noch keine Punkte oder Fehler erfasst.')
       else
         pw.SizedBox(
-            height: 190, child: _categoryChart(categories, points, errors)),
+          height: _categoryChartHeight(categories.length),
+          child: _categoryChart(categories, points, errors),
+        ),
       if (categories.isNotEmpty) ...[
         pw.SizedBox(height: 6),
         _categorySummaryTable(categories, points, errors),
@@ -517,19 +519,19 @@ class AppBackupService {
     final pointData = <pw.PointChartValue>[
       for (var index = 0; index < labels.length; index++)
         pw.PointChartValue(
-          index.toDouble(),
           index < categories.length
               ? (points[categories[index]] ?? 0).toDouble()
               : 0,
+          index.toDouble(),
         ),
     ];
     final errorData = <pw.PointChartValue>[
       for (var index = 0; index < labels.length; index++)
         pw.PointChartValue(
-          index.toDouble(),
           index < categories.length
               ? (errors[categories[index]] ?? 0).toDouble()
               : 0,
+          index.toDouble(),
         ),
     ];
     final maxValue = <int>[...points.values, ...errors.values]
@@ -550,15 +552,14 @@ class AppBackupService {
         pw.Expanded(
           child: pw.Chart(
             grid: pw.CartesianGrid(
-              xAxis: pw.FixedAxis.fromStrings(
-                labels,
-                angle: math.pi / 4,
-                textStyle: const pw.TextStyle(fontSize: 7),
-              ),
-              yAxis: pw.FixedAxis<double>(
+              xAxis: pw.FixedAxis<double>(
                 [0, maxValue],
                 format: (value) => value.toStringAsFixed(0),
                 divisions: true,
+                textStyle: const pw.TextStyle(fontSize: 8),
+              ),
+              yAxis: pw.FixedAxis.fromStrings(
+                labels,
                 textStyle: const pw.TextStyle(fontSize: 8),
               ),
             ),
@@ -566,14 +567,16 @@ class AppBackupService {
               pw.BarDataSet<pw.PointChartValue>(
                 data: pointData,
                 color: pdf.PdfColors.green,
-                width: 16,
-                offset: -9,
+                axis: pw.Axis.vertical,
+                width: 10,
+                offset: -6,
               ),
               pw.BarDataSet<pw.PointChartValue>(
                 data: errorData,
                 color: pdf.PdfColors.red,
-                width: 16,
-                offset: 9,
+                axis: pw.Axis.vertical,
+                width: 10,
+                offset: 6,
               ),
             ],
           ),
@@ -581,6 +584,9 @@ class AppBackupService {
       ],
     );
   }
+
+  static double _categoryChartHeight(int categoryCount) =>
+      math.max(230, (categoryCount + 1) * 25 + 40).toDouble();
 
   static pw.Widget _timelineChart(
     List<MatchEvent> events, {
