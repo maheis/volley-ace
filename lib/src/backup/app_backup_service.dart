@@ -18,6 +18,18 @@ class AppBackupService {
   AppBackupService._();
 
   static const int _formatVersion = 1;
+  static final StoreRef<String, Map<String, dynamic>> _peopleStore =
+      StoreRef<String, Map<String, dynamic>>('people');
+  static final StoreRef<String, Map<String, dynamic>> _trainingStore =
+      StoreRef<String, Map<String, dynamic>>('training');
+  static final StoreRef<String, Map<String, dynamic>> _trainingPlansStore =
+      StoreRef<String, Map<String, dynamic>>('training_plans');
+  static final StoreRef<String, Map<String, dynamic>> _trainingExercisesStore =
+      StoreRef<String, Map<String, dynamic>>('training_exercises');
+  static final StoreRef<String, Map<String, dynamic>> _scoreboardStore =
+      StoreRef<String, Map<String, dynamic>>('scoreboard');
+  static final StoreRef<String, Map<String, dynamic>> _tacticsStore =
+      StoreRef<String, Map<String, dynamic>>('tactics');
 
   static Future<Map<String, dynamic>> _readBackup(Database database) async {
     final teamsRepository = TeamsRepository(database);
@@ -25,12 +37,138 @@ class AppBackupService {
 
     final teams = await teamsRepository.load();
     final matchStats = await matchStatsRepository.load();
+    final people = await _peopleStore.record('all').get(database);
+    var training = await _trainingStore.record('sessions').get(database);
+    if (training == null) {
+      final legacyTraining =
+          await _trainingStore.record('current').get(database);
+      if (legacyTraining != null) {
+        training = <String, dynamic>{
+          'sessions': [legacyTraining]
+        };
+      }
+    }
+    final trainingPlans =
+        await _trainingPlansStore.record('plans').get(database);
+    final trainingExercises =
+        await _trainingExercisesStore.record('exercises').get(database);
+    final scoreboard = await _scoreboardStore.record('current').get(database);
+    final scoreboardSnapshots =
+        await _scoreboardStore.record('snapshots').get(database);
+    final tactics = await _tacticsStore.record('board').get(database);
 
     return <String, dynamic>{
       'formatVersion': _formatVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'teams': teams.map((team) => team.toJson()).toList(),
       'matchStats': matchStats.toJson(),
+      if (people != null) 'people': people,
+      if (training != null) 'training': training,
+      if (trainingPlans != null) 'trainingPlans': trainingPlans,
+      if (trainingExercises != null) 'trainingExercises': trainingExercises,
+      if (scoreboard != null || scoreboardSnapshots != null)
+        'scoreboard': <String, dynamic>{
+          if (scoreboard != null) 'current': scoreboard,
+          if (scoreboardSnapshots != null) 'snapshots': scoreboardSnapshots,
+        },
+      if (tactics != null) 'tactics': tactics,
+    };
+  }
+
+  static Future<Map<String, dynamic>> buildTeamBundle(
+    Database database,
+    Team team,
+  ) async {
+    final backup = await _readBackup(database);
+    List<Map<String, dynamic>> records(Object? raw, String key) {
+      final values = raw is Map ? raw[key] : null;
+      return values is List
+          ? values
+              .whereType<Map>()
+              .map((value) => Map<String, dynamic>.from(value))
+              .toList()
+          : <Map<String, dynamic>>[];
+    }
+
+    final sessions = records(backup['training'], 'sessions').where((session) {
+      final teamIds = session['teamIds'];
+      final isLinkedByTeamIds = teamIds is List &&
+          teamIds.whereType<num>().any((id) => id.toInt() == team.id);
+      return isLinkedByTeamIds || session['teamId'] == team.id;
+    }).toList();
+    final planIds = <int>{};
+    final exerciseIds = <int>{};
+    final guestNames = <String>{};
+    for (final session in sessions) {
+      final storedPlanIds = session['trainingPlanIds'];
+      if (storedPlanIds is List) {
+        planIds.addAll(storedPlanIds.whereType<num>().map((id) => id.toInt()));
+      }
+      if (session['trainingPlanId'] is num) {
+        planIds.add((session['trainingPlanId'] as num).toInt());
+      }
+      final storedExercises = session['exercises'];
+      if (storedExercises is List) {
+        for (final exercise in storedExercises.whereType<Map>()) {
+          if (exercise['id'] is num) {
+            exerciseIds.add((exercise['id'] as num).toInt());
+          }
+        }
+      }
+      if (session['guests'] is List) {
+        guestNames.addAll((session['guests'] as List).whereType<String>());
+      }
+    }
+
+    final plans = records(backup['trainingPlans'], 'plans')
+        .where((plan) => planIds.contains(plan['id']))
+        .toList();
+    for (final plan in plans) {
+      final storedExercises = plan['exercises'];
+      if (storedExercises is List) {
+        for (final exercise in storedExercises.whereType<Map>()) {
+          if (exercise['id'] is num) {
+            exerciseIds.add((exercise['id'] as num).toInt());
+          }
+        }
+      }
+    }
+
+    final peopleIds = <int>{
+      ...team.players.map((player) => player.personId).whereType<int>(),
+      ...team.coaches.map((coach) => coach.personId).whereType<int>(),
+    };
+    final people = records(backup['people'], 'people')
+        .where((person) =>
+            peopleIds.contains(person['id']) ||
+            guestNames.contains(person['name']))
+        .toList();
+    final exercises = records(backup['trainingExercises'], 'exercises')
+        .where((exercise) => exerciseIds.contains(exercise['id']))
+        .toList();
+    final matchStats = Map<String, dynamic>.from(
+      backup['matchStats'] as Map<String, dynamic>,
+    );
+    final matches = records(matchStats, 'matches').where((match) {
+      if (match['teamId'] == team.id) return true;
+      final players = match['players'];
+      return players is List &&
+          players.whereType<Map>().any(
+                (player) => player['sourceTeamId'] == team.id,
+              );
+    }).toList();
+
+    return <String, dynamic>{
+      ...backup,
+      'type': 'team-bundle',
+      'teamId': team.id,
+      'team': team.toJson(),
+      'teams': <Map<String, dynamic>>[team.toJson()],
+      'people': <String, dynamic>{'people': people},
+      'matchStats': <String, dynamic>{'matches': matches},
+      'training': <String, dynamic>{'sessions': sessions},
+      'trainingPlans': <String, dynamic>{'plans': plans},
+      'trainingExercises': <String, dynamic>{'exercises': exercises},
     };
   }
 
@@ -1459,8 +1597,14 @@ class AppBackupService {
     );
   }
 
-  static Future<void> exportTeam(BuildContext context, Team team) async {
-    final jsonText = encodeBackup(buildTeamBackup(team));
+  static Future<void> exportTeam(
+    BuildContext context,
+    Database database,
+    Team team,
+  ) async {
+    final bundle = await buildTeamBundle(database, team);
+    if (!context.mounted) return;
+    final jsonText = encodeBackup(bundle);
     final suggestedName =
         'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
     await _exportJson(
@@ -1471,8 +1615,14 @@ class AppBackupService {
     );
   }
 
-  static Future<void> shareTeam(BuildContext context, Team team) async {
-    final jsonText = encodeBackup(buildTeamBackup(team));
+  static Future<void> shareTeam(
+    BuildContext context,
+    Database database,
+    Team team,
+  ) async {
+    final bundle = await buildTeamBundle(database, team);
+    if (!context.mounted) return;
+    final jsonText = encodeBackup(bundle);
     final suggestedName =
         'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().millisecondsSinceEpoch}.json';
     await shareOrSaveJson(
@@ -1555,6 +1705,325 @@ class AppBackupService {
     return _importFullBackupData(context, database, data);
   }
 
+  static List<Map<String, dynamic>> _backupRecords(
+    Object? data,
+    String key,
+  ) {
+    final values = data is Map ? data[key] : null;
+    return values is List
+        ? values
+            .whereType<Map>()
+            .map((value) => Map<String, dynamic>.from(value))
+            .toList()
+        : <Map<String, dynamic>>[];
+  }
+
+  static String _canonicalJson(Object? value) {
+    Object? normalize(Object? item) {
+      if (item is Map) {
+        final keys = item.keys.map((key) => key.toString()).toList()..sort();
+        return <String, dynamic>{
+          for (final key in keys) key: normalize(item[key]),
+        };
+      }
+      if (item is List) return item.map(normalize).toList();
+      return item;
+    }
+
+    return jsonEncode(normalize(value));
+  }
+
+  static int? _recordTimestamp(Map<String, dynamic> record) {
+    final timestamps = <int>[];
+    for (final key in [
+      'updatedAtMillis',
+      'modifiedAtMillis',
+      'savedAtMillis',
+      'dateMillis',
+      'matchDateTimeMillis',
+      'createdAtMillis',
+      'wonAtMillis',
+    ]) {
+      if (record[key] is num) timestamps.add((record[key] as num).toInt());
+      if (record[key] is String) {
+        final parsed = DateTime.tryParse(record[key] as String);
+        if (parsed != null) timestamps.add(parsed.millisecondsSinceEpoch);
+      }
+    }
+    for (final key in ['events', 'historyEntries', 'completedSets']) {
+      final values = record[key];
+      if (values is! List) continue;
+      for (final value in values.whereType<Map>()) {
+        for (final timestampKey in [
+          'occurredAtMillis',
+          'wonAtMillis',
+        ]) {
+          if (value[timestampKey] is num) {
+            timestamps.add((value[timestampKey] as num).toInt());
+          }
+        }
+      }
+    }
+    if (timestamps.isEmpty) return null;
+    return timestamps
+        .reduce((first, second) => first > second ? first : second);
+  }
+
+  static String _recordLabel(Map<String, dynamic> record) {
+    for (final key in ['name', 'topic', 'title', 'opponentTeam']) {
+      final value = record[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return 'ID ${record['id'] ?? '?'}';
+  }
+
+  static Future<bool> _askImportDuplicate(
+    BuildContext context,
+    String kind,
+    Map<String, dynamic> current,
+    Map<String, dynamic> incoming,
+  ) async {
+    if (!context.mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text('Doppelte Daten: $kind'),
+            content: Text(
+              '„${_recordLabel(current)}“ ist bereits vorhanden. Welche Version soll behalten werden?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Vorhandene behalten'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Import übernehmen'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  static Future<List<Map<String, dynamic>>> _mergeRecords(
+    BuildContext context,
+    List<Map<String, dynamic>> current,
+    List<Map<String, dynamic>> incoming, {
+    required String kind,
+  }) async {
+    final merged = List<Map<String, dynamic>>.from(current);
+    for (final imported in incoming) {
+      final id = imported['id'];
+      final index =
+          id == null ? -1 : merged.indexWhere((record) => record['id'] == id);
+      if (index < 0) {
+        merged.add(imported);
+        continue;
+      }
+
+      final existing = merged[index];
+      if (_canonicalJson(existing) == _canonicalJson(imported)) continue;
+      final existingTimestamp = _recordTimestamp(existing);
+      final importedTimestamp = _recordTimestamp(imported);
+      if (existingTimestamp != null &&
+          importedTimestamp != null &&
+          existingTimestamp != importedTimestamp) {
+        if (importedTimestamp > existingTimestamp) merged[index] = imported;
+        continue;
+      }
+      if (await _askImportDuplicate(context, kind, existing, imported)) {
+        merged[index] = imported;
+      }
+    }
+    return merged;
+  }
+
+  static Future<List<Map<String, dynamic>>> mergeImportRecords(
+    BuildContext context,
+    List<Map<String, dynamic>> current,
+    List<Map<String, dynamic>> incoming, {
+    required String kind,
+  }) =>
+      _mergeRecords(context, current, incoming, kind: kind);
+
+  static Future<Map<String, dynamic>> _mergeSingleton(
+    BuildContext context,
+    String kind,
+    Map<String, dynamic> current,
+    Map<String, dynamic> incoming,
+  ) async {
+    if (_canonicalJson(current) == _canonicalJson(incoming)) return current;
+    final existingTimestamp = _recordTimestamp(current);
+    final importedTimestamp = _recordTimestamp(incoming);
+    if (existingTimestamp != null &&
+        importedTimestamp != null &&
+        existingTimestamp != importedTimestamp) {
+      return importedTimestamp > existingTimestamp ? incoming : current;
+    }
+    return await _askImportDuplicate(context, kind, current, incoming)
+        ? incoming
+        : current;
+  }
+
+  static Future<void> _mergeApplicationData(
+    BuildContext context,
+    Database database,
+    Map<String, dynamic> data,
+  ) async {
+    final teamsRepository = TeamsRepository(database);
+    final currentTeams =
+        (await teamsRepository.load()).map((team) => team.toJson()).toList();
+    final teams = await _mergeRecords(
+      context,
+      currentTeams,
+      _backupRecords(<String, dynamic>{'items': data['teams']}, 'items'),
+      kind: 'Mannschaft',
+    );
+    await teamsRepository.save(
+      teams.map(Team.fromJson).toList(),
+    );
+
+    final incomingMatchStats = data['matchStats'];
+    if (incomingMatchStats is Map) {
+      final repository = MatchStatsRepository(database);
+      final currentMatches = (await repository.load())
+          .matches
+          .map((match) => match.toJson())
+          .toList();
+      final matches = await _mergeRecords(
+        context,
+        currentMatches,
+        _backupRecords(incomingMatchStats, 'matches'),
+        kind: 'Punktewertung',
+      );
+      await repository.save(
+        MatchStatsState.fromJson(<String, dynamic>{'matches': matches}),
+      );
+    }
+
+    final incomingPeople = data['people'];
+    if (incomingPeople is Map) {
+      final currentPeople = await _peopleStore.record('all').get(database);
+      final people = await _mergeRecords(
+        context,
+        _backupRecords(currentPeople, 'people'),
+        _backupRecords(incomingPeople, 'people'),
+        kind: 'Person',
+      );
+      await _peopleStore.record('all').put(database, {'people': people});
+    }
+
+    final incomingTraining = data['training'];
+    if (incomingTraining is Map) {
+      final currentTraining =
+          await _trainingStore.record('sessions').get(database);
+      final sessions = await _mergeRecords(
+        context,
+        _backupRecords(currentTraining, 'sessions'),
+        _backupRecords(incomingTraining, 'sessions'),
+        kind: 'Training',
+      );
+      await _trainingStore
+          .record('sessions')
+          .put(database, {'sessions': sessions});
+    }
+
+    for (final section in [
+      (
+        key: 'trainingPlans',
+        store: _trainingPlansStore,
+        record: 'plans',
+        list: 'plans',
+        label: 'Trainingsplan',
+      ),
+      (
+        key: 'trainingExercises',
+        store: _trainingExercisesStore,
+        record: 'exercises',
+        list: 'exercises',
+        label: 'Trainingsübung',
+      ),
+    ]) {
+      final incomingSection = data[section.key];
+      if (incomingSection is! Map) continue;
+      final currentSection =
+          await section.store.record(section.record).get(database);
+      final records = await _mergeRecords(
+        context,
+        _backupRecords(currentSection, section.list),
+        _backupRecords(incomingSection, section.list),
+        kind: section.label,
+      );
+      await section.store
+          .record(section.record)
+          .put(database, {section.list: records});
+    }
+
+    final incomingScoreboard = data['scoreboard'];
+    if (incomingScoreboard is Map) {
+      final currentBoard =
+          await _scoreboardStore.record('current').get(database);
+      final importedBoard = incomingScoreboard['current'];
+      if (importedBoard is Map) {
+        final mergedBoard = currentBoard == null
+            ? Map<String, dynamic>.from(importedBoard)
+            : await _mergeSingleton(
+                context,
+                'Punktetafel',
+                currentBoard,
+                Map<String, dynamic>.from(importedBoard),
+              );
+        await _scoreboardStore.record('current').put(database, mergedBoard);
+      }
+      final importedSnapshots = incomingScoreboard['snapshots'];
+      if (importedSnapshots is Map) {
+        final currentSnapshots =
+            await _scoreboardStore.record('snapshots').get(database);
+        final snapshots = await _mergeRecords(
+          context,
+          _backupRecords(currentSnapshots, 'items'),
+          _backupRecords(importedSnapshots, 'items'),
+          kind: 'Punktetafel-Stand',
+        );
+        await _scoreboardStore
+            .record('snapshots')
+            .put(database, {'items': snapshots});
+      }
+    }
+
+    final incomingTactics = data['tactics'];
+    if (incomingTactics is Map) {
+      final currentTactics = await _tacticsStore.record('board').get(database);
+      final importedMap = Map<String, dynamic>.from(incomingTactics);
+      if (currentTactics == null) {
+        await _tacticsStore.record('board').put(database, importedMap);
+      } else {
+        final currentMap = Map<String, dynamic>.from(currentTactics);
+        final tactics = await _mergeRecords(
+          context,
+          _backupRecords(currentMap, 'tactics'),
+          _backupRecords(importedMap, 'tactics'),
+          kind: 'Taktik',
+        );
+        final currentCanvas = Map<String, dynamic>.from(currentMap)
+          ..remove('tactics');
+        final importedCanvas = Map<String, dynamic>.from(importedMap)
+          ..remove('tactics');
+        final canvas = await _mergeSingleton(
+          context,
+          'Taktiktafel',
+          currentCanvas,
+          importedCanvas,
+        );
+        await _tacticsStore.record('board').put(database, {
+          ...canvas,
+          'tactics': tactics,
+        });
+      }
+    }
+  }
+
   static Future<bool> _importFullBackupData(
     BuildContext context,
     Database database,
@@ -1571,9 +2040,9 @@ class AppBackupService {
     final shouldImport = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Importieren?'),
+        title: const Text('Daten zusammenführen?'),
         content: const Text(
-          'Der aktuelle Stand von Teams und Punktewertungen wird durch den Import ersetzt.',
+          'Importierte Teams, Spiele, Trainings und weitere Daten werden mit dem vorhandenen Bestand zusammengeführt. Neuere importierte Datensätze werden automatisch übernommen; andere Konflikte werden einzeln abgefragt.',
         ),
         actions: [
           TextButton(
@@ -1589,17 +2058,7 @@ class AppBackupService {
     );
 
     if (shouldImport != true) return false;
-
-    final teams = teamsData
-        .whereType<Map>()
-        .map((item) => Team.fromJson(Map<String, dynamic>.from(item)))
-        .toList();
-    final matchStats = MatchStatsState.fromJson(
-      Map<String, dynamic>.from(matchStatsData),
-    );
-
-    await TeamsRepository(database).save(teams);
-    await MatchStatsRepository(database).save(matchStats);
+    await _mergeApplicationData(context, database, data);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1629,43 +2088,15 @@ class AppBackupService {
       throw const FormatException('Das Team-Backup hat ein ungültiges Format.');
     }
 
-    final team = Team.fromJson(Map<String, dynamic>.from(teamData));
-    final shouldImport = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Team importieren?'),
-        content: Text(
-            '„${team.name.isEmpty ? 'Unbenanntes Team' : team.name}“ wird importiert.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Importieren'),
-          ),
-        ],
-      ),
+    return _importFullBackupData(
+      context,
+      database,
+      <String, dynamic>{
+        'formatVersion': _formatVersion,
+        'teams': <dynamic>[teamData],
+        'matchStats': <String, dynamic>{'matches': <dynamic>[]},
+      },
     );
-    if (shouldImport != true) return false;
-
-    final repository = TeamsRepository(database);
-    final teams = await repository.load();
-    final index = teams.indexWhere((entry) => entry.id == team.id);
-    if (index >= 0) {
-      teams[index] = team;
-    } else {
-      teams.add(team);
-    }
-    await repository.save(teams);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Team „${team.name}“ importiert.')),
-      );
-    }
-    return true;
   }
 
   static Future<bool> importMatchBackup(
@@ -1718,14 +2149,15 @@ class AppBackupService {
 
     final repository = MatchStatsRepository(database);
     final state = await repository.load();
-    final matches = List<MatchGame>.from(state.matches);
-    final index = matches.indexWhere((entry) => entry.id == match.id);
-    if (index >= 0) {
-      matches[index] = match;
-    } else {
-      matches.add(match);
-    }
-    await repository.save(MatchStatsState(matches: matches));
+    final matches = await _mergeRecords(
+      context,
+      state.matches.map((entry) => entry.toJson()).toList(),
+      [match.toJson()],
+      kind: 'Punktewertung',
+    );
+    await repository.save(
+      MatchStatsState.fromJson(<String, dynamic>{'matches': matches}),
+    );
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1757,7 +2189,7 @@ class AppBackupService {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Punktewertungen importieren?'),
         content: Text(
-          '${matches.length} Spiele werden hinzugefügt. Vorhandene Spiele mit gleicher ID werden aktualisiert.',
+          '${matches.length} Spiele werden mit dem Bestand zusammengeführt. Doppelte Einträge werden abgefragt.',
         ),
         actions: [
           TextButton(
@@ -1775,8 +2207,15 @@ class AppBackupService {
 
     final repository = MatchStatsRepository(database);
     final existing = await repository.load();
-    final merged = mergeMatchesById(existing.matches, matches);
-    await repository.save(MatchStatsState(matches: merged));
+    final merged = await _mergeRecords(
+      context,
+      existing.matches.map((entry) => entry.toJson()).toList(),
+      matches.map((entry) => entry.toJson()).toList(),
+      kind: 'Punktewertung',
+    );
+    await repository.save(
+      MatchStatsState.fromJson(<String, dynamic>{'matches': merged}),
+    );
 
     if (!context.mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(

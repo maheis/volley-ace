@@ -93,8 +93,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
       - [ ] Punktewertung
       - [ ] Trainingsstatistik
     - [ ] Spielerbewertung
-    - [ ] Trainingsteilnahmepdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne seitenumbruch?)
-
+    - [ ] Trainingsteilnahme
     - [ ] Trainingsbewertungen
     - [ ] Trainingsstände
     - [ ] Achievements

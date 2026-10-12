@@ -442,6 +442,192 @@ void main() {
     expect((payload['team'] as Map<String, dynamic>)['name'], 'SV Beispiel');
   });
 
+  test('team bundle includes linked records and app-wide board data', () async {
+    final database = await databaseFactoryMemory.openDatabase('team-bundle.db');
+    const team = Team(
+      id: 7,
+      name: 'SV Beispiel',
+      players: [
+        TeamPlayer(
+          id: 1,
+          name: 'Ada',
+          number: 7,
+          birthDate: null,
+          position: 'Zuspiel',
+          profile: '',
+          personId: 100,
+        ),
+      ],
+      coaches: [],
+    );
+    const otherTeam = Team(id: 8, name: 'Team Fremd', players: [], coaches: []);
+    await TeamsRepository(database).save([team, otherTeam]);
+    await PeopleRepository(database).save(const [
+      LocalPerson(id: 100, memberNumber: 1, name: 'Ada'),
+      LocalPerson(id: 101, memberNumber: 2, name: 'Gast'),
+      LocalPerson(id: 102, memberNumber: 3, name: 'Nicht dabei'),
+    ]);
+    await MatchStatsRepository(database).save(
+      MatchStatsState(
+        matches: [
+          MatchGame(
+            id: 1,
+            createdAt: DateTime(2026),
+            location: 'Halle',
+            opponentTeam: 'Team Rot',
+            matchDateTime: DateTime(2026),
+            matchTag: '',
+            matchType: 'Liga',
+            teamId: 7,
+            players: const [],
+            events: const [],
+          ),
+          MatchGame(
+            id: 2,
+            createdAt: DateTime(2026),
+            location: 'Halle',
+            opponentTeam: 'Team Blau',
+            matchDateTime: DateTime(2026),
+            matchTag: '',
+            matchType: 'Liga',
+            teamId: 8,
+            players: const [],
+            events: const [],
+          ),
+        ],
+      ),
+    );
+    await StoreRef<String, Map<String, dynamic>>('training')
+        .record('sessions')
+        .put(database, {
+      'sessions': [
+        {
+          'id': 11,
+          'teamId': 7,
+          'teamIds': [7],
+          'trainingPlanIds': [21],
+          'guests': ['Gast'],
+          'exercises': [
+            {'id': 31},
+          ],
+        },
+        {
+          'id': 12,
+          'teamId': 8,
+          'teamIds': [8],
+          'trainingPlanIds': [22],
+          'exercises': [
+            {'id': 32},
+          ],
+        },
+      ],
+    });
+    await StoreRef<String, Map<String, dynamic>>('training_plans')
+        .record('plans')
+        .put(database, {
+      'plans': [
+        {'id': 21, 'topic': 'Aufschlag'},
+        {'id': 22, 'topic': 'Fremder Plan'},
+      ],
+    });
+    await StoreRef<String, Map<String, dynamic>>('training_exercises')
+        .record('exercises')
+        .put(database, {
+      'exercises': [
+        {'id': 31, 'title': 'Annahme'},
+        {'id': 32, 'title': 'Andere Übung'},
+      ],
+    });
+    await StoreRef<String, Map<String, dynamic>>('scoreboard')
+        .record('current')
+        .put(database, {'leftPoints': 5});
+    await StoreRef<String, Map<String, dynamic>>('scoreboard')
+        .record('snapshots')
+        .put(database, {
+      'items': [
+        {'id': 'snapshot-1', 'name': 'Spielstand'},
+      ],
+    });
+    await StoreRef<String, Map<String, dynamic>>('tactics')
+        .record('board')
+        .put(database, {
+      'pages': [
+        {'note': 'Aufstellung'},
+      ],
+      'tactics': [
+        {'id': 41, 'name': 'Block'},
+      ],
+    });
+
+    final bundle = await AppBackupService.buildTeamBundle(database, team);
+    List<Map> records(Object? section, String key) =>
+        ((section as Map<String, dynamic>)[key] as List).cast<Map>();
+
+    expect(bundle['type'], 'team-bundle');
+    expect(bundle['teams'], hasLength(1));
+    expect(records(bundle['matchStats'], 'matches').map((item) => item['id']),
+        [1]);
+    expect(records(bundle['training'], 'sessions').map((item) => item['id']),
+        [11]);
+    expect(records(bundle['trainingPlans'], 'plans').map((item) => item['id']),
+        [21]);
+    expect(
+        records(bundle['trainingExercises'], 'exercises')
+            .map((item) => item['id']),
+        [31]);
+    expect(records(bundle['people'], 'people').map((item) => item['id']),
+        [100, 101]);
+    expect(bundle['scoreboard'], isA<Map<String, dynamic>>());
+    expect(bundle['tactics'], isA<Map<String, dynamic>>());
+  });
+
+  testWidgets('import merge prefers newer records and asks on unknown dates', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Text('ready'))),
+    );
+    final context = tester.element(find.text('ready'));
+    final newer = await AppBackupService.mergeImportRecords(
+      context,
+      [
+        {'id': 1, 'name': 'Local', 'updatedAtMillis': 10},
+      ],
+      [
+        {'id': 1, 'name': 'Import', 'updatedAtMillis': 20},
+      ],
+      kind: 'Testdaten',
+    );
+    expect(newer.single['name'], 'Import');
+    final older = await AppBackupService.mergeImportRecords(
+      context,
+      [
+        {'id': 1, 'name': 'Neu', 'updatedAtMillis': 20},
+      ],
+      [
+        {'id': 1, 'name': 'Alt', 'updatedAtMillis': 10},
+      ],
+      kind: 'Testdaten',
+    );
+    expect(older.single['name'], 'Neu');
+
+    final unresolved = AppBackupService.mergeImportRecords(
+      context,
+      [
+        {'id': 1, 'name': 'Vorhanden'},
+      ],
+      [
+        {'id': 1, 'name': 'Import'},
+      ],
+      kind: 'Team',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Doppelte Daten: Team'), findsOneWidget);
+    await tester.tap(find.text('Import übernehmen'));
+    await tester.pumpAndSettle();
+    expect((await unresolved).single['name'], 'Import');
+  });
+
   test('Match export payload contains one match', () {
     final match = MatchGame(
       id: 11,

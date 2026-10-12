@@ -952,8 +952,11 @@ class _TeamsPageState extends State<TeamsPage> {
                             if (compactActions)
                               PopupMenuButton<String>(
                                 tooltip: 'Weitere Aktionen',
-                                onSelected: (_) =>
-                                    AppBackupService.shareTeam(context, team),
+                                onSelected: (_) => AppBackupService.shareTeam(
+                                  context,
+                                  widget.database,
+                                  team,
+                                ),
                                 itemBuilder: (context) => [
                                   PopupMenuItem(
                                     value: 'share',
@@ -965,7 +968,7 @@ class _TeamsPageState extends State<TeamsPage> {
                                                 .iconTheme
                                                 .color),
                                         const SizedBox(width: 12),
-                                        Text('Team teilen'),
+                                        Text('Team mit Daten teilen'),
                                       ],
                                     ),
                                   ),
@@ -973,10 +976,13 @@ class _TeamsPageState extends State<TeamsPage> {
                               )
                             else
                               IconButton(
-                                tooltip: 'Team teilen',
+                                tooltip: 'Team mit Daten teilen',
                                 icon: const Icon(Icons.share_outlined),
-                                onPressed: () =>
-                                    AppBackupService.shareTeam(context, team),
+                                onPressed: () => AppBackupService.shareTeam(
+                                  context,
+                                  widget.database,
+                                  team,
+                                ),
                               ),
                             const Icon(Icons.chevron_right),
                           ],
