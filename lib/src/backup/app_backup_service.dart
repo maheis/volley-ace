@@ -54,8 +54,14 @@ class AppBackupService {
         'formatVersion': _formatVersion,
         'type': 'matches',
         'exportedAt': DateTime.now().toIso8601String(),
-        'matches': matches.map((match) => match.toJson()).toList(),
+        'matches': _oldestMatchesFirst(matches)
+            .map((match) => match.toJson())
+            .toList(),
       };
+
+  static List<MatchGame> _oldestMatchesFirst(List<MatchGame> matches) =>
+      List<MatchGame>.from(matches)
+        ..sort((first, second) => compareMatchesByGameTime(second, first));
 
   static List<MatchGame> mergeMatchesById(
     List<MatchGame> existing,
@@ -77,6 +83,8 @@ class AppBackupService {
     bool landscape = false,
     bool continuous = false,
   }) async {
+    final orderedSourceMatches =
+        sourceMatches == null ? null : _oldestMatchesFirst(sourceMatches);
     final sortedEvents = List<MatchEvent>.from(match.events)
       ..sort((a, b) {
         final timeOrder = a.occurredAt.compareTo(b.occurredAt);
@@ -90,9 +98,9 @@ class AppBackupService {
         sortedEvents.where((event) => event.kind == 'error').length;
     final categories = <String>{...points.keys, ...errors.keys}.toList()
       ..sort();
-    final matchTimes = sourceMatches == null
+    final matchTimes = orderedSourceMatches == null
         ? const <DateTime>[]
-        : (sourceMatches
+        : (orderedSourceMatches
             .map((sourceMatch) {
               final eventTimes = sourceMatch.events
                   .where(
@@ -126,14 +134,14 @@ class AppBackupService {
         match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
         style: const pw.TextStyle(fontSize: 13),
       ),
-      if (sourceMatches != null && sourceMatches.isNotEmpty) ...[
+      if (orderedSourceMatches != null && orderedSourceMatches.isNotEmpty) ...[
         pw.SizedBox(height: 14),
         pw.Text(
-          'Ausgewählte Partien (${sourceMatches.length})',
+          'Ausgewählte Partien (${orderedSourceMatches.length})',
           style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 6),
-        _selectedMatchesTable(sourceMatches),
+        _selectedMatchesTable(orderedSourceMatches),
       ],
       pw.Text(
         '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
@@ -221,30 +229,35 @@ class AppBackupService {
                   .where((event) => event.scorerIds.contains(player.id))
                   .toList(),
               matchTimes: matchTimes,
-              trendSamples: sourceMatches != null && sourceMatches.length > 1
-                  ? matchPlayerTrendSamples(match, sourceMatches, player.id)
+              trendSamples: orderedSourceMatches != null &&
+                      orderedSourceMatches.length > 1
+                  ? matchPlayerTrendSamples(
+                      match,
+                      orderedSourceMatches,
+                      player.id,
+                    )
                   : null,
             ),
           ),
         ],
       ],
-      if (sourceMatches != null && sourceMatches.length > 1) ...[
+      if (orderedSourceMatches != null && orderedSourceMatches.length > 1) ...[
         pw.SizedBox(height: 24),
         pw.Divider(color: pdf.PdfColors.grey400),
         pw.Text(
           'Einzelstatistiken',
           style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
         ),
-        for (final sourceMatch in sourceMatches)
+        for (final sourceMatch in orderedSourceMatches)
           ..._individualMatchReportWidgets(sourceMatch),
       ],
     ];
 
     if (continuous) {
-      final reportCount = sourceMatches?.length ?? 1;
-      final reportPlayerCount = sourceMatches == null
+      final reportCount = orderedSourceMatches?.length ?? 1;
+      final reportPlayerCount = orderedSourceMatches == null
           ? match.players.length
-          : sourceMatches.fold<int>(
+          : orderedSourceMatches.fold<int>(
               match.players.length,
               (total, sourceMatch) => total + sourceMatch.players.length,
             );

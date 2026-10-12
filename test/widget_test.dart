@@ -1909,7 +1909,7 @@ void main() {
         ),
       ],
     );
-    final selectedMatches = [match, secondMatch];
+    final selectedMatches = [secondMatch, match];
     final combinedMatch = combineMatchesForStatistics(selectedMatches);
 
     final bytes = await AppBackupService.buildMatchStatsPdf(
@@ -1924,6 +1924,13 @@ void main() {
 
     expect(bytes.length, greaterThan(1000));
     expect(bytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    final exportedMatches =
+        AppBackupService.buildMatchesBackup(selectedMatches)['matches'] as List;
+    expect(
+      exportedMatches
+          .map((entry) => (entry as Map<String, dynamic>)['opponentTeam']),
+      ['Team Rot', 'Team Blau'],
+    );
     int pageCount(List<int> pdfBytes) => RegExp(r'/Type\s*/Page\b')
         .allMatches(String.fromCharCodes(pdfBytes))
         .length;
