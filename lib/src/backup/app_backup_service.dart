@@ -518,28 +518,32 @@ class AppBackupService {
     Map<String, int> points,
     Map<String, int> errors,
   ) {
-    final labels = categories.length == 1 ? [...categories, ''] : categories;
+    final labels = <String>['', ...categories];
     final pointData = <pw.PointChartValue>[
       for (var index = 0; index < labels.length; index++)
         pw.PointChartValue(
-          index < categories.length
-              ? (points[categories[index]] ?? 0).toDouble()
-              : 0,
+          index > 0 ? (points[categories[index - 1]] ?? 0).toDouble() : 0,
           index.toDouble(),
         ),
     ];
     final errorData = <pw.PointChartValue>[
       for (var index = 0; index < labels.length; index++)
         pw.PointChartValue(
-          index < categories.length
-              ? (errors[categories[index]] ?? 0).toDouble()
-              : 0,
+          index > 0 ? (errors[categories[index - 1]] ?? 0).toDouble() : 0,
           index.toDouble(),
         ),
     ];
     final maxValue = <int>[...points.values, ...errors.values]
         .fold<int>(1, math.max)
         .toDouble();
+    final evenBandData = <pw.PointChartValue>[
+      for (var index = 0; index < categories.length; index += 2)
+        pw.PointChartValue(maxValue, (index + 1).toDouble()),
+    ];
+    final oddBandData = <pw.PointChartValue>[
+      for (var index = 1; index < categories.length; index += 2)
+        pw.PointChartValue(maxValue, (index + 1).toDouble()),
+    ];
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -567,6 +571,18 @@ class AppBackupService {
               ),
             ),
             datasets: [
+              pw.BarDataSet<pw.PointChartValue>(
+                data: evenBandData,
+                color: pdf.PdfColor(1, 0.93, 0.72),
+                axis: pw.Axis.vertical,
+                width: 19,
+              ),
+              pw.BarDataSet<pw.PointChartValue>(
+                data: oddBandData,
+                color: pdf.PdfColor(1, 0.98, 0.88),
+                axis: pw.Axis.vertical,
+                width: 19,
+              ),
               pw.BarDataSet<pw.PointChartValue>(
                 data: pointData,
                 color: pdf.PdfColors.green,

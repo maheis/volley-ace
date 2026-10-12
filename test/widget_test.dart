@@ -1868,6 +1868,24 @@ void main() {
           category: 'Annahme · Zugeschaut',
           occurredAt: DateTime(2026, 6, 1, 18, 5),
         ),
+        MatchEvent(
+          id: 3,
+          playerId: 1,
+          playerName: 'Ada',
+          playerNumber: 7,
+          kind: 'point',
+          category: 'Angriff',
+          occurredAt: DateTime(2026, 6, 1, 18, 6),
+        ),
+        MatchEvent(
+          id: 4,
+          playerId: 1,
+          playerName: 'Ada',
+          playerNumber: 7,
+          kind: 'error',
+          category: 'Aufschlag · Ball ins Netz',
+          occurredAt: DateTime(2026, 6, 1, 18, 7),
+        ),
       ],
     );
     final secondMatch = MatchGame(
