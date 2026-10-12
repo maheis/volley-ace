@@ -2675,6 +2675,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             ),
             const SizedBox(height: 12),
             _DetailTile(
+              title: 'Export',
+              subtitle: 'Statistik, Spielverlauf und Spielbericht',
+              icon: Icons.picture_as_pdf_outlined,
+              onTap: () =>
+                  AppBackupService.exportCompleteMatchPdf(context, match),
+            ),
+            const SizedBox(height: 12),
+            _DetailTile(
               title: 'Spiel löschen',
               subtitle: 'Spiel und Statistik unwiderruflich entfernen',
               icon: Icons.delete_outline,
@@ -3684,7 +3692,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         actions: [
           IconButton(
             key: const ValueKey('export-match-stats-pdf'),
-            tooltip: 'Statistik als PDF exportieren',
+            tooltip: 'Export',
             icon: const Icon(Icons.picture_as_pdf_outlined),
             onPressed: () => _exportStatisticsPdf(
               statisticsMatch,
@@ -3772,39 +3780,13 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     List<MatchGame>? sourceMatches,
   }) async {
     try {
-      final layout = await showModalBottomSheet<String>(
-        context: context,
-        builder: (sheetContext) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.stay_current_portrait_outlined),
-                title: const Text('Hochformat'),
-                onTap: () => Navigator.of(sheetContext).pop('portrait'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.stay_current_landscape_outlined),
-                title: const Text('Querformat'),
-                onTap: () => Navigator.of(sheetContext).pop('landscape'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.view_stream_outlined),
-                title: const Text('Fortlaufend im Querformat'),
-                onTap: () => Navigator.of(sheetContext).pop('continuous'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (layout == null || !mounted) return;
       await AppBackupService.exportMatchStatsPdf(
         context,
         match,
         title: title,
         sourceMatches: sourceMatches,
-        landscape: layout == 'landscape' || layout == 'continuous',
-        continuous: layout == 'continuous',
+        landscape: true,
+        continuous: true,
       );
     } catch (error) {
       if (!mounted) return;
@@ -4965,7 +4947,7 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
         title: const Text('Verlauf'),
         actions: [
           IconButton(
-            tooltip: 'Verlauf als PDF exportieren',
+            tooltip: 'Export',
             onPressed: () =>
                 AppBackupService.exportMatchHistoryPdf(context, _match),
             icon: const Icon(Icons.picture_as_pdf_outlined),

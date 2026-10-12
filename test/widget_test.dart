@@ -1263,6 +1263,11 @@ void main() {
     await _pumpUi(tester);
     await tester.tap(find.byTooltip('Zur Spielübersicht'));
     await _pumpUi(tester);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+    await _pumpUi(tester);
+    expect(find.text('Export'), findsOneWidget);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 600));
+    await _pumpUi(tester);
     await tester.tap(find.text('Punktewertung'));
     await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('scoring-more-menu')));
@@ -1310,6 +1315,8 @@ void main() {
     expect(find.text('Trikot 9'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
+    await _pumpUi(tester);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 600));
     await _pumpUi(tester);
     await tester.tap(find.text('Punktewertung'));
     await _pumpUi(tester);
@@ -1460,6 +1467,31 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
     await _pumpUi(tester);
     expect(find.text('Ada Neu  •  Letzte Buchung angepasst'), findsOneWidget);
+  });
+
+  testWidgets('statistics export button is named Export', (
+    WidgetTester tester,
+  ) async {
+    final database = await databaseFactoryMemory.openDatabase('pdf-option.db');
+    await tester.pumpWidget(
+      MaterialApp(home: MatchStatsPage(database: database)),
+    );
+    await _pumpUi(tester);
+
+    await tester.tap(find.byKey(const ValueKey('new-game-button')));
+    await _pumpUi(tester);
+    await tester.tap(find.byIcon(Icons.arrow_back).last);
+    await _pumpUi(tester);
+    await tester.tap(find.text('Statistik'));
+    await _pumpUi(tester);
+    final exportButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('export-match-stats-pdf')),
+    );
+    expect(exportButton.tooltip, 'Export');
+    expect(exportButton.onPressed, isNotNull);
+    expect(find.text('Hochformat'), findsNothing);
+    expect(find.text('Querformat'), findsNothing);
+    expect(find.text('Fortlaufend im Querformat'), findsNothing);
   });
 
   testWidgets('Point scoring can record opponent error without player', (
@@ -2048,6 +2080,7 @@ void main() {
     expect(landscapeBytes, isNot(singleMatchBytes));
 
     final historyMatch = match.copyWith(
+      matchReport: 'Starker Auftakt, hart umkämpft.',
       events: [
         ...match.events,
         MatchEvent(
@@ -2069,6 +2102,31 @@ void main() {
         await AppBackupService.buildMatchHistoryPdf(historyMatch);
     expect(historyBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
     expect(historyBytes.length, greaterThan(1000));
+    expect(pageCount(historyBytes), 1);
+    final historyPageBox = RegExp(
+      r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+    ).firstMatch(String.fromCharCodes(historyBytes));
+    expect(historyPageBox, isNotNull);
+    expect(
+      double.parse(historyPageBox!.group(1)!),
+      greaterThan(double.parse(historyPageBox.group(2)!)),
+    );
+    final completeBytes = await AppBackupService.buildMatchStatsPdf(
+      historyMatch,
+      title: 'Gesamtexport · Team Rot',
+      includeFullMatchDetails: true,
+      landscape: true,
+      continuous: true,
+    );
+    final continuousStatsBytes = await AppBackupService.buildMatchStatsPdf(
+      match,
+      title: 'Statistik · Team Rot',
+      landscape: true,
+      continuous: true,
+    );
+    expect(completeBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    expect(completeBytes.length, greaterThan(continuousStatsBytes.length));
+    expect(pageCount(completeBytes), 1);
   });
 
   test('match rotation follows scored point events', () {

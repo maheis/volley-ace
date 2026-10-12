@@ -82,6 +82,7 @@ class AppBackupService {
     List<MatchGame>? sourceMatches,
     bool landscape = false,
     bool continuous = false,
+    bool includeFullMatchDetails = false,
   }) async {
     final orderedSourceMatches =
         sourceMatches == null ? null : _oldestMatchesFirst(sourceMatches);
@@ -150,6 +151,26 @@ class AppBackupService {
           fontSize: 10,
         ),
       ),
+      if (includeFullMatchDetails) ...[
+        pw.SizedBox(height: 18),
+        pw.Text(
+          'Spielbericht',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Text(
+          match.matchReport.trim().isEmpty
+              ? 'Kein Spielbericht erfasst.'
+              : match.matchReport,
+        ),
+        pw.SizedBox(height: 18),
+        pw.Text(
+          'Spielverlauf',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 6),
+        ..._matchHistoryWidgets(match, sortedEvents),
+      ],
       pw.SizedBox(height: 18),
       pw.Row(
         children: [
@@ -261,10 +282,20 @@ class AppBackupService {
               match.players.length,
               (total, sourceMatch) => total + sourceMatch.players.length,
             );
+      final eventHistoryHeight = includeFullMatchDetails
+          ? match.events.length * 42 + (match.events.length / 18).ceil() * 20
+          : 0;
+      final matchReportHeight = includeFullMatchDetails
+          ? (match.matchReport.length / 80).ceil() * 14
+          : 0;
       final pageHeight = math
           .max(
             pageFormat.height,
-            1800 + reportCount * 1000 + reportPlayerCount * 180,
+            1800 +
+                reportCount * 1000 +
+                reportPlayerCount * 180 +
+                eventHistoryHeight +
+                matchReportHeight,
           )
           .toDouble();
       document.addPage(
@@ -318,6 +349,48 @@ class AppBackupService {
         final timeOrder = first.occurredAt.compareTo(second.occurredAt);
         return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
       });
+    final historyRows = _matchHistoryRows(match, events);
+    final historyWidgets = _matchHistoryWidgetsFromRows(historyRows);
+    final landscapeFormat = _pageFormat(true);
+    final pageHeight = math
+        .max(
+          landscapeFormat.height,
+          240 + historyRows.length * 42 + (historyRows.length / 18).ceil() * 20,
+        )
+        .toDouble();
+    final document = pw.Document();
+    document.addPage(
+      pw.Page(
+        pageFormat: pdf.PdfPageFormat(landscapeFormat.width, pageHeight),
+        margin: const pw.EdgeInsets.all(32),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: <pw.Widget>[
+            pw.Text(
+              'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+              style: const pw.TextStyle(
+                color: pdf.PdfColors.grey700,
+                fontSize: 10,
+              ),
+            ),
+            pw.SizedBox(height: 18),
+            ...historyWidgets,
+          ],
+        ),
+      ),
+    );
+    return document.save();
+  }
+
+  static List<List<String>> _matchHistoryRows(
+    MatchGame match,
+    List<MatchEvent> events,
+  ) {
     final rows = <List<String>>[];
     var setNumber = 1;
     var us = 0;
@@ -373,75 +446,45 @@ class AppBackupService {
         opponent = 0;
       }
     }
+    return rows;
+  }
 
-    final document = pw.Document();
-    document.addPage(
-      pw.MultiPage(
-        pageFormat: pdf.PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        header: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(bottom: 12),
-          child: pw.Text(
-            'VolleyAce · Spielverlauf',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 9,
-            ),
+  static List<pw.Widget> _matchHistoryWidgets(
+    MatchGame match,
+    List<MatchEvent> events,
+  ) {
+    return _matchHistoryWidgetsFromRows(_matchHistoryRows(match, events));
+  }
+
+  static List<pw.Widget> _matchHistoryWidgetsFromRows(List<List<String>> rows) {
+    if (rows.isEmpty) {
+      return <pw.Widget>[pw.Text('Noch keine Verlaufseinträge vorhanden.')];
+    }
+    const rowsPerTable = 18;
+    return <pw.Widget>[
+      for (var start = 0; start < rows.length; start += rowsPerTable)
+        pw.Table(
+          border: pw.TableBorder.all(
+            color: pdf.PdfColors.grey400,
+            width: 0.5,
           ),
+          columnWidths: const <int, pw.TableColumnWidth>{
+            0: pw.FlexColumnWidth(1.5),
+            1: pw.FlexColumnWidth(0.6),
+            2: pw.FlexColumnWidth(0.8),
+            3: pw.FlexColumnWidth(1),
+            4: pw.FlexColumnWidth(3.2),
+          },
+          children: [
+            _tableRow(
+              ['Zeit', 'Satz', 'Stand', 'Aktion', 'Spieler / Details'],
+              header: true,
+            ),
+            for (final row in rows.skip(start).take(rowsPerTable))
+              _tableRow(row),
+          ],
         ),
-        footer: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(top: 12),
-          child: pw.Text(
-            '${context.pageNumber} / ${context.pagesCount}',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 9,
-            ),
-          ),
-        ),
-        build: (_) => <pw.Widget>[
-          pw.Text(
-            'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
-            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
-            style: const pw.TextStyle(
-              color: pdf.PdfColors.grey700,
-              fontSize: 10,
-            ),
-          ),
-          pw.SizedBox(height: 18),
-          if (rows.isEmpty)
-            pw.Text('Noch keine Verlaufseinträge vorhanden.')
-          else
-            pw.Table(
-              border: pw.TableBorder.all(
-                color: pdf.PdfColors.grey400,
-                width: 0.5,
-              ),
-              columnWidths: const <int, pw.TableColumnWidth>{
-                0: pw.FlexColumnWidth(1.5),
-                1: pw.FlexColumnWidth(0.6),
-                2: pw.FlexColumnWidth(0.8),
-                3: pw.FlexColumnWidth(1),
-                4: pw.FlexColumnWidth(3.2),
-              },
-              children: [
-                _tableRow(
-                  ['Zeit', 'Satz', 'Stand', 'Aktion', 'Spieler / Details'],
-                  header: true,
-                ),
-                for (final row in rows) _tableRow(row),
-              ],
-            ),
-        ],
-      ),
-    );
-    return document.save();
+    ];
   }
 
   static pdf.PdfPageFormat _pageFormat(bool landscape) {
@@ -1228,13 +1271,27 @@ class AppBackupService {
     await _shareJson(suggestedName, jsonText, subject);
   }
 
+  static Future<void> exportCompleteMatchPdf(
+    BuildContext context,
+    MatchGame match,
+  ) {
+    final opponent = match.opponentTeam.isEmpty ? 'Spiel' : match.opponentTeam;
+    return exportMatchStatsPdf(
+      context,
+      match,
+      title: 'Gesamtexport · $opponent',
+      includeFullMatchDetails: true,
+    );
+  }
+
   static Future<void> exportMatchStatsPdf(
     BuildContext context,
     MatchGame match, {
     required String title,
     List<MatchGame>? sourceMatches,
-    bool landscape = false,
-    bool continuous = false,
+    bool landscape = true,
+    bool continuous = true,
+    bool includeFullMatchDetails = false,
   }) async {
     final bytes = await buildMatchStatsPdf(
       match,
@@ -1242,17 +1299,18 @@ class AppBackupService {
       sourceMatches: sourceMatches,
       landscape: landscape,
       continuous: continuous,
+      includeFullMatchDetails: includeFullMatchDetails,
     );
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
     final suggestedName =
-        'volleyace-statistik-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
+        'volleyace-pdf-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
 
     if (platform == TargetPlatform.linux ||
         platform == TargetPlatform.windows) {
       try {
         final selectedPath = await FilePicker.saveFile(
-          dialogTitle: 'Statistik als PDF speichern',
+          dialogTitle: 'PDF speichern',
           fileName: suggestedName,
           type: FileType.custom,
           allowedExtensions: const ['pdf'],
@@ -1296,13 +1354,13 @@ class AppBackupService {
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
     final suggestedName =
-        'volleyace-verlauf-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
+        'volleyace-pdf-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
 
     if (platform == TargetPlatform.linux ||
         platform == TargetPlatform.windows) {
       try {
         final selectedPath = await FilePicker.saveFile(
-          dialogTitle: 'Spielverlauf als PDF speichern',
+          dialogTitle: 'PDF speichern',
           fileName: suggestedName,
           type: FileType.custom,
           allowedExtensions: const ['pdf'],
