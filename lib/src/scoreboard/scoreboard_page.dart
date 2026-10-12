@@ -320,6 +320,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     final pretty = const JsonEncoder.withIndent('  ').convert(
       <String, dynamic>{
         'type': 'scoreboard-snapshot',
+        'id': snapshot.id,
         'savedAt': snapshot.savedAt.toIso8601String(),
         'name': snapshot.name,
         'state': snapshot.state.toJson(),
@@ -332,6 +333,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       jsonText: pretty,
       subject: 'VolleyAce Punktetafel-Stand',
       dialogTitle: 'Punktetafel speichern',
+      vace: true,
     );
   }
 
@@ -520,7 +522,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       final result = await FilePicker.pickFiles(
         dialogTitle: 'Punktestand importieren',
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: const ['json', 'vace'],
       );
       if (result.isEmpty) return;
       final bytes = await result.single.readAsBytes();

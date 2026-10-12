@@ -181,6 +181,7 @@ class _TrainingPlansPageState extends State<TrainingPlansPage> {
       jsonText: jsonText,
       subject: 'VolleyAce Trainingsplan: ${plan.topic}',
       dialogTitle: 'Trainingsplan speichern',
+      vace: true,
     );
   }
 
@@ -189,7 +190,7 @@ class _TrainingPlansPageState extends State<TrainingPlansPage> {
       final result = await FilePicker.pickFiles(
         dialogTitle: 'Trainingspläne importieren',
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: const ['json', 'vace'],
       );
       if (result.isEmpty) return;
       final decoded =

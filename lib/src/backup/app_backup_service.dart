@@ -1384,12 +1384,9 @@ class AppBackupService {
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
-  static Future<void> _exportJson(
-    BuildContext context,
-    String dialogTitle,
-    String suggestedName,
-    String jsonText,
-  ) async {
+  static Future<void> _exportJson(BuildContext context, String dialogTitle,
+      String suggestedName, String jsonText,
+      {String extension = 'json'}) async {
     final bytes = Uint8List.fromList(utf8.encode(jsonText));
 
     try {
@@ -1397,7 +1394,7 @@ class AppBackupService {
         dialogTitle: dialogTitle,
         fileName: suggestedName,
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: [extension],
         bytes: bytes,
       );
 
@@ -1424,16 +1421,14 @@ class AppBackupService {
   }
 
   static Future<void> _shareJson(
-    String suggestedName,
-    String jsonText,
-    String subject,
-  ) async {
+      String suggestedName, String jsonText, String subject,
+      {String mimeType = 'application/json'}) async {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$suggestedName');
     await file.writeAsString(jsonText);
     await SharePlus.instance.share(
       ShareParams(
-        files: [XFile(file.path)],
+        files: [XFile(file.path, mimeType: mimeType)],
         subject: subject,
       ),
     );
@@ -1445,15 +1440,30 @@ class AppBackupService {
     required String jsonText,
     required String subject,
     required String dialogTitle,
+    bool vace = false,
   }) async {
+    final exportName = vace
+        ? suggestedName.replaceFirst(RegExp(r'\.json$'), '.vace')
+        : suggestedName;
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.linux ||
         platform == TargetPlatform.windows) {
-      await _exportJson(context, dialogTitle, suggestedName, jsonText);
+      await _exportJson(
+        context,
+        dialogTitle,
+        exportName,
+        jsonText,
+        extension: vace ? 'vace' : 'json',
+      );
       return;
     }
 
-    await _shareJson(suggestedName, jsonText, subject);
+    await _shareJson(
+      exportName,
+      jsonText,
+      subject,
+      mimeType: vace ? 'application/vnd.volleyace' : 'application/json',
+    );
   }
 
   static Future<void> exportCompleteMatchPdf(
@@ -1588,12 +1598,13 @@ class AppBackupService {
     final payload = await _readBackup(database);
     final jsonText = encodeBackup(payload);
     final suggestedName =
-        'volleyace-backup-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+        'volleyace-backup-${DateTime.now().toIso8601String().replaceAll(':', '-')}.vace';
     await _exportJson(
       context,
       'VolleyAce Export speichern',
       suggestedName,
       jsonText,
+      extension: 'vace',
     );
   }
 
@@ -1611,6 +1622,7 @@ class AppBackupService {
       jsonText: jsonText,
       subject: 'VolleyAce Teams und Daten',
       dialogTitle: 'Alle Teams und Daten teilen',
+      vace: true,
     );
   }
 
@@ -1623,12 +1635,13 @@ class AppBackupService {
     if (!context.mounted) return;
     final jsonText = encodeBackup(bundle);
     final suggestedName =
-        'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+        'volleyace-team-${_safeFileName(team.name)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.vace';
     await _exportJson(
       context,
       'Team exportieren',
       suggestedName,
       jsonText,
+      extension: 'vace',
     );
   }
 
@@ -1648,18 +1661,20 @@ class AppBackupService {
       jsonText: jsonText,
       subject: 'VolleyAce Team-Backup',
       dialogTitle: 'Team speichern',
+      vace: true,
     );
   }
 
   static Future<void> exportMatch(BuildContext context, MatchGame match) async {
     final jsonText = encodeBackup(buildMatchBackup(match));
     final suggestedName =
-        'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
+        'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.vace';
     await _exportJson(
       context,
       'Spiel exportieren',
       suggestedName,
       jsonText,
+      extension: 'vace',
     );
   }
 
@@ -1673,6 +1688,7 @@ class AppBackupService {
       jsonText: jsonText,
       subject: 'VolleyAce Spiel-Backup',
       dialogTitle: 'Spiel speichern',
+      vace: true,
     );
   }
 
@@ -1690,6 +1706,7 @@ class AppBackupService {
       jsonText: jsonText,
       subject: '${matches.length} VolleyAce-Punktewertungen',
       dialogTitle: 'Punktewertungen speichern',
+      vace: true,
     );
   }
 
@@ -1697,7 +1714,7 @@ class AppBackupService {
     final result = await FilePicker.pickFiles(
       dialogTitle: dialogTitle,
       type: FileType.custom,
-      allowedExtensions: const ['json'],
+      allowedExtensions: const ['json', 'vace'],
       withData: false,
     );
     if (result.isEmpty) return null;
@@ -1720,6 +1737,165 @@ class AppBackupService {
     if (data == null) return false;
 
     return _importFullBackupData(context, database, data);
+  }
+
+  static Future<bool> importVaceBytes(
+    BuildContext context,
+    Database database,
+    Uint8List bytes,
+  ) async {
+    final decoded = jsonDecode(utf8.decode(bytes));
+    if (decoded is! Map) {
+      throw const FormatException('Die .vace-Datei ist ungültig.');
+    }
+    final data = Map<String, dynamic>.from(decoded);
+    if (data['teams'] is List && data['matchStats'] is Map) {
+      return _importFullBackupData(
+        context,
+        database,
+        data,
+        skipConfirmation: true,
+      );
+    }
+    if (data['type'] == 'matches' && data['matches'] is List) {
+      return _importMatchesBackup(
+        context,
+        database,
+        data['matches'] as List,
+        skipConfirmation: true,
+      );
+    }
+    if (data['type'] == 'match' && data['match'] is Map) {
+      return _importMatchesBackup(
+        context,
+        database,
+        <dynamic>[data['match']],
+        skipConfirmation: true,
+      );
+    }
+    if ((data['type'] == 'team' || data['type'] == 'team-bundle') &&
+        data['team'] is Map) {
+      return _importFullBackupData(
+        context,
+        database,
+        <String, dynamic>{
+          ...data,
+          'teams': <dynamic>[data['team']],
+          'matchStats': data['matchStats'] is Map
+              ? data['matchStats']
+              : <String, dynamic>{'matches': <dynamic>[]},
+        },
+        skipConfirmation: true,
+      );
+    }
+    if (data['type'] == 'training' && data['training'] is Map) {
+      return _importVaceStoreRecord(
+        context,
+        database,
+        _trainingStore,
+        'sessions',
+        'sessions',
+        Map<String, dynamic>.from(data['training'] as Map),
+        kind: 'Training',
+      );
+    }
+    if (data['type'] == 'training-plan' && data['plan'] is Map) {
+      return _importVaceStoreRecord(
+        context,
+        database,
+        _trainingPlansStore,
+        'plans',
+        'plans',
+        Map<String, dynamic>.from(data['plan'] as Map),
+        kind: 'Trainingsplan',
+      );
+    }
+    if (data['type'] == 'training-exercise' && data['exercise'] is Map) {
+      return _importVaceStoreRecord(
+        context,
+        database,
+        _trainingExercisesStore,
+        'exercises',
+        'exercises',
+        Map<String, dynamic>.from(data['exercise'] as Map),
+        kind: 'Trainingsübung',
+      );
+    }
+    if (data['type'] == 'tactics-board' && data['pages'] is List) {
+      final importedTactic = <String, dynamic>{
+        'id': data['id'] is num
+            ? data['id']
+            : DateTime.now().millisecondsSinceEpoch,
+        'name': data['name'] is String ? data['name'] : 'Unbenannt',
+        'pages': data['pages'],
+      };
+      final currentBoard = await _tacticsStore.record('board').get(database);
+      final current = currentBoard == null
+          ? <Map<String, dynamic>>[]
+          : _backupRecords(currentBoard, 'tactics');
+      final tactics = await _mergeRecords(
+        context,
+        current,
+        [importedTactic],
+        kind: 'Taktik',
+      );
+      await _tacticsStore.record('board').put(database, {
+        ...?currentBoard,
+        'tactics': tactics,
+      });
+      return true;
+    }
+    if (data['type'] == 'scoreboard-snapshot' && data['state'] is Map) {
+      final savedAt = data['savedAt'] is String
+          ? DateTime.tryParse(data['savedAt'] as String) ?? DateTime.now()
+          : DateTime.now();
+      final importedSnapshot = <String, dynamic>{
+        'id': data['id'] is String
+            ? data['id']
+            : savedAt.millisecondsSinceEpoch.toString(),
+        'name': data['name'] is String ? data['name'] : 'Punktestand',
+        'savedAtMillis': savedAt.millisecondsSinceEpoch,
+        'state': data['state'],
+      };
+      final currentSnapshots =
+          await _scoreboardStore.record('snapshots').get(database);
+      final snapshots = await _mergeRecords(
+        context,
+        _backupRecords(currentSnapshots, 'items'),
+        [importedSnapshot],
+        kind: 'Punktetafelstand',
+      );
+      await _scoreboardStore
+          .record('snapshots')
+          .put(database, {'items': snapshots});
+      return true;
+    }
+    throw const FormatException('Dieser .vace-Export wird nicht unterstützt.');
+  }
+
+  static Future<bool> _importVaceStoreRecord(
+    BuildContext context,
+    Database database,
+    StoreRef<String, Map<String, dynamic>> store,
+    String recordKey,
+    String listKey,
+    Map<String, dynamic> incoming, {
+    required String kind,
+  }) async {
+    final currentData = await store.record(recordKey).get(database);
+    final current = _backupRecords(currentData, listKey);
+    if (recordKey == 'sessions' && currentData == null) {
+      final legacy = await store.record('current').get(database);
+      if (legacy != null) current.add(legacy);
+    }
+    final merged = await _mergeRecords(
+      context,
+      current,
+      [incoming],
+      kind: kind,
+    );
+    await store.record(recordKey).put(database, {listKey: merged});
+    return true;
   }
 
   static List<Map<String, dynamic>> _backupRecords(
@@ -2042,10 +2218,8 @@ class AppBackupService {
   }
 
   static Future<bool> _importFullBackupData(
-    BuildContext context,
-    Database database,
-    Map<String, dynamic> data,
-  ) async {
+      BuildContext context, Database database, Map<String, dynamic> data,
+      {bool skipConfirmation = false}) async {
     final teamsData = data['teams'];
     final matchStatsData = data['matchStats'];
     if (teamsData is! List || matchStatsData is! Map) {
@@ -2054,27 +2228,29 @@ class AppBackupService {
       );
     }
 
-    final shouldImport = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Daten zusammenführen?'),
-        content: const Text(
-          'Importierte Teams, Spiele, Trainings und weitere Daten werden mit dem vorhandenen Bestand zusammengeführt. Neuere importierte Datensätze werden automatisch übernommen; andere Konflikte werden einzeln abgefragt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Importieren'),
-          ),
-        ],
-      ),
-    );
+    final shouldImport = skipConfirmation ||
+        (await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Daten zusammenführen?'),
+                content: const Text(
+                  'Importierte Teams, Spiele, Trainings und weitere Daten werden mit dem vorhandenen Bestand zusammengeführt. Neuere importierte Datensätze werden automatisch übernommen; andere Konflikte werden einzeln abgefragt.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Abbrechen'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: const Text('Importieren'),
+                  ),
+                ],
+              ),
+            ) ??
+            false);
 
-    if (shouldImport != true) return false;
+    if (!shouldImport) return false;
     await _mergeApplicationData(context, database, data);
 
     if (context.mounted) {
@@ -2189,8 +2365,9 @@ class AppBackupService {
   static Future<bool> _importMatchesBackup(
     BuildContext context,
     Database database,
-    List<dynamic> rawMatches,
-  ) async {
+    List<dynamic> rawMatches, {
+    bool skipConfirmation = false,
+  }) async {
     final matches = rawMatches
         .whereType<Map>()
         .map((item) => MatchGame.fromJson(Map<String, dynamic>.from(item)))
@@ -2201,26 +2378,28 @@ class AppBackupService {
       );
     }
 
-    final shouldImport = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Punktewertungen importieren?'),
-        content: Text(
-          '${matches.length} Spiele werden mit dem Bestand zusammengeführt. Doppelte Einträge werden abgefragt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Importieren'),
-          ),
-        ],
-      ),
-    );
-    if (shouldImport != true || !context.mounted) return false;
+    final shouldImport = skipConfirmation ||
+        (await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Punktewertungen importieren?'),
+                content: Text(
+                  '${matches.length} Spiele werden mit dem Bestand zusammengeführt. Doppelte Einträge werden abgefragt.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Abbrechen'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: const Text('Importieren'),
+                  ),
+                ],
+              ),
+            ) ??
+            false);
+    if (!shouldImport || !context.mounted) return false;
 
     final repository = MatchStatsRepository(database);
     final existing = await repository.load();

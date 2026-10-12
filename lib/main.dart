@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import 'src/app.dart';
@@ -11,8 +14,21 @@ Future<void> main() async {
   final database = await openAppDatabase();
   final settingsController = SettingsController(SettingsRepository(database));
   await settingsController.load();
+  Uint8List? initialVaceContent;
+  for (final argument in Platform.executableArguments) {
+    if (!argument.toLowerCase().endsWith('.vace')) continue;
+    final file = File(argument);
+    if (await file.exists()) {
+      initialVaceContent = await file.readAsBytes();
+      break;
+    }
+  }
 
   runApp(
-    VolleyAceApp(settingsController: settingsController, database: database),
+    VolleyAceApp(
+      settingsController: settingsController,
+      database: database,
+      initialVaceContent: initialVaceContent,
+    ),
   );
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sembast/sembast.dart';
@@ -22,10 +24,12 @@ class VolleyAceApp extends StatelessWidget {
     super.key,
     required this.settingsController,
     required this.database,
+    this.initialVaceContent,
   });
 
   final SettingsController settingsController;
   final Database database;
+  final Uint8List? initialVaceContent;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +74,7 @@ class VolleyAceApp extends StatelessWidget {
           home: Builder(
             builder: (homeContext) => HomePage(
               database: database,
+              initialVaceContent: initialVaceContent,
               onOpenSettings: () => _openSettings(homeContext, settings),
               onOpenArcade: () => _openArcade(homeContext),
               onOpenScoreboard: () => _openScoreboard(homeContext),

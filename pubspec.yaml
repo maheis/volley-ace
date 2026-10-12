@@ -77,3 +77,4 @@ msix_config:
   architecture: x64
   languages: de-de
   capabilities: internetClient
+  file_extension: .vace

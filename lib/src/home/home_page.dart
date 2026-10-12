@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sembast/sembast.dart';
 
 import '../analytics/match_stats_page.dart';
+import '../backup/app_backup_service.dart';
 import '../training/training_page.dart';
 
 enum _TrainingDisplayState { upcoming, active, completed }
@@ -29,6 +32,7 @@ class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     required this.database,
+    this.initialVaceContent,
     required this.onOpenSettings,
     required this.onOpenArcade,
     required this.onOpenScoreboard,
@@ -41,6 +45,7 @@ class HomePage extends StatefulWidget {
   });
 
   final Database database;
+  final Uint8List? initialVaceContent;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenArcade;
   final VoidCallback onOpenScoreboard;
@@ -56,6 +61,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  static const MethodChannel _vaceChannel =
+      MethodChannel('be.heister.volleyace/vace');
   late final TrainingRepository _trainingRepository =
       TrainingRepository(widget.database);
   late final MatchStatsRepository _matchRepository =
@@ -70,7 +77,15 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _vaceChannel.setMethodCallHandler(_handleVaceMethodCall);
     _loadFeaturedContent();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialVaceContent != null) {
+        unawaited(_importVaceContent(widget.initialVaceContent!));
+      } else if (defaultTargetPlatform == TargetPlatform.android) {
+        unawaited(_takeInitialVaceFile());
+      }
+    });
     _trainingRefreshTimer = Timer.periodic(
       const Duration(minutes: 1),
       (_) => _loadFeaturedContent(),
@@ -80,7 +95,56 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _trainingRefreshTimer?.cancel();
+    _vaceChannel.setMethodCallHandler(null);
     super.dispose();
+  }
+
+  Future<void> _takeInitialVaceFile() async {
+    try {
+      final payload = await _vaceChannel.invokeMapMethod<Object?, Object?>(
+        'takeInitialVaceFile',
+      );
+      if (payload != null) await _importVacePayload(payload);
+    } on MissingPluginException {
+      return;
+    } catch (error) {
+      _showVaceImportError(error);
+    }
+  }
+
+  Future<void> _handleVaceMethodCall(MethodCall call) async {
+    if (call.method != 'openVaceFile' || call.arguments is! Map) return;
+    await _importVacePayload(
+      Map<Object?, Object?>.from(call.arguments as Map),
+    );
+  }
+
+  Future<void> _importVacePayload(Map<Object?, Object?> payload) async {
+    final content = payload['content'];
+    if (content is! Uint8List) {
+      _showVaceImportError('Die geöffnete Datei konnte nicht gelesen werden.');
+      return;
+    }
+    await _importVaceContent(content);
+  }
+
+  Future<void> _importVaceContent(Uint8List content) async {
+    try {
+      await AppBackupService.importVaceBytes(
+        context,
+        widget.database,
+        content,
+      );
+    } catch (error) {
+      _showVaceImportError(error);
+    }
+  }
+
+  void _showVaceImportError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Import der .vace-Datei fehlgeschlagen: $error')),
+    );
   }
 
   Future<void> _loadFeaturedContent() async {

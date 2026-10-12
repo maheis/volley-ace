@@ -126,3 +126,13 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/volleyace.desktop.in"
+  "${PROJECT_BINARY_DIR}/volleyace.desktop"
+  @ONLY
+)
+install(FILES "${PROJECT_BINARY_DIR}/volleyace.desktop"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/share/applications")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/volleyace-mime.xml"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/share/mime/packages")

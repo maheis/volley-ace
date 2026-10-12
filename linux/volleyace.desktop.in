@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Volley Ace
+Comment=Volleyball Assistenz-App
+Exec="@CMAKE_INSTALL_PREFIX@/volley_ace" %f
+TryExec=@CMAKE_INSTALL_PREFIX@/volley_ace
+Icon=com.example.volley_ace
+Terminal=false
+Categories=Utility;Education;
+MimeType=application/vnd.volleyace;

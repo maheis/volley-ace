@@ -171,6 +171,7 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
       jsonText: jsonText,
       subject: 'VolleyAce Übung: ${exercise.title}',
       dialogTitle: 'Übung speichern',
+      vace: true,
     );
   }
 
@@ -179,7 +180,7 @@ class _TrainingExercisesPageState extends State<TrainingExercisesPage> {
       final result = await FilePicker.pickFiles(
         dialogTitle: 'Übungen importieren',
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: const ['json', 'vace'],
       );
       if (result.isEmpty) return;
       final bytes = await result.single.readAsBytes();

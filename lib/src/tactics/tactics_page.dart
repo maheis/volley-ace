@@ -455,6 +455,7 @@ class _TacticsPageState extends State<TacticsPage> {
   Future<void> _shareSavedTactic(_SavedTactic tactic) async {
     final payload = <String, dynamic>{
       'type': 'tactics-board',
+      'id': tactic.id,
       'savedAt': DateTime.now().toIso8601String(),
       'name': tactic.name,
       'pages': tactic.pages.map((page) => page.toJson()).toList(),
@@ -466,6 +467,7 @@ class _TacticsPageState extends State<TacticsPage> {
       jsonText: const JsonEncoder.withIndent('  ').convert(payload),
       subject: 'VolleyAce Taktiktafel-Stand',
       dialogTitle: 'Taktiktafel speichern',
+      vace: true,
     );
   }
 
@@ -474,7 +476,7 @@ class _TacticsPageState extends State<TacticsPage> {
       final result = await FilePicker.pickFiles(
         dialogTitle: 'Taktik importieren',
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: const ['json', 'vace'],
       );
       if (result.isEmpty) return;
       final bytes = await result.single.readAsBytes();

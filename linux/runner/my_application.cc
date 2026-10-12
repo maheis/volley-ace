@@ -1,6 +1,8 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <gio/gdesktopappinfo.h>
+#include <cstring>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -14,6 +16,145 @@ struct _MyApplication
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+static gchar *escape_desktop_exec(const gchar *value)
+{
+  GString *escaped = g_string_new("\"");
+  for (const gchar *character = value; *character != '\0'; character++)
+  {
+    if (*character == '\\' || *character == '"' || *character == '%')
+    {
+      g_string_append_c(escaped, '\\');
+    }
+    g_string_append_c(escaped, *character);
+  }
+  g_string_append_c(escaped, '"');
+  return g_string_free(escaped, FALSE);
+}
+
+static gboolean write_file_if_changed(const gchar *path,
+                                      const gchar *contents,
+                                      GError **error)
+{
+  g_autofree gchar *current = nullptr;
+  gsize current_length = 0;
+  if (g_file_get_contents(path, &current, &current_length, nullptr) &&
+      current_length == std::strlen(contents) &&
+      g_strcmp0(current, contents) == 0)
+  {
+    return FALSE;
+  }
+  return g_file_set_contents(path, contents, -1, error);
+}
+
+static void update_desktop_database(const gchar *program, const gchar *path)
+{
+  gchar *arguments[] = {
+      const_cast<gchar *>(program),
+      const_cast<gchar *>(path),
+      nullptr,
+  };
+  g_autoptr(GError) error = nullptr;
+  if (!g_spawn_sync(nullptr, arguments, nullptr, G_SPAWN_SEARCH_PATH, nullptr,
+                    nullptr, nullptr, nullptr, nullptr, &error))
+  {
+    g_debug("Unable to run %s: %s", program, error->message);
+  }
+}
+
+static void register_vace_file_handler(void)
+{
+  g_autofree gchar *executable_path =
+      g_file_read_link("/proc/self/exe", nullptr);
+  if (executable_path == nullptr)
+  {
+    return;
+  }
+
+  const gchar *data_directory = g_get_user_data_dir();
+  g_autofree gchar *applications_directory =
+      g_build_filename(data_directory, "applications", nullptr);
+  g_autofree gchar *mime_packages_directory =
+      g_build_filename(data_directory, "mime", "packages", nullptr);
+  if (g_mkdir_with_parents(applications_directory, 0755) != 0 ||
+      g_mkdir_with_parents(mime_packages_directory, 0755) != 0)
+  {
+    g_warning("Unable to create user desktop file-association directories.");
+    return;
+  }
+
+  g_autofree gchar *desktop_path = g_build_filename(
+      applications_directory, "volleyace-vace.desktop", nullptr);
+  g_autofree gchar *mime_path = g_build_filename(
+      mime_packages_directory, "volleyace-vace.xml", nullptr);
+  g_autofree gchar *escaped_executable =
+      escape_desktop_exec(executable_path);
+  g_autofree gchar *desktop_entry = g_strdup_printf(
+      "[Desktop Entry]\n"
+      "Type=Application\n"
+      "Name=Volley Ace\n"
+      "Comment=Volleyball Assistenz-App\n"
+      "Exec=%s %%f\n"
+      "TryExec=%s\n"
+      "Terminal=false\n"
+      "Categories=Utility;Education;\n"
+      "MimeType=application/vnd.volleyace;\n",
+      escaped_executable, executable_path);
+  const gchar *mime_definition =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<mime-info xmlns=\"http://www.freedesktop.org/standards/shared-mime-info\">\n"
+      "  <mime-type type=\"application/vnd.volleyace\">\n"
+      "    <comment>Volley Ace backup</comment>\n"
+      "    <glob pattern=\"*.vace\"/>\n"
+      "  </mime-type>\n"
+      "</mime-info>\n";
+
+  gboolean applications_changed = FALSE;
+  gboolean mime_changed = FALSE;
+  g_autoptr(GError) error = nullptr;
+  applications_changed = write_file_if_changed(
+      desktop_path, desktop_entry, &error);
+  if (error != nullptr)
+  {
+    g_warning("Unable to register Volley Ace desktop entry: %s",
+              error->message);
+    return;
+  }
+  mime_changed = write_file_if_changed(mime_path, mime_definition, &error);
+  if (error != nullptr)
+  {
+    g_warning("Unable to register Volley Ace MIME type: %s", error->message);
+    return;
+  }
+
+  if (applications_changed)
+  {
+    update_desktop_database("update-desktop-database",
+                            applications_directory);
+  }
+  if (mime_changed)
+  {
+    g_autofree gchar *mime_directory =
+        g_build_filename(data_directory, "mime", nullptr);
+    update_desktop_database("update-mime-database", mime_directory);
+  }
+
+  g_autoptr(GAppInfo) default_application =
+      g_app_info_get_default_for_type("application/vnd.volleyace", FALSE);
+  if (default_application == nullptr)
+  {
+    g_autoptr(GDesktopAppInfo) desktop_info =
+        g_desktop_app_info_new_from_filename(desktop_path);
+    if (desktop_info != nullptr &&
+        !g_app_info_set_as_default_for_type(
+            G_APP_INFO(desktop_info), "application/vnd.volleyace", &error) &&
+        error != nullptr)
+    {
+      g_debug("Unable to set Volley Ace as the default .vace handler: %s",
+              error->message);
+    }
+  }
+}
 
 static void set_window_icon(GtkWindow *window)
 {
@@ -148,9 +289,7 @@ static gboolean my_application_local_command_line(GApplication *application,
 // Implements GApplication::startup.
 static void my_application_startup(GApplication *application)
 {
-  // MyApplication* self = MY_APPLICATION(object);
-
-  // Perform any actions required at application startup.
+  register_vace_file_handler();
 
   G_APPLICATION_CLASS(my_application_parent_class)->startup(application);
 }
