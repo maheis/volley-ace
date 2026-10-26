@@ -25,6 +25,15 @@ Future<void> _pumpUi(WidgetTester tester) async {
 }
 
 void main() {
+  test('legacy opponent-error category is normalized', () {
+    final event = MatchEvent.fromJson({
+      'id': 1,
+      'category': 'Gegner Fehler',
+    });
+
+    expect(event.category, 'Gegnerfehler');
+  });
+
   test('rotation follows the selected youth and senior rules', () {
     RotationTeamState team(String prefix) => RotationTeamState(
           players: List<RotationPlayer>.generate(
@@ -1609,6 +1618,41 @@ void main() {
     await _pumpUi(tester);
     expect(find.text('Sonstiges beschreiben'), findsNothing);
 
+    await tester.tap(find.byKey(const ValueKey('record-error-button')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-category-Aufschlag')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-scorer-team')));
+    await _pumpUi(tester);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -500));
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('select-category-Aufschlag-Sonstiges')),
+    );
+    await _pumpUi(tester);
+    expect(find.text('Sonstiges beschreiben'), findsOneWidget);
+    await tester.enterText(
+        find.byType(TextField).last, 'Fehler beim Aufschlag');
+    await tester.tap(find.text('Weiter'));
+    await _pumpUi(tester);
+
+    await tester.tap(find.byKey(const ValueKey('record-error-button')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-category-Zuspiel')));
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('select-scorer-team')));
+    await _pumpUi(tester);
+    expect(find.byKey(const ValueKey('select-category-Zuspiel-Absprache')),
+        findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('select-category-Zuspiel-Unteres Zuspiel')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('select-category-Zuspiel-Oberes Zuspiel')),
+        findsOneWidget);
+    await tester.tap(
+        find.byKey(const ValueKey('select-category-Zuspiel-Oberes Zuspiel')));
+    await _pumpUi(tester);
+
     final finishSet = find.byKey(const ValueKey('finish-set-button'));
     await tester.ensureVisible(finishSet);
     await tester.tap(finishSet);
@@ -1617,7 +1661,10 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.text('Verlauf'), findsOneWidget);
-    expect(find.text('7 Aktionen'), findsOneWidget);
+    expect(
+      find.text('Mannschaft  •  Zuspiel · Oberes Zuspiel'),
+      findsOneWidget,
+    );
     expect(find.text('Ada Neu  •  Annahme'), findsOneWidget);
     expect(find.text('1 abgeschlossene Sätze'), findsOneWidget);
     expect(find.text('Satzende'), findsOneWidget);
@@ -1652,7 +1699,8 @@ void main() {
     await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
     await _pumpUi(tester);
-    expect(find.text('Ada Neu  •  Letzte Buchung angepasst'), findsOneWidget);
+    expect(
+        find.text('Mannschaft  •  Letzte Buchung angepasst'), findsOneWidget);
   });
 
   testWidgets('statistics export button is named Export', (
@@ -1701,7 +1749,7 @@ void main() {
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
     await _pumpUi(tester);
     await tester
-        .tap(find.byKey(const ValueKey('select-category-Gegner Fehler')));
+        .tap(find.byKey(const ValueKey('select-category-Gegnerfehler')));
     await _pumpUi(tester);
 
     expect(find.byKey(const ValueKey('select-player-1')), findsNothing);
@@ -1711,7 +1759,7 @@ void main() {
     await tester.tap(find.text('Statistik'));
     await _pumpUi(tester);
 
-    expect(find.text('Gegner Fehler'), findsWidgets);
+    expect(find.text('Gegnerfehler'), findsWidgets);
     final zoomIn = find.byTooltip('Zeitachse nach rechts erweitern');
     expect(zoomIn, findsOneWidget);
     const viewportKey = ValueKey('trend-chart-scroll-Zeitverlauf gesamt');
@@ -1947,6 +1995,15 @@ void main() {
       game([
         otherDetail(1, 'Erster Ball', 1),
         otherDetail(2, 'Kurzer Ball', 2),
+        MatchEvent(
+          id: 5,
+          playerId: -1,
+          playerName: 'Unbekannt',
+          playerNumber: 0,
+          kind: 'point',
+          category: 'Angriff · Sonstiges: Glück',
+          occurredAt: DateTime(2026, 9, 1, 12, 5),
+        ),
       ]),
       game([
         otherDetail(3, 'erster ball', 3),
@@ -1954,7 +2011,7 @@ void main() {
       ]),
     ]);
 
-    expect(recent, ['Punkt nach Rally', 'erster ball', 'Kurzer Ball']);
+    expect(recent, ['Glück', 'Punkt nach Rally', 'erster ball', 'Kurzer Ball']);
 
     final lastTen = recentOtherCategoryDetails([
       game([
@@ -2202,7 +2259,7 @@ void main() {
           playerName: 'Gegner',
           playerNumber: 0,
           kind: 'point',
-          category: 'Gegner Fehler',
+          category: 'Gegnerfehler',
           occurredAt: DateTime(2026, 6, 2, 19),
         ),
       ],
@@ -2645,7 +2702,7 @@ void main() {
               playerName: 'Mannschaft',
               playerNumber: 0,
               kind: 'point',
-              category: 'Gegner Fehler',
+              category: 'Gegnerfehler',
               occurredAt: DateTime(2026, 8, id, 12, 1),
             ),
           ],

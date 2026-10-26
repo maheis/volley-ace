@@ -175,7 +175,9 @@ class MatchEvent {
       kind: kind is String ? kind : 'point',
       category: categoryName.startsWith('Annahmefehler')
           ? categoryName.replaceFirst('Annahmefehler', 'Annahme')
-          : categoryName,
+          : categoryName == 'Gegner Fehler'
+              ? 'Gegnerfehler'
+              : categoryName,
       occurredAt: occurredAtMillis is num
           ? DateTime.fromMillisecondsSinceEpoch(occurredAtMillis.toInt())
           : DateTime.now(),
@@ -562,7 +564,7 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       if (sourcePlayer != null && event.scorerIds.contains(sourcePlayer.id)) {
         if (event.kind == 'point') {
           points++;
-          if (event.category == 'Gegner Fehler') opponentErrors++;
+          if (event.category == 'Gegnerfehler') opponentErrors++;
         } else {
           errors++;
         }
@@ -706,7 +708,7 @@ List<String> recentOtherCategoryDetails(
   final events = <({DateTime matchTime, MatchEvent event})>[
     for (final match in matches)
       for (final event in match.events)
-        if (event.category.startsWith('Sonstiges:'))
+        if (event.category.contains('Sonstiges:'))
           (matchTime: match.matchDateTime, event: event),
   ]..sort((first, second) {
       final eventTime =
@@ -720,7 +722,10 @@ List<String> recentOtherCategoryDetails(
   final details = <String>[];
   final seen = <String>{};
   for (final entry in events) {
-    final detail = entry.event.category.substring('Sonstiges:'.length).trim();
+    final marker = entry.event.category.lastIndexOf('Sonstiges:');
+    if (marker < 0) continue;
+    final detail =
+        entry.event.category.substring(marker + 'Sonstiges:'.length).trim();
     if (detail.isEmpty || !seen.add(detail.toLowerCase())) continue;
     details.add(detail);
     if (details.length >= limit) break;
@@ -1245,7 +1250,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     'Freizeit',
   ];
 
-  static const String _opponentErrorCategory = 'Gegner Fehler';
+  static const String _opponentErrorCategory = 'Gegnerfehler';
   static const String _timeoutKind = 'timeout';
   static const List<_ScoringCategory> _pointCategories = <_ScoringCategory>[
     _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
@@ -1253,6 +1258,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _ScoringCategory('Netzroller'),
       _ScoringCategory('Scharf'),
       _ScoringCategory('Gegenfehler'),
+      _ScoringCategory('Sonstiges', requiresText: true),
     ]),
     _ScoringCategory('Angriff', children: <_ScoringCategory>[
       _ScoringCategory('Auge / Lücke'),
@@ -1260,6 +1266,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _ScoringCategory('Gegner Annahmefehler'),
       _ScoringCategory('Zuspieler-Finte'),
       _ScoringCategory('Netzroller'),
+      _ScoringCategory('Glück'),
+      _ScoringCategory('Sonstiges', requiresText: true),
     ]),
     _ScoringCategory('Block'),
     _ScoringCategory(_opponentErrorCategory),
@@ -1270,8 +1278,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _ScoringCategory('Ball ins seitliche Aus'),
       _ScoringCategory('Ball ins hintere Aus'),
       _ScoringCategory('Ball ins Netz'),
-      _ScoringCategory('Ball zu kurz'),
+      _ScoringCategory('Ball zu Kurz'),
       _ScoringCategory('Übertritt'),
+      _ScoringCategory('Sonstiges', requiresText: true),
     ]),
     _ScoringCategory('Annahme', children: <_ScoringCategory>[
       _ScoringCategory('Zugeschaut'),
@@ -1279,6 +1288,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _ScoringCategory('Tusch'),
       _ScoringCategory('Untere Annahme'),
       _ScoringCategory('Obere Annahme'),
+      _ScoringCategory('Sonstiges', requiresText: true),
     ]),
     _ScoringCategory('Angriff', children: <_ScoringCategory>[
       _ScoringCategory('Ball ins seitliche Aus'),
@@ -1286,10 +1296,18 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       _ScoringCategory('Ball ins Netz'),
       _ScoringCategory('Ball nicht rüber'),
       _ScoringCategory('Hinterfeldangriff'),
+      _ScoringCategory('Sonstiges', requiresText: true),
+    ]),
+    _ScoringCategory('Zuspiel', children: <_ScoringCategory>[
+      _ScoringCategory('Absprache'),
+      _ScoringCategory('Unteres Zuspiel'),
+      _ScoringCategory('Oberes Zuspiel'),
+      _ScoringCategory('Sonstiges', requiresText: true),
     ]),
     _ScoringCategory('Netz', children: <_ScoringCategory>[
       _ScoringCategory('Berührung'),
       _ScoringCategory('Übertritt'),
+      _ScoringCategory('Sonstiges', requiresText: true),
     ]),
     _ScoringCategory('Sonstiges', requiresText: true),
   ];

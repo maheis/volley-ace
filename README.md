@@ -90,7 +90,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Position
     - [x] Spielerprofil
     - [x] Spielerstatistik
-      - [ ] Punktewertung
+      - [x] Punktewertung
       - [ ] Trainingsstatistik
     - [ ] Spielerbewertung
     - [ ] Trainingsteilnahme
@@ -133,16 +133,21 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Netzroller
               - Scharf
               - Gegenfehler
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Angriff
               - Auge / Lücke
               - Angriffsschlag
               - Gegner Annahmefehler
               - Zuspieler-Finte
               - Netzroller
+              - Glück
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Block
             - Gegnerfehler
             - Sonstiges
-              - Text-Eingabeb (Mit Auswahl letzter 10 Eingaben)
+              - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
           - Fehler - Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag
               - Ball ins seitliche Aus
@@ -150,21 +155,35 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Ball ins Netz
               - Ball zu Kurz
               - Übertritt
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Annahme
               - Zugeschaut
               - Absprache
               - Tusch
               - Untere Annahme
               - Obere Annahme
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Angriff
               - Ball ins seitliche Aus
               - Ball ins hintere Aus
               - Ball ins Netz
               - Ball nicht rüber
               - Hinterfeldangriff
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
+            - Zuspiel
+              - Absprache
+              - Unteres Zuspiel
+              - Oberes Zuspiel
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Netz
               - Berührung
               - Übertritt
+              - Sonstiges
+                - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Sonstiges
               - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
       - [x] Auszeit (wichtig für den Verlauf / Impact)
@@ -335,7 +354,13 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
 - [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [ ] satzende soll automatisch erkannt werden?!
-- [ ] html exportich
+- [ ] html export
+- [ ] linux installationsskript prüfen und ggf. anpassen.
+- [ ] pdf export endless aber druckbar!
+- [x] satz beenden soll optisch werte zurücksetzen
+- [x] auszeiten setzen sich mit satz beenden zurück
+- [x] zuspieler dingens oder zweiterball
+- [x] sonstiges überall als option
 
 ## Datenschutz
 

@@ -1008,7 +1008,7 @@ class AppBackupService {
     for (var index = 0; index < scoredEvents.length; index++) {
       if (scoredEvents[index].kind == 'point') {
         points++;
-        if (scoredEvents[index].category == 'Gegner Fehler') {
+        if (scoredEvents[index].category == 'Gegnerfehler') {
           opponentErrors++;
         }
       } else {

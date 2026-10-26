@@ -268,6 +268,25 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     );
   }
 
+  void _applyState(ScoreboardState state) {
+    _leftPoints = state.leftPoints;
+    _rightPoints = state.rightPoints;
+    _leftSets = state.leftSets;
+    _rightSets = state.rightSets;
+    _leftTimeouts = state.leftTimeouts;
+    _rightTimeouts = state.rightTimeouts;
+    _leftColor = state.leftColor;
+    _rightColor = state.rightColor;
+    _stopwatchElapsed = state.stopwatchElapsed;
+    _stopwatchRunning = state.stopwatchRunning;
+    _stopwatchStartedAt = state.stopwatchStartedAt;
+    _timeoutSide = state.timeoutSide;
+    _timeoutStartedAt = state.timeoutStartedAt;
+    _completedSets = state.completedSets;
+    _historyEntries = state.historyEntries;
+    _rotationState = state.rotationState;
+  }
+
   Future<void> _saveCurrentStateSnapshot() async {
     final name = await showDialog<String>(
       context: context,
@@ -708,28 +727,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     if (shouldFinish != true || !mounted) return;
 
     _history.add(_snapshot);
+    final nextState = _currentState().completeSet(
+      leftWon: left,
+      wonAt: DateTime.now(),
+      stopwatchAt: _stopwatchDuration,
+    );
     setState(() {
-      _completedSets = List<SetResult>.from(_completedSets)
-        ..add(
-          SetResult(
-            leftPoints: _leftPoints,
-            rightPoints: _rightPoints,
-            winnerColor: left ? _leftColor : _rightColor,
-            wonAt: DateTime.now(),
-            stopwatchAt: _stopwatchDuration,
-          ),
-        );
-      if (left) {
-        _leftSets++;
-      } else {
-        _rightSets++;
-      }
-      _leftPoints = 0;
-      _rightPoints = 0;
-      _resetTimeoutsForNewSet();
-      _stopwatchRunning = false;
-      _stopwatchElapsed = Duration.zero;
-      _stopwatchStartedAt = null;
+      _applyState(nextState);
     });
     _recordHistory(left ? 'Satz beendet blau' : 'Satz beendet rot',
         color: left ? _leftColor : _rightColor);
@@ -856,42 +860,18 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
     final rightWon = _rightPoints >= 25 && _rightPoints - _leftPoints >= 2;
 
     if (leftWon) {
-      _completedSets = List<SetResult>.from(_completedSets)
-        ..add(
-          SetResult(
-            leftPoints: _leftPoints,
-            rightPoints: _rightPoints,
-            winnerColor: _leftColor,
-            wonAt: DateTime.now(),
-            stopwatchAt: _stopwatchDuration,
-          ),
-        );
-      _leftSets++;
-      _leftPoints = 0;
-      _rightPoints = 0;
-      _resetTimeoutsForNewSet();
-      _stopwatchRunning = false;
-      _stopwatchElapsed = Duration.zero;
-      _stopwatchStartedAt = null;
+      _applyState(_currentState().completeSet(
+        leftWon: true,
+        wonAt: DateTime.now(),
+        stopwatchAt: _stopwatchDuration,
+      ));
       return _leftColor;
     } else if (rightWon) {
-      _completedSets = List<SetResult>.from(_completedSets)
-        ..add(
-          SetResult(
-            leftPoints: _leftPoints,
-            rightPoints: _rightPoints,
-            winnerColor: _rightColor,
-            wonAt: DateTime.now(),
-            stopwatchAt: _stopwatchDuration,
-          ),
-        );
-      _rightSets++;
-      _leftPoints = 0;
-      _rightPoints = 0;
-      _resetTimeoutsForNewSet();
-      _stopwatchRunning = false;
-      _stopwatchElapsed = Duration.zero;
-      _stopwatchStartedAt = null;
+      _applyState(_currentState().completeSet(
+        leftWon: false,
+        wonAt: DateTime.now(),
+        stopwatchAt: _stopwatchDuration,
+      ));
       return _rightColor;
     }
     return null;

@@ -232,6 +232,40 @@ class ScoreboardState {
         if (rotationState != null) 'rotationState': rotationState!.toJson(),
       };
 
+  ScoreboardState completeSet({
+    required bool leftWon,
+    required DateTime wonAt,
+    required Duration stopwatchAt,
+  }) {
+    return ScoreboardState(
+      leftPoints: 0,
+      rightPoints: 0,
+      leftSets: leftSets + (leftWon ? 1 : 0),
+      rightSets: rightSets + (leftWon ? 0 : 1),
+      leftTimeouts: 2,
+      rightTimeouts: 2,
+      leftColor: leftColor,
+      rightColor: rightColor,
+      stopwatchElapsed: Duration.zero,
+      stopwatchRunning: false,
+      stopwatchStartedAt: null,
+      timeoutSide: null,
+      timeoutStartedAt: null,
+      completedSets: <SetResult>[
+        ...completedSets,
+        SetResult(
+          leftPoints: leftPoints,
+          rightPoints: rightPoints,
+          winnerColor: leftWon ? leftColor : rightColor,
+          wonAt: wonAt,
+          stopwatchAt: stopwatchAt,
+        ),
+      ],
+      historyEntries: historyEntries,
+      rotationState: rotationState,
+    );
+  }
+
   static ScoreboardState fromJson(Map<String, dynamic>? data) {
     if (data == null) return initial;
 
