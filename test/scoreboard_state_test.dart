@@ -4,7 +4,7 @@ import 'package:volleyace/src/scoreboard/scoreboard_state.dart';
 void main() {
   for (final leftWon in [true, false]) {
     test(
-        'completing a set resets points, timeouts and stopwatch; '
+        'completing a set resets points and timeouts and pauses stopwatch; '
         'leftWon=$leftWon', () {
       final wonAt = DateTime(2026, 10, 26, 12);
       final stopwatchAt = const Duration(minutes: 8, seconds: 12);
@@ -38,7 +38,7 @@ void main() {
       expect(next.timeoutSide, isNull);
       expect(next.timeoutStartedAt, isNull);
       expect(next.stopwatchRunning, isFalse);
-      expect(next.stopwatchElapsed, Duration.zero);
+      expect(next.stopwatchElapsed, stopwatchAt);
       expect(next.stopwatchStartedAt, isNull);
       expect(next.completedSets, hasLength(1));
       expect(next.completedSets.single.leftPoints, 25);

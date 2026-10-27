@@ -262,6 +262,20 @@ class AppBackupService {
         : '${_formatPdfDateTime(firstEventTime)} – ${_formatPdfDateTime(lastEventTime)}';
     final document = pw.Document();
     final pageFormat = _pageFormat(landscape);
+    if (!continuous) {
+      _addPortraitStatistics(document, match,
+          title: title,
+          sourceMatches: orderedSourceMatches,
+          includeFullMatchDetails: includeFullMatchDetails);
+      if (orderedSourceMatches != null && orderedSourceMatches.length > 1) {
+        for (final sourceMatch in orderedSourceMatches) {
+          _addPortraitStatistics(document, sourceMatch,
+              title: 'Einzelpartie · ${sourceMatch.opponentTeam}',
+              includeFullMatchDetails: includeFullMatchDetails);
+        }
+      }
+      return document.save();
+    }
 
     final reportWidgets = <pw.Widget>[
       pw.Text(
@@ -301,6 +315,7 @@ class AppBackupService {
             ..._individualMatchReportWidgets(
               sourceMatch,
               includeMatchDetails: true,
+              continuous: continuous,
             ),
         ] else ...[
           pw.SizedBox(height: 18),
@@ -352,10 +367,8 @@ class AppBackupService {
       if (categories.isEmpty)
         pw.Text('Noch keine Punkte oder Fehler erfasst.')
       else
-        pw.SizedBox(
-          height: _categoryChartHeight(categories.length),
-          child: _categoryChart(categories, points, errors),
-        ),
+        ..._categoryChartWidgets(categories, points, errors,
+            continuous: continuous),
       if (categories.isNotEmpty) ...[
         pw.SizedBox(height: 8),
         _categorySummaryTable(categories, points, errors),
@@ -388,7 +401,7 @@ class AppBackupService {
         for (final player in match.players) ...[
           pw.SizedBox(height: 12),
           pw.Text(
-            '${player.name} · ${player.number}',
+            _playerStatisticsLabel(player, sortedEvents),
             style: pw.TextStyle(
               fontSize: 11,
               fontWeight: pw.FontWeight.bold,
@@ -413,6 +426,7 @@ class AppBackupService {
             ),
           ),
         ],
+        ..._playerErrorDetails(match, sortedEvents),
       ],
       if (orderedSourceMatches != null &&
           orderedSourceMatches.length > 1 &&
@@ -424,88 +438,27 @@ class AppBackupService {
           style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
         ),
         for (final sourceMatch in orderedSourceMatches)
-          ..._individualMatchReportWidgets(sourceMatch),
+          ..._individualMatchReportWidgets(sourceMatch, continuous: continuous),
       ],
     ];
 
-    if (continuous) {
-      final reportCount = orderedSourceMatches?.length ?? 1;
-      final reportPlayerCount = orderedSourceMatches == null
-          ? match.players.length
-          : orderedSourceMatches.fold<int>(
-              match.players.length,
-              (total, sourceMatch) => total + sourceMatch.players.length,
-            );
-      final detailedMatches = orderedSourceMatches ?? <MatchGame>[match];
-      final eventCount = detailedMatches.fold<int>(
-        0,
-        (total, sourceMatch) => total + sourceMatch.events.length,
-      );
-      final reportLength = detailedMatches.fold<int>(
-        0,
-        (total, sourceMatch) => total + sourceMatch.matchReport.length,
-      );
-      final eventHistoryHeight = includeFullMatchDetails
-          ? eventCount * 42 + (eventCount / 18).ceil() * 20
-          : 0;
-      final matchReportHeight =
-          includeFullMatchDetails ? (reportLength / 80).ceil() * 14 : 0;
-      final pageHeight = math
-          .max(
-            pageFormat.height,
-            1800 +
-                reportCount * 1000 +
-                reportPlayerCount * 180 +
-                eventHistoryHeight +
-                matchReportHeight,
-          )
-          .toDouble();
-      document.addPage(
-        pw.Page(
-          pageFormat: pdf.PdfPageFormat(pageFormat.width, pageHeight),
-          margin: const pw.EdgeInsets.all(32),
-          build: (_) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: reportWidgets,
-          ),
+    document.addPage(
+      pw.Page(
+        pageFormat: pdf.PdfPageFormat(pageFormat.width, double.infinity),
+        margin: const pw.EdgeInsets.all(32),
+        build: (_) => pw.Column(
+          mainAxisSize: pw.MainAxisSize.min,
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: reportWidgets,
         ),
-      );
-    } else {
-      document.addPage(
-        pw.MultiPage(
-          pageFormat: pageFormat,
-          margin: const pw.EdgeInsets.all(32),
-          header: (context) => pw.Container(
-            alignment: pw.Alignment.centerRight,
-            margin: const pw.EdgeInsets.only(bottom: 12),
-            child: pw.Text(
-              'VolleyAce · Punktewertung',
-              style: const pw.TextStyle(
-                color: pdf.PdfColors.grey700,
-                fontSize: 9,
-              ),
-            ),
-          ),
-          footer: (context) => pw.Container(
-            alignment: pw.Alignment.centerRight,
-            margin: const pw.EdgeInsets.only(top: 12),
-            child: pw.Text(
-              '${context.pageNumber} / ${context.pagesCount}',
-              style: const pw.TextStyle(
-                color: pdf.PdfColors.grey700,
-                fontSize: 9,
-              ),
-            ),
-          ),
-          build: (_) => reportWidgets,
-        ),
-      );
-    }
+      ),
+    );
 
     return document.save();
   }
 
-  static Future<Uint8List> buildMatchHistoryPdf(MatchGame match) async {
+  static Future<Uint8List> buildMatchHistoryPdf(MatchGame match,
+      {bool continuous = true}) async {
     final events = List<MatchEvent>.from(match.events)
       ..sort((first, second) {
         final timeOrder = first.occurredAt.compareTo(second.occurredAt);
@@ -514,39 +467,278 @@ class AppBackupService {
     final historyRows = _matchHistoryRows(match, events);
     final historyWidgets = _matchHistoryWidgetsFromRows(historyRows);
     final landscapeFormat = _pageFormat(true);
-    final pageHeight = math
-        .max(
-          landscapeFormat.height,
-          240 + historyRows.length * 42 + (historyRows.length / 18).ceil() * 20,
-        )
-        .toDouble();
     final document = pw.Document();
-    document.addPage(
-      pw.Page(
-        pageFormat: pdf.PdfPageFormat(landscapeFormat.width, pageHeight),
+    final widgets = <pw.Widget>[
+      pw.Text(
+        'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
+        style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 4),
+      pw.Text(
+        '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+        style: const pw.TextStyle(color: pdf.PdfColors.grey700, fontSize: 10),
+      ),
+      pw.SizedBox(height: 18),
+      ...historyWidgets,
+    ];
+    if (continuous) {
+      document.addPage(
+        pw.Page(
+          pageFormat: pdf.PdfPageFormat(landscapeFormat.width, double.infinity),
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => pw.Column(
+            mainAxisSize: pw.MainAxisSize.min,
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: widgets,
+          ),
+        ),
+      );
+    } else {
+      document.addPage(pw.MultiPage(
+        pageFormat: pdf.PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        build: (_) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: <pw.Widget>[
-            pw.Text(
-              'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
-              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+        maxPages: math.max(20, historyRows.length + 1),
+        footer: (context) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text('${context.pageNumber} / ${context.pagesCount}'),
+        ),
+        build: (_) => widgets,
+      ));
+    }
+    return document.save();
+  }
+
+  static void _addPortraitStatistics(pw.Document document, MatchGame match,
+      {required String title,
+      List<MatchGame>? sourceMatches,
+      bool includeFullMatchDetails = false}) {
+    final events = List<MatchEvent>.from(match.events)
+      ..sort((first, second) {
+        final byTime = first.occurredAt.compareTo(second.occurredAt);
+        return byTime != 0 ? byTime : first.id.compareTo(second.id);
+      });
+    final points = _eventSummary(events, 'point');
+    final errors = _eventSummary(events, 'error');
+    Map<String, int> grouped(Map<String, int> values) {
+      final result = <String, int>{};
+      for (final entry in values.entries) {
+        final category = entry.key.split(' · ').first.split(':').first.trim();
+        result.update(category, (value) => value + entry.value,
+            ifAbsent: () => entry.value);
+      }
+      return result;
+    }
+
+    final groupedPoints = grouped(points);
+    final groupedErrors = grouped(errors);
+    final categories = {...groupedPoints.keys, ...groupedErrors.keys}.toList()
+      ..sort();
+    final detailCategories = {...points.keys, ...errors.keys}.toList()..sort();
+    final pageFormat = pdf.PdfPageFormat.a4;
+    pw.Widget heading(String text) => pw.Text(text,
+        style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold));
+    pw.Widget footer(pw.Context context) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text('VolleyAce · ${context.pageNumber}',
               style: const pw.TextStyle(
-                color: pdf.PdfColors.grey700,
-                fontSize: 10,
-              ),
-            ),
-            pw.SizedBox(height: 18),
-            ...historyWidgets,
+                  fontSize: 9, color: pdf.PdfColors.grey700)),
+        );
+    void addFixedPage(List<pw.Widget> widgets) {
+      document.addPage(pw.Page(
+        pageFormat: pageFormat,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Expanded(
+                child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: widgets,
+            )),
+            pw.SizedBox(height: 10),
+            footer(context),
           ],
         ),
-      ),
-    );
-    return document.save();
+      ));
+    }
+
+    // Keep the overview readable even for imported games with extra categories.
+    final categoryPages = math.max(1, (categories.length / 8).ceil());
+    for (var index = 0; index < categoryPages; index++) {
+      final visible = categories.skip(index * 8).take(8).toList();
+      addFixedPage([
+        pw.Text(index == 0 ? title : '$title · Kategorien ${index + 1}',
+            maxLines: 2,
+            style: pw.TextStyle(fontSize: 19, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 8),
+        if (index == 0) ...[
+          pw.Text(
+              '${_formatPdfDate(match.matchDateTime)} ${match.matchDateTime.hour.toString().padLeft(2, '0')}:${match.matchDateTime.minute.toString().padLeft(2, '0')} · ${match.matchType}',
+              style: const pw.TextStyle(fontSize: 10)),
+          pw.Text(match.location.isEmpty ? 'Ort offen' : match.location,
+              maxLines: 2, style: const pw.TextStyle(fontSize: 10)),
+          if (match.league.isNotEmpty || match.matchTag.isNotEmpty)
+            pw.Text(
+                [match.league, match.matchTag]
+                    .where((value) => value.isNotEmpty)
+                    .join(' · '),
+                maxLines: 1,
+                style: const pw.TextStyle(fontSize: 10)),
+          if (match.coaches.isNotEmpty)
+            pw.Text(
+                'Trainer: ${match.coaches.map((coach) => coach.name).join(', ')}',
+                maxLines: 2,
+                style: const pw.TextStyle(fontSize: 10)),
+          pw.Text(
+              sourceMatches != null && sourceMatches.length > 1
+                  ? '${sourceMatches.length} Spiele'
+                  : '${match.opponentTeam} · Sätze ${_matchSetWins(match)} · ${_matchSetScores(match)}',
+              maxLines: 2,
+              style: const pw.TextStyle(fontSize: 10)),
+          pw.SizedBox(height: 10),
+          pw.Row(children: [
+            pw.Expanded(
+                child: _summaryCard(
+                    'Punkte',
+                    '${points.values.fold<int>(0, (total, count) => total + count)}',
+                    pdf.PdfColors.green)),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+                child: _summaryCard(
+                    'Fehler',
+                    '${errors.values.fold<int>(0, (total, count) => total + count)}',
+                    pdf.PdfColors.red)),
+          ]),
+          pw.SizedBox(height: 14),
+        ],
+        heading('Punkte und Fehler nach Art · Hauptkategorien'),
+        pw.SizedBox(height: 8),
+        if (visible.isNotEmpty) ...[
+          pw.SizedBox(
+              height: visible.length > 6 ? 230 : 270,
+              child: _categoryChart(visible, groupedPoints, groupedErrors)),
+          pw.SizedBox(height: 12),
+          _categorySummaryTable(
+              visible,
+              {
+                for (final category in visible)
+                  category: groupedPoints[category] ?? 0
+              },
+              {
+                for (final category in visible)
+                  category: groupedErrors[category] ?? 0
+              },
+              compact: true),
+        ] else
+          pw.Text('Noch keine Punkte oder Fehler erfasst.'),
+      ]);
+    }
+
+    final matchTimes = sourceMatches == null
+        ? const <DateTime>[]
+        : sourceMatches.map((source) => source.matchDateTime).toList();
+    document.addPage(pw.MultiPage(
+      pageFormat: pageFormat,
+      margin: const pw.EdgeInsets.all(32),
+      maxPages:
+          math.max(100, match.players.length + (sourceMatches?.length ?? 0)),
+      footer: footer,
+      build: (_) => [
+        heading('Zeitverlauf · ${match.opponentTeam}'),
+        pw.SizedBox(height: 12),
+        pw.SizedBox(
+            height: 310, child: _timelineChart(events, matchTimes: matchTimes)),
+        pw.SizedBox(height: 22),
+        heading('Spielübersicht'),
+        pw.SizedBox(height: 8),
+        _selectedMatchesTable(sourceMatches ?? [match]),
+        if (match.players.isNotEmpty) ...[
+          pw.SizedBox(height: 18),
+          heading('Spielerübersicht'),
+          pw.SizedBox(height: 8),
+          _playerTable(match, events),
+        ],
+      ],
+    ));
+
+    for (var start = 0; start < match.players.length; start += 3) {
+      final players = match.players.skip(start).take(3).toList();
+      addFixedPage([
+        heading('Zeitverlauf pro Spieler · ${match.opponentTeam}'),
+        pw.SizedBox(height: 12),
+        for (final player in players)
+          pw.Expanded(
+              child: pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Text(_playerStatisticsLabel(player, events),
+                    style: pw.TextStyle(
+                        fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 6),
+                pw.Expanded(
+                    child: _timelineChart(
+                  events
+                      .where((event) => event.scorerIds.contains(player.id))
+                      .toList(),
+                  matchTimes: matchTimes,
+                  trendSamples: sourceMatches != null &&
+                          sourceMatches.length > 1
+                      ? matchPlayerTrendSamples(match, sourceMatches, player.id)
+                      : null,
+                )),
+              ],
+            ),
+          )),
+      ]);
+    }
+
+    if (match.players.isNotEmpty) {
+      document.addPage(pw.MultiPage(
+        pageFormat: pageFormat,
+        margin: const pw.EdgeInsets.all(32),
+        maxPages: math.max(100, match.players.length + events.length),
+        footer: footer,
+        build: (_) => _playerErrorDetails(match, events, paginated: true),
+      ));
+    }
+
+    final hasDetails = detailCategories
+        .any((category) => category.contains(' · ') || category.contains(':'));
+    if (hasDetails ||
+        (includeFullMatchDetails &&
+            (sourceMatches == null || sourceMatches.length <= 1))) {
+      final history = includeFullMatchDetails
+          ? _matchHistoryWidgets(match, events)
+          : <pw.Widget>[];
+      document.addPage(pw.MultiPage(
+        pageFormat: pageFormat,
+        margin: const pw.EdgeInsets.all(32),
+        maxPages: math.max(100, events.length + detailCategories.length),
+        footer: footer,
+        build: (_) => [
+          if (hasDetails) ...[
+            heading('Kategoriedetails · ${match.opponentTeam}'),
+            pw.SizedBox(height: 10),
+            _categorySummaryTable(detailCategories, points, errors),
+          ],
+          if (includeFullMatchDetails &&
+              (sourceMatches == null || sourceMatches.length <= 1)) ...[
+            pw.SizedBox(height: 18),
+            heading('Spielbericht'),
+            pw.SizedBox(height: 8),
+            pw.Text(match.matchReport.trim().isEmpty
+                ? 'Kein Spielbericht erfasst.'
+                : match.matchReport),
+            pw.SizedBox(height: 18),
+            heading('Spielverlauf'),
+            pw.SizedBox(height: 8),
+            ...history,
+          ],
+        ],
+      ));
+    }
   }
 
   static List<List<String>> _matchHistoryRows(
@@ -659,6 +851,7 @@ class AppBackupService {
   static List<pw.Widget> _individualMatchReportWidgets(
     MatchGame match, {
     bool includeMatchDetails = false,
+    bool continuous = true,
   }) {
     final statisticsMatch = combineMatchesForStatistics([match]);
     final events = List<MatchEvent>.from(statisticsMatch.events)
@@ -761,10 +954,8 @@ class AppBackupService {
       if (categories.isEmpty)
         pw.Text('Noch keine Punkte oder Fehler erfasst.')
       else
-        pw.SizedBox(
-          height: _categoryChartHeight(categories.length),
-          child: _categoryChart(categories, points, errors),
-        ),
+        ..._categoryChartWidgets(categories, points, errors,
+            continuous: continuous),
       if (categories.isNotEmpty) ...[
         pw.SizedBox(height: 6),
         _categorySummaryTable(categories, points, errors),
@@ -792,7 +983,7 @@ class AppBackupService {
         for (final player in statisticsMatch.players) ...[
           pw.SizedBox(height: 8),
           pw.Text(
-            '${player.name} · ${player.number}',
+            _playerStatisticsLabel(player, events),
             style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(
@@ -804,8 +995,62 @@ class AppBackupService {
             ),
           ),
         ],
+        ..._playerErrorDetails(statisticsMatch, events),
       ],
     ];
+  }
+
+  static String _playerStatisticsLabel(
+      MatchPlayer player, List<MatchEvent> events) {
+    final ownEvents =
+        events.where((event) => event.scorerIds.contains(player.id));
+    final points = ownEvents.where((event) => event.kind == 'point').length;
+    final errors = ownEvents.where((event) => event.kind == 'error').length;
+    return '${player.name} · ${player.number}  |  Punkte: $points  |  Fehler: $errors';
+  }
+
+  static List<pw.Widget> _playerErrorDetails(
+      MatchGame match, List<MatchEvent> events,
+      {bool paginated = false}) {
+    return [
+      pw.SizedBox(height: 16),
+      pw.Text('Fehler pro Spieler nach Art',
+          style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+      for (final player in match.players) ...[
+        if (paginated) pw.NewPage(freeSpace: 120),
+        pw.SizedBox(height: 12),
+        pw.Text(_playerStatisticsLabel(player, events),
+            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 6),
+        _playerErrorTable(player, events),
+      ],
+    ];
+  }
+
+  static pw.Widget _playerErrorTable(
+      MatchPlayer player, List<MatchEvent> events) {
+    final errors = _eventSummary(
+      events.where((event) => event.scorerIds.contains(player.id)).toList(),
+      'error',
+    );
+    final categories = errors.keys.toList()..sort();
+    return pw.Table(
+      border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(4),
+        1: pw.FlexColumnWidth(1),
+      },
+      children: [
+        _tableRow(['Fehlerart', 'Anzahl'], header: true),
+        if (categories.isEmpty) _tableRow(['Keine Fehler', '0']),
+        for (final category in categories)
+          _tableRow([category, '${errors[category]}']),
+        _tableRow([
+          'Gesamt',
+          '${errors.values.fold<int>(0, (total, count) => total + count)}',
+        ], header: true),
+      ],
+    );
   }
 
   static Map<String, int> _eventSummary(
@@ -844,8 +1089,9 @@ class AppBackupService {
   static pw.Widget _categorySummaryTable(
     List<String> categories,
     Map<String, int> points,
-    Map<String, int> errors,
-  ) {
+    Map<String, int> errors, {
+    bool compact = false,
+  }) {
     final totalPoints = points.values.fold<int>(0, (sum, value) => sum + value);
     final totalErrors = errors.values.fold<int>(0, (sum, value) => sum + value);
     return pw.Table(
@@ -856,19 +1102,20 @@ class AppBackupService {
         2: pw.FlexColumnWidth(1),
       },
       children: [
-        _tableRow(['Art', 'Punkte', 'Fehler'], header: true),
+        _tableRow(['Art', 'Punkte', 'Fehler'],
+            header: true, padding: compact ? 3 : 6),
         for (final category in categories)
           _tableRow([
             category,
             '${points[category] ?? 0}',
             '${errors[category] ?? 0}',
-          ]),
+          ], padding: compact ? 3 : 6),
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: pdf.PdfColors.grey100),
           children: [
             for (final value in ['Gesamt', '$totalPoints', '$totalErrors'])
               pw.Padding(
-                padding: const pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(compact ? 3 : 6),
                 child: pw.Text(
                   value,
                   textAlign: value == 'Gesamt'
@@ -979,6 +1226,27 @@ class AppBackupService {
 
   static double _categoryChartHeight(int categoryCount) =>
       math.max(230, (categoryCount + 1) * 25 + 40).toDouble();
+
+  static List<pw.Widget> _categoryChartWidgets(
+      List<String> categories, Map<String, int> points, Map<String, int> errors,
+      {required bool continuous}) {
+    final chunkSize = continuous ? categories.length : 14;
+    return [
+      for (var start = 0; start < categories.length; start += chunkSize) ...[
+        pw.SizedBox(
+          height: _categoryChartHeight(
+              math.min(chunkSize, categories.length - start)),
+          child: _categoryChart(
+            categories.sublist(
+                start, math.min(start + chunkSize, categories.length)),
+            points,
+            errors,
+          ),
+        ),
+        pw.SizedBox(height: 8),
+      ],
+    ];
+  }
 
   static pw.Widget _timelineChart(
     List<MatchEvent> events, {
@@ -1342,14 +1610,15 @@ class AppBackupService {
     );
   }
 
-  static pw.TableRow _tableRow(List<String> values, {bool header = false}) {
+  static pw.TableRow _tableRow(List<String> values,
+      {bool header = false, double padding = 6}) {
     return pw.TableRow(
       decoration:
           header ? const pw.BoxDecoration(color: pdf.PdfColors.grey200) : null,
       children: [
         for (var index = 0; index < values.length; index++)
           pw.Padding(
-            padding: const pw.EdgeInsets.all(6),
+            padding: pw.EdgeInsets.all(padding),
             child: pw.Text(
               values[index],
               textAlign: index == 0 ? pw.TextAlign.left : pw.TextAlign.right,
@@ -1487,21 +1756,27 @@ class AppBackupService {
     required String title,
     List<MatchGame>? sourceMatches,
     bool landscape = true,
-    bool continuous = true,
+    bool? continuous,
     bool includeFullMatchDetails = false,
   }) async {
+    final useContinuous = continuous ?? await _choosePdfLayout(context);
+    if (useContinuous == null || !context.mounted) return;
     final bytes = await buildMatchStatsPdf(
       match,
       title: title,
       sourceMatches: sourceMatches,
-      landscape: landscape,
-      continuous: continuous,
+      landscape: useContinuous ? landscape : false,
+      continuous: useContinuous,
       includeFullMatchDetails: includeFullMatchDetails,
     );
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
-    final suggestedName =
-        'volleyace-pdf-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final suggestedName = matchExportFileName(
+      sourceMatches == null || sourceMatches.isEmpty ? [match] : sourceMatches,
+      extension: 'pdf',
+      suffix:
+          '${includeFullMatchDetails ? 'gesamt' : 'statistik'}_${useContinuous ? 'endlos' : 'a4-hoch'}',
+    );
 
     if (platform == TargetPlatform.linux ||
         platform == TargetPlatform.windows) {
@@ -1547,11 +1822,16 @@ class AppBackupService {
     BuildContext context,
     MatchGame match,
   ) async {
-    final bytes = await buildMatchHistoryPdf(match);
+    final continuous = await _choosePdfLayout(context);
+    if (continuous == null || !context.mounted) return;
+    final bytes = await buildMatchHistoryPdf(match, continuous: continuous);
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
-    final suggestedName =
-        'volleyace-pdf-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final suggestedName = matchExportFileName(
+      [match],
+      extension: 'pdf',
+      suffix: 'verlauf_${continuous ? 'endlos' : 'a4-hoch'}',
+    );
 
     if (platform == TargetPlatform.linux ||
         platform == TargetPlatform.windows) {
@@ -1667,8 +1947,7 @@ class AppBackupService {
 
   static Future<void> exportMatch(BuildContext context, MatchGame match) async {
     final jsonText = encodeBackup(buildMatchBackup(match));
-    final suggestedName =
-        'volleyace-match-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().toIso8601String().replaceAll(':', '-')}.vace';
+    final suggestedName = matchExportFileName([match], extension: 'vace');
     await _exportJson(
       context,
       'Spiel exportieren',
@@ -1680,8 +1959,7 @@ class AppBackupService {
 
   static Future<void> shareMatch(BuildContext context, MatchGame match) async {
     final jsonText = encodeBackup(buildMatchBackup(match));
-    final suggestedName =
-        'volleyace-punktewertung-${_safeFileName(match.opponentTeam.isEmpty ? 'spiel' : match.opponentTeam)}-${DateTime.now().millisecondsSinceEpoch}.json';
+    final suggestedName = matchExportFileName([match], extension: 'vace');
     await shareOrSaveJson(
       context,
       suggestedName: suggestedName,
@@ -1698,8 +1976,7 @@ class AppBackupService {
   ) async {
     if (matches.isEmpty) return;
     final jsonText = encodeBackup(buildMatchesBackup(matches));
-    final suggestedName =
-        'volleyace-punktewertungen-${matches.length}-${DateTime.now().millisecondsSinceEpoch}.json';
+    final suggestedName = matchExportFileName(matches, extension: 'vace');
     await shareOrSaveJson(
       context,
       suggestedName: suggestedName,
@@ -2418,6 +2695,67 @@ class AppBackupService {
       SnackBar(content: Text('${matches.length} Spiele importiert.')),
     );
     return true;
+  }
+
+  static Future<bool?> _choosePdfLayout(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('PDF-Layout'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, true),
+            child: const ListTile(
+              leading: Icon(Icons.view_day_outlined),
+              title: Text('Endlos (Bildschirm)'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, false),
+            child: const ListTile(
+              leading: Icon(Icons.print_outlined),
+              title: Text('DIN A4 hoch (Druck)'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String matchExportFileName(List<MatchGame> matches,
+      {required String extension, String? suffix}) {
+    if (matches.isEmpty) {
+      throw ArgumentError.value(
+          matches, 'matches', 'At least one match is required');
+    }
+    final ordered = _oldestMatchesFirst(matches);
+    final first = ordered.first;
+    final date = first.matchDateTime.toLocal();
+    String pad(int value) => value.toString().padLeft(2, '0');
+    String part(String value) {
+      final normalized = value
+          .toLowerCase()
+          .replaceAll('ä', 'ae')
+          .replaceAll('ö', 'oe')
+          .replaceAll('ü', 'ue')
+          .replaceAll('ß', 'ss');
+      final safe = _safeFileName(normalized);
+      return safe.isEmpty ? 'unbenannt' : safe;
+    }
+
+    final opponents = ordered
+        .map((match) => part(match.opponentTeam.trim().isEmpty
+            ? 'gegner-offen'
+            : match.opponentTeam))
+        .toSet();
+    final stem = [
+      '${date.year}-${pad(date.month)}-${pad(date.day)}',
+      '${pad(date.hour)}-${pad(date.minute)}',
+      part(first.location.trim().isEmpty ? 'ort-offen' : first.location),
+      ...opponents,
+      if (suffix != null && suffix.isNotEmpty) suffix,
+    ].join('_');
+    return '$stem.$extension';
   }
 
   static String _safeFileName(String value) {

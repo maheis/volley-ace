@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +27,92 @@ Future<void> _pumpUi(WidgetTester tester) async {
 }
 
 void main() {
+  test('match stopwatch starts on first score and excludes set breaks', () {
+    final start = DateTime(2026, 10, 27, 12);
+    MatchEvent event(int id, String kind, int seconds) => MatchEvent(
+          id: id,
+          playerId: null,
+          playerName: 'Mannschaft',
+          playerNumber: 0,
+          kind: kind,
+          category: kind == 'manual_set_end' ? 'Manuell' : 'Block',
+          occurredAt: start.add(Duration(seconds: seconds)),
+        );
+    var match = MatchGame(
+      id: 1,
+      createdAt: start,
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: const [],
+    );
+    match = recordMatchEvent(match, event(1, 'point', 0), recordedAt: start);
+    expect(match.stopwatchRunning, isTrue);
+    expect(match.stopwatchStartedAt, start);
+    match = recordMatchEvent(match, event(2, 'point', 5),
+        recordedAt: start.add(const Duration(seconds: 5)));
+    expect(match.stopwatchStartedAt, start);
+    match = recordMatchEvent(match, event(3, 'manual_set_end', 10),
+        recordedAt: start.add(const Duration(seconds: 10)));
+    expect(match.stopwatchRunning, isFalse);
+    expect(match.stopwatchStartedAt, isNull);
+    expect(match.stopwatchElapsed, const Duration(seconds: 10));
+    match = MatchGame.fromJson(match.toJson());
+    match = recordMatchEvent(match, event(4, 'error', 70),
+        recordedAt: start.add(const Duration(seconds: 70)));
+    expect(match.stopwatchRunning, isTrue);
+    expect(match.stopwatchStartedAt, start.add(const Duration(seconds: 70)));
+    match = recordMatchEvent(match, event(5, 'manual_set_end', 80),
+        recordedAt: start.add(const Duration(seconds: 80)));
+    expect(match.stopwatchElapsed, const Duration(seconds: 20));
+    expect(match.stopwatchRunning, isFalse);
+  });
+
+  test('match stopwatch stops on an automatically completed set', () {
+    final start = DateTime(2026, 10, 27, 12);
+    MatchEvent point(int id) => MatchEvent(
+          id: id,
+          playerId: null,
+          playerName: 'Mannschaft',
+          playerNumber: 0,
+          kind: 'point',
+          category: 'Block',
+          occurredAt: start.add(Duration(seconds: id)),
+        );
+    final match = MatchGame(
+      id: 1,
+      createdAt: start,
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: List.generate(24, (index) => point(index + 1)),
+      stopwatchRunning: true,
+      stopwatchStartedAt: start,
+    );
+    final ended = recordMatchEvent(match, point(25),
+        recordedAt: start.add(const Duration(seconds: 25)));
+    expect(ended.stopwatchRunning, isFalse);
+    expect(ended.stopwatchStartedAt, isNull);
+    expect(ended.stopwatchElapsed, const Duration(seconds: 25));
+    expect(computeMatchSetResults(ended).single.isFinished, isTrue);
+    final resumed = recordMatchEvent(ended, point(26),
+        recordedAt: start.add(const Duration(minutes: 2)));
+    expect(resumed.stopwatchRunning, isTrue);
+    expect(resumed.stopwatchElapsed, const Duration(seconds: 25));
+    final alreadyRunning = recordMatchEvent(
+      match.copyWith(events: const []),
+      point(1),
+      recordedAt: start.add(const Duration(seconds: 5)),
+    );
+    expect(alreadyRunning.stopwatchStartedAt, start);
+  });
+
   test('legacy opponent-error category is normalized', () {
     final event = MatchEvent.fromJson({
       'id': 1,
@@ -1726,6 +1814,14 @@ void main() {
     expect(find.text('Hochformat'), findsNothing);
     expect(find.text('Querformat'), findsNothing);
     expect(find.text('Fortlaufend im Querformat'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('export-match-stats-pdf')));
+    await _pumpUi(tester);
+    expect(find.text('PDF-Layout'), findsOneWidget);
+    expect(find.text('Endlos (Bildschirm)'), findsOneWidget);
+    expect(find.text('DIN A4 hoch (Druck)'), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5));
+    await _pumpUi(tester);
+    expect(find.text('PDF-Layout'), findsNothing);
   });
 
   testWidgets('Point scoring can record opponent error without player', (
@@ -2266,6 +2362,28 @@ void main() {
     );
     final selectedMatches = [secondMatch, match];
     final combinedMatch = combineMatchesForStatistics(selectedMatches);
+    expect(
+      AppBackupService.matchExportFileName(selectedMatches, extension: 'pdf'),
+      '2026-06-01_18-00_halle_team-rot_team-blau.pdf',
+    );
+    expect(
+      AppBackupService.matchExportFileName([secondMatch, match, secondMatch],
+          extension: 'vace'),
+      '2026-06-01_18-00_halle_team-rot_team-blau.vace',
+    );
+    expect(
+      AppBackupService.matchExportFileName([
+        match.copyWith(
+            location: 'München / Süd: Halle', opponentTeam: 'Äußere'),
+      ], extension: 'pdf', suffix: 'statistik_a4-hoch'),
+      '2026-06-01_18-00_muenchen-sued-halle_aeussere_statistik_a4-hoch.pdf',
+    );
+    expect(
+      AppBackupService.matchExportFileName([
+        match.copyWith(location: '', opponentTeam: ''),
+      ], extension: 'pdf'),
+      '2026-06-01_18-00_ort-offen_gegner-offen.pdf',
+    );
 
     final bytes = await AppBackupService.buildMatchStatsPdf(
       combinedMatch,
@@ -2322,7 +2440,7 @@ void main() {
       landscape: true,
     );
     expect(landscapeBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
-    expect(landscapeBytes, isNot(singleMatchBytes));
+    expect(landscapeBytes.length, greaterThan(1000));
 
     final historyMatch = match.copyWith(
       matchReport: 'Starker Auftakt, hart umkämpft.',
@@ -2369,6 +2487,11 @@ void main() {
       landscape: true,
       continuous: true,
     );
+    final shortPageBox = RegExp(
+      r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+    ).firstMatch(String.fromCharCodes(continuousStatsBytes));
+    expect(shortPageBox, isNotNull);
+    expect(double.parse(shortPageBox!.group(2)!), lessThan(2200));
     expect(completeBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
     expect(completeBytes.length, greaterThan(continuousStatsBytes.length));
     expect(pageCount(completeBytes), 1);
@@ -2382,6 +2505,110 @@ void main() {
     );
     expect(pageCount(completeMultiBytes), 1);
     expect(completeMultiBytes.length, greaterThan(continuousBytes.length));
+
+    void expectPortraitA4(List<int> bytes) {
+      final boxes = RegExp(
+        r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+      ).allMatches(String.fromCharCodes(bytes));
+      expect(boxes, isNotEmpty);
+      for (final box in boxes) {
+        expect(double.parse(box.group(1)!), closeTo(595.28, 0.1));
+        expect(double.parse(box.group(2)!), closeTo(841.89, 0.1));
+      }
+    }
+
+    final printableComplete = await AppBackupService.buildMatchStatsPdf(
+      combinedMatch,
+      title: 'Gesamtexport Druck',
+      sourceMatches: selectedMatches,
+      includeFullMatchDetails: true,
+      landscape: true,
+    );
+    expect(pageCount(printableComplete), greaterThan(1));
+    expectPortraitA4(printableComplete);
+
+    final longHistory = match.copyWith(
+        events: List.generate(
+      70,
+      (index) => MatchEvent(
+        id: index + 1,
+        playerId: 1,
+        playerName: 'Ada',
+        playerNumber: 7,
+        kind: index.isEven ? 'point' : 'error',
+        category: 'Kategorie $index',
+        occurredAt: DateTime(2026, 6, 1, 18, index),
+      ),
+    ));
+    final printableHistory = await AppBackupService.buildMatchHistoryPdf(
+      longHistory,
+      continuous: false,
+    );
+    expect(pageCount(printableHistory), greaterThan(1));
+    expectPortraitA4(printableHistory);
+    final printableCategories = await AppBackupService.buildMatchStatsPdf(
+      longHistory,
+      title: 'Viele Kategorien',
+      landscape: true,
+    );
+    expectPortraitA4(printableCategories);
+  });
+
+  test('portrait PDF places at most three player charts on each page',
+      () async {
+    final match = MatchGame(
+      id: 51,
+      createdAt: DateTime(2026, 10, 27),
+      location: 'Sporthalle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: DateTime(2026, 10, 27, 18, 30),
+      matchTag: '',
+      matchType: 'Liga',
+      players: List.generate(
+          8,
+          (index) => MatchPlayer(
+                id: index + 1,
+                name: 'Spieler ${index + 1}',
+                number: index + 1,
+              )),
+      events: List.generate(
+          80,
+          (index) => MatchEvent(
+                id: index + 1,
+                playerId: index % 8 + 1,
+                playerName: 'Spieler ${index % 8 + 1}',
+                playerNumber: index % 8 + 1,
+                kind: index % 8 != 7 && index % 3 == 0 ? 'error' : 'point',
+                category: [
+                  'Aufschlag',
+                  'Angriff',
+                  'Block',
+                  'Sonstiges'
+                ][index % 4],
+                occurredAt: DateTime(2026, 10, 27, 18, 30 + index),
+              )),
+    );
+    final portrait = await AppBackupService.buildMatchStatsPdf(
+      match,
+      title: 'Statistik',
+    );
+    final endless = await AppBackupService.buildMatchStatsPdf(
+      match,
+      title: 'Statistik',
+      landscape: true,
+      continuous: true,
+    );
+    int pages(List<int> bytes) => RegExp(r'/Type\s*/Page\b')
+        .allMatches(String.fromCharCodes(bytes))
+        .length;
+    expect(pages(portrait), 7);
+    expect(pages(endless), 1);
+    final output = Platform.environment['VOLLEYACE_PDF_PREVIEW_DIR'];
+    if (output != null) {
+      await Directory(output).create(recursive: true);
+      await File('$output/portrait.pdf').writeAsBytes(portrait);
+      await File('$output/endless.pdf').writeAsBytes(endless);
+    }
   });
 
   test('match rotation follows scored point events', () {

@@ -246,7 +246,7 @@ class ScoreboardState {
       rightTimeouts: 2,
       leftColor: leftColor,
       rightColor: rightColor,
-      stopwatchElapsed: Duration.zero,
+      stopwatchElapsed: stopwatchAt,
       stopwatchRunning: false,
       stopwatchStartedAt: null,
       timeoutSide: null,

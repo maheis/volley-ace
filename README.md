@@ -43,6 +43,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - Satzgewinn automatisch ab 25 Punkten mit zwei Punkten Vorsprung
   - [x] Uhr / Stop-Uhr
     - [x] Stop-Uhr automatisch starten wenn erster Punkt vergeben wird (damit sie zumindest verzögert startet...)
+    - Satzende pausiert die Uhr; die erste Punktbuchung des naechsten Satzes setzt sie fort, sofern sie nicht bereits laeuft. Das gilt auch fuer Fehlerbuchungen zugunsten des Gegners und fuer die Punktewertung. Die gemessene Zeit bleibt erhalten, Satzpausen werden nicht mitgezaehlt.
   - [x] Letzte Punkte pro Satz anzeigen
   - [x] Verlauf pro Satz anzeigen
   - [x] Auszeiten pro Team
@@ -356,11 +357,29 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] satzende soll automatisch erkannt werden?!
 - [ ] html export
 - [ ] linux installationsskript prüfen und ggf. anpassen.
-- [ ] pdf export endless aber druckbar!
+- [x] pdf export endless aber druckbar! (Layoutwahl: Endlos oder DIN A4 hoch)
+- [x] pdf export namen
 - [x] satz beenden soll optisch werte zurücksetzen
 - [x] auszeiten setzen sich mit satz beenden zurück
 - [x] zuspieler dingens oder zweiterball
 - [x] sonstiges überall als option
+- [x] satz beenden soll timer anhalten und erster punkt soll timer starten (falls er noch nicht läuft)
+- [ ] Mannschaftskasse
+
+## PDF-Export und Dateinamen
+
+Statistik, Gesamtexport und Spielverlauf bieten beim PDF-Export zwei Layouts:
+
+- **Endlos (Bildschirm):** eine lange Seite ohne Seitenwechsel. Die Seitenhoehe richtet sich nach dem Inhalt; es wird kein pauschaler leerer Anhang angehaengt.
+- **DIN A4 hoch (Druck):** Seite 1 mit Spielinfos sowie gruppiertem Punkte-/Fehler-Diagramm und Tabelle nach Hauptkategorie. Danach folgen Gesamt-Zeitverlauf, Spieluebersicht und Spieleruebersicht. Die Spieler-Zeitverlaeufe stehen auf eigenen Seiten mit maximal drei Spielern pro Seite; bei weniger Spielern wird die verfuegbare Hoehe auf deren Diagramme verteilt.
+
+Unterkategorien bleiben als separate Detailtabelle erhalten. Beide Layouts enthalten ausserdem Fehler pro Spieler nach Fehlerart mit Anzahl und Gesamtsumme; Spieler ohne Fehler werden mit 0 ausgewiesen. An den Spieler-Zeitverlaeufen stehen Punkte und Fehler zusaetzlich als Zahlen. Sehr grosse Kategorie- oder Uebersichtstabellen werden auf Folgeseiten fortgesetzt. Bei mehreren Partien folgen die Einzelberichte nach demselben Aufbau; Spielbericht und Verlauf bleiben im Gesamtexport enthalten.
+
+PDFs haben feste Seitenformate. Eine endlose Seite kann beim normalen Drucken nicht automatisch in A4-Seiten umgebrochen werden; manche Reader bieten dafuer einen Poster-/Kacheldruck. Fuer verlaessliches Drucken das A4-Layout waehlen. Ein A4-PDF kann im Reader trotzdem in einer fortlaufenden Scrollansicht gelesen werden, hat aber weiterhin Seitengrenzen.
+
+Spiel-Exporte beginnen mit Datum und Uhrzeit des chronologisch ersten ausgewaehlten Spiels, danach folgen dessen Standort und die Gegnerteams in Spielreihenfolge (ohne doppelte Namen). Dies gilt fuer einzelne und mehrere Spiel-Backups sowie fuer PDFs. PDF-Namen enden zusaetzlich mit Exporttyp und Layout, zum Beispiel:
+
+`2026-10-27_18-30_sporthalle_team-rot_team-blau_statistik_a4-hoch.pdf`
 
 ## Datenschutz
 

@@ -648,9 +648,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
       } else {
         _rightPoints++;
       }
-      if (!_stopwatchRunning &&
-          _stopwatchElapsed == Duration.zero &&
-          _leftPoints + _rightPoints == 1) {
+      if (!_stopwatchRunning && _leftPoints + _rightPoints == 1) {
         _stopwatchRunning = true;
         _stopwatchStartedAt = _now;
       }

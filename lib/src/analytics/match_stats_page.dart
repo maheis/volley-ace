@@ -420,6 +420,38 @@ class MatchSetResult {
   final bool isFinished;
 }
 
+MatchGame recordMatchEvent(MatchGame match, MatchEvent event,
+    {DateTime? recordedAt}) {
+  final now = recordedAt ?? DateTime.now();
+  final previousSets = computeMatchSetResults(match);
+  final isScore = event.kind == 'point' || event.kind == 'error';
+  final isFirstScore =
+      isScore && (previousSets.isEmpty || previousSets.last.isFinished);
+  var updated = match.copyWith(events: [...match.events, event]);
+  if (isFirstScore && !updated.stopwatchRunning) {
+    updated = updated.copyWith(
+      stopwatchRunning: true,
+      stopwatchStartedAt: now,
+    );
+  }
+  final finishedSets =
+      computeMatchSetResults(updated).where((set) => set.isFinished).length;
+  final setEnded =
+      finishedSets > previousSets.where((set) => set.isFinished).length;
+  if (setEnded && updated.stopwatchRunning) {
+    final startedAt = updated.stopwatchStartedAt;
+    final elapsed = startedAt == null || now.isBefore(startedAt)
+        ? Duration.zero
+        : now.difference(startedAt);
+    updated = updated.copyWith(
+      stopwatchElapsed: updated.stopwatchElapsed + elapsed,
+      stopwatchRunning: false,
+      clearStopwatchStartedAt: true,
+    );
+  }
+  return updated;
+}
+
 List<MatchSetResult> computeMatchSetResults(MatchGame match) {
   final sortedEvents = List<MatchEvent>.from(match.events)
     ..sort((first, second) {
@@ -2051,7 +2083,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           occurredAt: DateTime.now(),
         ),
       );
-    _replaceMatch(match.copyWith(events: events));
+    _replaceMatch(recordMatchEvent(match, events.last));
   }
 
   Future<void> _recordTimeout(MatchGame match) async {
@@ -2353,7 +2385,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           occurredAt: DateTime.now(),
         ),
       );
-    _replaceMatch(match.copyWith(events: events));
+    _replaceMatch(recordMatchEvent(match, events.last));
     setState(() {
       _pendingEventKind = null;
       _pendingCategoryPath = <String>[];
@@ -3820,7 +3852,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         title: title,
         sourceMatches: sourceMatches,
         landscape: true,
-        continuous: true,
       );
     } catch (error) {
       if (!mounted) return;
