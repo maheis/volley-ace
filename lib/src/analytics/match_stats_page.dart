@@ -87,6 +87,7 @@ class MatchEvent {
     this.replacedPlayerId,
     this.replacedPlayerName,
     this.replacedPlayerNumber,
+    this.rotationState,
   });
 
   final int id;
@@ -101,6 +102,7 @@ class MatchEvent {
   final int? replacedPlayerId;
   final String? replacedPlayerName;
   final int? replacedPlayerNumber;
+  final ScoreboardRotationState? rotationState;
 
   List<int> get scorerIds => playerIds.isNotEmpty
       ? playerIds
@@ -136,6 +138,7 @@ class MatchEvent {
             : (replacedPlayerId ?? this.replacedPlayerId),
         replacedPlayerName: replacedPlayerName ?? this.replacedPlayerName,
         replacedPlayerNumber: replacedPlayerNumber ?? this.replacedPlayerNumber,
+        rotationState: rotationState,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -151,6 +154,7 @@ class MatchEvent {
         'replacedPlayerId': replacedPlayerId,
         'replacedPlayerName': replacedPlayerName,
         'replacedPlayerNumber': replacedPlayerNumber,
+        if (rotationState != null) 'rotationState': rotationState!.toJson(),
       };
 
   static MatchEvent fromJson(Map<String, dynamic> data) {
@@ -193,6 +197,7 @@ class MatchEvent {
           replacedPlayerName is String ? replacedPlayerName : null,
       replacedPlayerNumber:
           replacedPlayerNumber is num ? replacedPlayerNumber.toInt() : null,
+      rotationState: ScoreboardRotationState.fromJson(data['rotationState']),
     );
   }
 }
@@ -777,6 +782,23 @@ ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
   var ourScore = 0;
   var opponentScore = 0;
   for (final event in events) {
+    if (event.kind == 'lineup' && event.rotationState != null) {
+      rotation = event.rotationState!;
+      ourScore = 0;
+      opponentScore = 0;
+      continue;
+    }
+    if (event.kind == 'manual_rotation') {
+      rotation = rotation.rotate(0);
+      continue;
+    }
+    if (event.kind == 'serving_side') {
+      rotation = rotation.copyWith(
+        servingSide: event.category == 'Eigenes Team' ? 0 : 1,
+        consecutiveServePoints: 0,
+      );
+      continue;
+    }
     if (event.kind == 'manual_set_end') {
       ourScore = 0;
       opponentScore = 0;
@@ -873,7 +895,10 @@ MatchEvent? lastMatchActionEvent(MatchGame match) {
           event.kind == 'error' ||
           event.kind == 'timeout' ||
           event.kind == 'manual_set_end' ||
-          event.kind == 'substitution')
+          event.kind == 'substitution' ||
+          event.kind == 'manual_rotation' ||
+          event.kind == 'serving_side' ||
+          event.kind == 'lineup')
       .toList()
     ..sort((first, second) {
       final timeOrder = first.occurredAt.compareTo(second.occurredAt);
@@ -1033,6 +1058,7 @@ class MatchScorerSelectionView extends StatefulWidget {
     required this.onSelectPlayer,
     required this.onSelectPlayers,
     required this.onMultiSelectStarted,
+    this.highlightedPlayerId,
   });
 
   final List<MatchPlayer> players;
@@ -1044,6 +1070,7 @@ class MatchScorerSelectionView extends StatefulWidget {
   final ValueChanged<MatchPlayer> onSelectPlayer;
   final ValueChanged<List<MatchPlayer>> onSelectPlayers;
   final VoidCallback onMultiSelectStarted;
+  final int? highlightedPlayerId;
 
   @override
   State<MatchScorerSelectionView> createState() =>
@@ -1172,10 +1199,23 @@ class _MatchScorerSelectionViewState extends State<MatchScorerSelectionView> {
             }
 
             final player = widget.players[index];
+            final isHighlighted = player.id == widget.highlightedPlayerId;
             return SizedBox(
               width: double.infinity,
               height: 140,
               child: Card(
+                color: isHighlighted
+                    ? Theme.of(context).colorScheme.primaryContainer
+                    : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isHighlighted
+                      ? BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        )
+                      : BorderSide.none,
+                ),
                 child: InkWell(
                   key: ValueKey('select-player-${player.id}'),
                   borderRadius: BorderRadius.circular(12),
@@ -1212,6 +1252,12 @@ class _MatchScorerSelectionViewState extends State<MatchScorerSelectionView> {
                                 ValueKey('select-multiple-player-${player.id}'),
                             value: _selectedPlayerIds.contains(player.id),
                             onChanged: (_) => _togglePlayer(player.id),
+                          ),
+                        if (!_multiSelect && isHighlighted)
+                          const Chip(
+                            key: ValueKey('serving-player-highlight'),
+                            avatar: Icon(Icons.sports_volleyball, size: 18),
+                            label: Text('Aufschlag'),
                           ),
                       ],
                     ),
@@ -2029,6 +2075,54 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     });
   }
 
+  Future<void> _addTimelineNote(MatchGame match) async {
+    var noteText = '';
+    final note = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Notiz zum Verlauf'),
+        content: TextField(
+          key: const ValueKey('timeline-note-input'),
+          autofocus: true,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Notiz',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) => noteText = value,
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            key: const ValueKey('save-timeline-note'),
+            onPressed: () => Navigator.of(dialogContext).pop(noteText),
+            child: const Text('Einfügen'),
+          ),
+        ],
+      ),
+    );
+    if (note == null || note.trim().isEmpty || !mounted) return;
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
+        MatchEvent(
+          id: match.events.length + 1,
+          playerId: null,
+          playerName: 'Notiz',
+          playerNumber: 0,
+          kind: 'note',
+          category: note.trim(),
+          occurredAt: DateTime.now(),
+        ),
+      );
+    _replaceMatch(match.copyWith(events: events));
+  }
+
   void _undoLastMatchAction(MatchGame match) {
     final action = lastMatchActionEvent(match);
     if (action == null) return;
@@ -2084,6 +2178,49 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ),
       );
     _replaceMatch(recordMatchEvent(match, events.last));
+  }
+
+  int? _servingPlayerId(MatchGame match) {
+    final rotation = _rotationAfterEvents(match);
+    if (rotation == null || rotation.servingSide != 0) return null;
+    final id = rotation.left.positions.firstOrNull;
+    return id == null ? null : int.tryParse(id.replaceFirst('match-', ''));
+  }
+
+  void _rotateMatchManually(MatchGame match) {
+    if (_rotationAfterEvents(match) == null) return;
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
+        MatchEvent(
+          id: match.events.length + 1,
+          playerId: null,
+          playerName: 'Mannschaft',
+          playerNumber: 0,
+          kind: 'manual_rotation',
+          category: 'Manuelle Rotation',
+          occurredAt: DateTime.now(),
+        ),
+      );
+    _replaceMatch(match.copyWith(events: events));
+  }
+
+  void _changeServingSide(MatchGame match) {
+    final rotation = _rotationAfterEvents(match);
+    if (rotation == null) return;
+    final nextSide = rotation.servingSide == 0 ? 1 : 0;
+    final events = List<MatchEvent>.from(match.events)
+      ..add(
+        MatchEvent(
+          id: match.events.length + 1,
+          playerId: null,
+          playerName: nextSide == 0 ? 'Eigenes Team' : 'Gegner',
+          playerNumber: 0,
+          kind: 'serving_side',
+          category: nextSide == 0 ? 'Eigenes Team' : 'Gegner',
+          occurredAt: DateTime.now(),
+        ),
+      );
+    _replaceMatch(match.copyWith(events: events));
   }
 
   Future<void> _recordTimeout(MatchGame match) async {
@@ -3050,7 +3187,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Future<void> _configureMatchRotation(MatchGame match) async {
-    final initial = match.rotationSetup ?? _initialRotationForMatch(match);
+    final canSetNextLineup = _lastSetIsFinished(match);
+    final initial = canSetNextLineup
+        ? (_rotationAfterEvents(match) ?? _initialRotationForMatch(match))
+        : match.rotationSetup ?? _initialRotationForMatch(match);
     final updated = await Navigator.of(context).push<ScoreboardRotationState>(
       MaterialPageRoute<ScoreboardRotationState>(
         builder: (_) => RotationSetupPage(
@@ -3060,24 +3200,46 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       ),
     );
     if (updated == null || !mounted) return;
-    _replaceMatch(match.copyWith(rotationSetup: updated));
+    if (_matchHasScoredPoints(match)) {
+      final events = List<MatchEvent>.from(match.events)
+        ..add(
+          MatchEvent(
+            id: match.events.length + 1,
+            playerId: null,
+            playerName: 'Aufstellung',
+            playerNumber: 0,
+            kind: 'lineup',
+            category: 'Startaufstellung',
+            occurredAt: DateTime.now(),
+            rotationState: updated,
+          ),
+        );
+      _replaceMatch(match.copyWith(events: events));
+    } else {
+      _replaceMatch(match.copyWith(rotationSetup: updated));
+    }
   }
 
   bool _matchHasScoredPoints(MatchGame match) => match.events.any(
         (event) => event.kind == 'point' || event.kind == 'error',
       );
 
+  bool _lastSetIsFinished(MatchGame match) =>
+      _computeSets(match).lastOrNull?.isFinished == true;
+
   Widget _buildRotationSetupButton(MatchGame match) {
     return OutlinedButton.icon(
       key: const ValueKey('match-rotation-setup-button'),
-      onPressed: _matchHasScoredPoints(match)
+      onPressed: _matchHasScoredPoints(match) && !_lastSetIsFinished(match)
           ? null
           : () => _configureMatchRotation(match),
       icon: const Icon(Icons.rotate_right),
       label: Text(
-        match.rotationSetup == null
-            ? 'Startaufstellung und Rotation festlegen'
-            : 'Startaufstellung bearbeiten',
+        _lastSetIsFinished(match)
+            ? 'Startaufstellung für nächsten Satz festlegen'
+            : match.rotationSetup == null
+                ? 'Startaufstellung und Rotation festlegen'
+                : 'Startaufstellung bearbeiten',
       ),
     );
   }
@@ -3105,9 +3267,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         match.copyWith(rotationIsOnLeft: showOnLeft),
       ),
       onSubstitute: (position) => _chooseSubstituteForPosition(match, position),
-      onEdit: _matchHasScoredPoints(match)
+      onEdit: _matchHasScoredPoints(match) && !_lastSetIsFinished(match)
           ? null
           : () => _configureMatchRotation(match),
+      onManualRotate: () => _rotateMatchManually(match),
+      onServingSideChanged: () => _changeServingSide(match),
     );
   }
 
@@ -3375,6 +3539,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
         ),
         actions: [
           IconButton(
+            key: const ValueKey('add-timeline-note'),
+            tooltip: 'Notiz in Verlauf einfügen',
+            onPressed: () => _addTimelineNote(match),
+            icon: const Icon(Icons.note_add_outlined),
+          ),
+          IconButton(
             key: const ValueKey('undo-last-match-action'),
             tooltip: 'Rückgängig (Ctrl+Z)',
             onPressed: lastMatchActionEvent(match) == null
@@ -3622,6 +3792,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Widget _buildPlayerSelectionView(MatchGame match) {
     return MatchScorerSelectionView(
       players: _fieldPlayersForScoring(match),
+      highlightedPlayerId: _pendingEventKind == 'point' &&
+              _pendingCategoryPath.firstOrNull == 'Aufschlag'
+          ? _servingPlayerId(match)
+          : null,
       countdownProgress: _scoringSelectionProgress,
       displayPlayerName: (player) => _displayPlayerName(match, player),
       onBack: _backFromPlayerSelection,
@@ -3687,10 +3861,22 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ..._pendingCategoryPath,
               category.label,
             ];
+            final pathText = categoryPath.join(' · ');
+            final previousCount = match.events
+                .where((event) => event.kind == (isPoint ? 'point' : 'error'))
+                .where((event) =>
+                    event.category == pathText ||
+                    event.category.startsWith('$pathText ·') ||
+                    event.category.startsWith('$pathText:'))
+                .length;
+            final wasUsedBefore = previousCount > 0;
             return SizedBox(
               width: double.infinity,
               height: 140,
               child: Card(
+                color: wasUsedBefore
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : null,
                 child: InkWell(
                   key: ValueKey(
                     'select-category-${categoryPath.join('-')}',
@@ -3699,11 +3885,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   onTap: () => _selectCategoryForEvent(match, category),
                   child: Center(
                     child: ListTile(
-                      title: Text(
-                        category.label,
+                      title: Text.rich(
+                        _categoryLabelSpan(category.label),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      subtitle: wasUsedBefore
+                          ? Text(
+                              'Schon $previousCount-mal gebucht',
+                              key: ValueKey(
+                                'category-booking-count-${categoryPath.join('-')}',
+                              ),
+                              textAlign: TextAlign.center,
+                            )
+                          : null,
                       trailing:
                           category.children.isNotEmpty || category.requiresText
                               ? const Icon(Icons.chevron_right)
@@ -3720,6 +3914,41 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           },
         ),
       ),
+    );
+  }
+
+  TextSpan _categoryLabelSpan(String label) {
+    const keywords = <String>[
+      'seitliche',
+      'hintere',
+      'Netz',
+      'zu Kurz',
+      'nicht rüber',
+      'Untere',
+      'Obere',
+    ];
+    final pattern = RegExp(
+      keywords.map(RegExp.escape).join('|'),
+      caseSensitive: false,
+    );
+    final spans = <InlineSpan>[];
+    var start = 0;
+    for (final match in pattern.allMatches(label)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: label.substring(start, match.start)));
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(0),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      );
+      start = match.end;
+    }
+    if (start < label.length) spans.add(TextSpan(text: label.substring(start)));
+    return TextSpan(
+      children: spans,
+      style: const TextStyle(fontWeight: FontWeight.w600),
     );
   }
 
@@ -4024,6 +4253,8 @@ class MatchRotationView extends StatefulWidget {
     this.onSideChanged,
     this.onSubstitute,
     this.onEdit,
+    this.onManualRotate,
+    this.onServingSideChanged,
   });
 
   final ScoreboardRotationState rotation;
@@ -4033,6 +4264,8 @@ class MatchRotationView extends StatefulWidget {
   final ValueChanged<bool>? onSideChanged;
   final ValueChanged<int>? onSubstitute;
   final VoidCallback? onEdit;
+  final VoidCallback? onManualRotate;
+  final VoidCallback? onServingSideChanged;
 
   @override
   State<MatchRotationView> createState() => _MatchRotationViewState();
@@ -4080,6 +4313,20 @@ class _MatchRotationViewState extends State<MatchRotationView> {
                     tooltip: 'Aufstellung bearbeiten',
                     onPressed: widget.onEdit,
                     icon: const Icon(Icons.edit_outlined),
+                  ),
+                if (widget.onManualRotate != null)
+                  IconButton(
+                    key: const ValueKey('match-manual-rotate-button'),
+                    tooltip: 'Eigenes Team manuell rotieren',
+                    onPressed: widget.onManualRotate,
+                    icon: const Icon(Icons.rotate_90_degrees_ccw),
+                  ),
+                if (widget.onServingSideChanged != null)
+                  IconButton(
+                    key: const ValueKey('match-serving-side-button'),
+                    tooltip: 'Aufschlagteam korrigieren',
+                    onPressed: widget.onServingSideChanged,
+                    icon: const Icon(Icons.swap_horiz),
                   ),
               ],
             ),
@@ -4953,6 +5200,57 @@ class _MatchHistoryPage extends StatefulWidget {
 
 class _MatchHistoryPageState extends State<_MatchHistoryPage> {
   late MatchGame _match = widget.match;
+  String _selectedKind = 'Alle';
+  String _selectedPlayer = 'Alle';
+  String _selectedCategory = 'Alle';
+
+  String _kindGroup(MatchEvent event) {
+    switch (event.kind) {
+      case 'point':
+        return 'Punkte';
+      case 'error':
+        return 'Fehler';
+      case 'substitution':
+        return 'Spielerwechsel';
+      case 'note':
+        return 'Notizen';
+      case _timeoutKind:
+        return 'Auszeiten';
+      case _manualSetEndKind:
+        return 'Satzende';
+      case 'manual_rotation':
+        return 'Rotation';
+      case 'serving_side':
+        return 'Aufschlag';
+      case 'lineup':
+        return 'Aufstellung';
+      default:
+        return 'Sonstige';
+    }
+  }
+
+  List<_HistoryEntry> _filterEntries(List<_HistoryEntry> entries) {
+    return entries.where((entry) {
+      final event = entry.event;
+      if (_selectedKind != 'Alle' && _kindGroup(event) != _selectedKind) {
+        return false;
+      }
+      if (_selectedCategory != 'Alle' && event.category != _selectedCategory) {
+        return false;
+      }
+      if (_selectedPlayer != 'Alle') {
+        final playerId = int.tryParse(_selectedPlayer);
+        final involvedPlayerIds = <int>{
+          ...event.scorerIds,
+          if (event.replacedPlayerId != null) event.replacedPlayerId!,
+        };
+        if (playerId == null || !involvedPlayerIds.contains(playerId)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
 
   List<_HistoryEntry> _historyEntries() {
     final sortedEvents = List<MatchEvent>.from(_match.events)
@@ -5026,6 +5324,11 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
   @override
   Widget build(BuildContext context) {
     final entries = _historyEntries();
+    final visibleEntries = _filterEntries(entries);
+    final categories = <String>{
+      for (final event in _match.events) event.category,
+    }.toList()
+      ..sort();
     final finishedSets = entries.where((entry) {
       if (entry.event.kind == _manualSetEndKind) return true;
       final scoreDifference = entry.ourScore - entry.opponentScore;
@@ -5053,7 +5356,7 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
                   Text(
-                    '${entries.length} Aktionen',
+                    '${visibleEntries.length} von ${entries.length} Aktionen',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 4),
@@ -5064,10 +5367,116 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
                         ),
                   ),
                   const SizedBox(height: 20),
-                  _MatchHistoryTimeline(
-                    entries: entries,
-                    onEdit: _editEvent,
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      SizedBox(
+                        width: 190,
+                        child: DropdownButtonFormField<String>(
+                          key: const ValueKey('history-kind-filter'),
+                          initialValue: _selectedKind,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Aktion',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            'Alle',
+                            'Punkte',
+                            'Fehler',
+                            'Spielerwechsel',
+                            'Notizen',
+                            'Auszeiten',
+                            'Satzende',
+                            'Rotation',
+                            'Aufschlag',
+                            'Aufstellung',
+                            'Sonstige',
+                          ]
+                              .map((value) => DropdownMenuItem(
+                                    value: value,
+                                    child: Text(value),
+                                  ))
+                              .toList(),
+                          onChanged: (value) => setState(
+                            () => _selectedKind = value ?? 'Alle',
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 220,
+                        child: DropdownButtonFormField<String>(
+                          key: const ValueKey('history-player-filter'),
+                          initialValue: _selectedPlayer,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Spieler',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: 'Alle',
+                              child: Text('Alle Spieler'),
+                            ),
+                            for (final player in _match.players)
+                              DropdownMenuItem(
+                                value: '${player.id}',
+                                child: Text(
+                                  '${player.name} · ${player.number}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                            () => _selectedPlayer = value ?? 'Alle',
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 240,
+                        child: DropdownButtonFormField<String>(
+                          key: const ValueKey('history-category-filter'),
+                          initialValue: _selectedCategory,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Punktart / Ereignis',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: 'Alle',
+                              child: Text('Alle Kategorien'),
+                            ),
+                            for (final category in categories)
+                              DropdownMenuItem(
+                                value: category,
+                                child: Text(
+                                  category,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                            () => _selectedCategory = value ?? 'Alle',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 16),
+                  if (visibleEntries.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Text('Keine passenden Verlaufseinträge.'),
+                      ),
+                    )
+                  else
+                    _MatchHistoryTimeline(
+                      entries: visibleEntries,
+                      onEdit: _editEvent,
+                    ),
                 ],
               ),
       ),
@@ -5096,6 +5505,10 @@ class _MatchHistoryTimeline extends StatelessWidget {
     if (entry.kind == _timeoutKind) return 'Auszeit';
     if (entry.kind == _manualSetEndKind) return 'Satzende';
     if (entry.kind == 'substitution') return 'Spielerwechsel';
+    if (entry.kind == 'note') return 'Notiz';
+    if (entry.kind == 'manual_rotation') return 'Manuelle Rotation';
+    if (entry.kind == 'serving_side') return 'Aufschlagteam';
+    if (entry.kind == 'lineup') return 'Startaufstellung';
     return entry.kind == 'point' ? 'Punkt' : 'Fehler';
   }
 

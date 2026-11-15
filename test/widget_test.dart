@@ -1617,6 +1617,15 @@ void main() {
     );
     await _pumpUi(tester);
 
+    await tester.tap(find.byKey(const ValueKey('add-timeline-note')));
+    await _pumpUi(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('timeline-note-input')),
+      'Satzbeginn',
+    );
+    await tester.tap(find.byKey(const ValueKey('save-timeline-note')));
+    await _pumpUi(tester);
+
     expect(find.byKey(const ValueKey('player-name-input')), findsNothing);
     final redoButton = tester.widget<IconButton>(
       find.byKey(const ValueKey('redo-last-match-action')),
@@ -1646,6 +1655,16 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await _pumpUi(tester);
     await tester.tap(find.byKey(const ValueKey('redo-last-match-action')));
+    await _pumpUi(tester);
+
+    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    await _pumpUi(tester);
+    expect(
+      find.byKey(const ValueKey('category-booking-count-Aufschlag')),
+      findsOneWidget,
+    );
+    expect(find.text('Schon 1-mal gebucht'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back).last);
     await _pumpUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('record-point-button')));
@@ -1789,6 +1808,24 @@ void main() {
     await _pumpUi(tester);
     expect(
         find.text('Mannschaft  •  Letzte Buchung angepasst'), findsOneWidget);
+    expect(find.text('Notiz  •  Satzbeginn'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('history-player-filter')));
+    await _pumpUi(tester);
+    await tester.tap(find.text('Ada Neu · 9').last);
+    await _pumpUi(tester);
+    expect(find.text('Ada Neu  •  Annahme'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('history-player-filter')));
+    await _pumpUi(tester);
+    await tester.tap(find.text('Alle Spieler').last);
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('history-kind-filter')));
+    await _pumpUi(tester);
+    await tester.tap(find.text('Notizen').last);
+    await _pumpUi(tester);
+    expect(find.text('Notiz  •  Satzbeginn'), findsOneWidget);
+    expect(find.text('Mannschaft  •  Letzte Buchung angepasst'), findsNothing);
   });
 
   testWidgets('statistics export button is named Export', (
@@ -2195,6 +2232,81 @@ void main() {
     expect(restored.rotationIsOnLeft, isFalse);
   });
 
+  test('manual rotation, serving side, and next-set lineup replay from events',
+      () {
+    final start = DateTime(2026, 10, 1, 12);
+    const initialRotation = ScoreboardRotationState(
+      league: 'U13',
+      left: RotationTeamState(
+        players: [
+          RotationPlayer(id: 'match-1', name: 'Ada'),
+          RotationPlayer(id: 'match-2', name: 'Berta'),
+          RotationPlayer(id: 'match-3', name: 'Mara'),
+        ],
+        positions: ['match-1', 'match-2', 'match-3'],
+      ),
+      right: RotationTeamState(),
+      servingSide: 1,
+    );
+    final lineup = initialRotation.copyWith(
+      left: initialRotation.left.copyWith(
+        positions: const ['match-3', 'match-1', 'match-2'],
+      ),
+      servingSide: 0,
+    );
+    final match = MatchGame(
+      id: 8,
+      createdAt: start,
+      location: '',
+      opponentTeam: 'Team Rot',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: null,
+          playerName: 'Mannschaft',
+          playerNumber: 0,
+          kind: 'manual_rotation',
+          category: 'Manuelle Rotation',
+          occurredAt: start,
+        ),
+        MatchEvent(
+          id: 2,
+          playerId: null,
+          playerName: 'Eigenes Team',
+          playerNumber: 0,
+          kind: 'serving_side',
+          category: 'Eigenes Team',
+          occurredAt: start.add(const Duration(seconds: 1)),
+        ),
+        MatchEvent(
+          id: 3,
+          playerId: null,
+          playerName: 'Aufstellung',
+          playerNumber: 0,
+          kind: 'lineup',
+          category: 'Startaufstellung',
+          occurredAt: start.add(const Duration(seconds: 2)),
+          rotationState: lineup,
+        ),
+      ],
+      rotationSetup: initialRotation,
+    );
+
+    final restored = MatchGame.fromJson(match.toJson());
+    final current = rotationAfterMatchEvents(restored);
+
+    expect(current?.left.positions, ['match-3', 'match-1', 'match-2']);
+    expect(current?.servingSide, 0);
+    expect(
+      rotationAfterMatchEvents(undoLastMatchAction(restored))?.left.positions,
+      ['match-2', 'match-3', 'match-1'],
+    );
+  });
+
   test('scoring only offers players currently on court', () {
     final match = MatchGame(
       id: 9,
@@ -2229,6 +2341,71 @@ void main() {
     );
 
     expect(fieldPlayersForScoring(match).map((player) => player.id), [1, 2, 3]);
+  });
+
+  testWidgets('scoring marks the current serving player', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MatchScorerSelectionView(
+          players: const [MatchPlayer(id: 7, name: 'Ada', number: 9)],
+          countdownProgress: 0,
+          displayPlayerName: (player) => player.name,
+          onBack: () {},
+          onBookUnknown: () {},
+          onSelectSpecial: (_) {},
+          onSelectPlayer: (_) {},
+          onSelectPlayers: (_) {},
+          onMultiSelectStarted: () {},
+          highlightedPlayerId: 7,
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('serving-player-highlight')),
+      findsOneWidget,
+    );
+    expect(find.text('Aufschlag'), findsOneWidget);
+  });
+
+  testWidgets('rotation panel exposes manual correction controls', (
+    WidgetTester tester,
+  ) async {
+    var rotationChanges = 0;
+    var servingSideChanges = 0;
+    const rotation = ScoreboardRotationState(
+      league: 'U13',
+      left: RotationTeamState(
+        players: [
+          RotationPlayer(id: 'one', name: 'Ada'),
+          RotationPlayer(id: 'two', name: 'Berta'),
+          RotationPlayer(id: 'three', name: 'Mara'),
+        ],
+        positions: ['one', 'two', 'three'],
+      ),
+      right: RotationTeamState(),
+      servingSide: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MatchRotationView(
+            rotation: rotation,
+            teamName: 'Eigenes Team',
+            onManualRotate: () => rotationChanges++,
+            onServingSideChanged: () => servingSideChanges++,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('match-manual-rotate-button')));
+    await tester.tap(find.byKey(const ValueKey('match-serving-side-button')));
+
+    expect(rotationChanges, 1);
+    expect(servingSideChanges, 1);
   });
 
   test('team jersey number sync updates match and rotation roster', () {

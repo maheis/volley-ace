@@ -106,6 +106,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [x] Trainerstatistik
     - [ ] Trainerbewertung
     - [ ] Achievements
+  - [ ] Mannschaftskasse
 - [x] Punktewertung
       Bewerten wie Punkte gemacht werden um eine Statistik zu Spielern und Teams zu erstellen.
       Es soll eine persistente Liste an Spielen geben, wird ein neues Spiel gestartet sollen die Spielinfos abgefragt werden.
@@ -151,10 +152,10 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
           - Fehler - Auswahl Welcher Fehler gemacht wurde.
             - Aufschlag
-              - Ball ins seitliche Aus
-              - Ball ins hintere Aus
-              - Ball ins Netz
-              - Ball zu Kurz
+              - Ball ins **seitliche** Aus
+              - Ball ins **hintere** Aus
+              - Ball ins **Netz**
+              - Ball **zu Kurz**
               - Übertritt
               - Sonstiges
                 - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
@@ -162,22 +163,22 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
               - Zugeschaut
               - Absprache
               - Tusch
-              - Untere Annahme
-              - Obere Annahme
+              - **Untere** Annahme
+              - **Obere** Annahme
               - Sonstiges
                 - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Angriff
-              - Ball ins seitliche Aus
-              - Ball ins hintere Aus
-              - Ball ins Netz
-              - Ball nicht rüber
+              - Ball ins **seitliche** Aus
+              - Ball ins **hintere** Aus
+              - Ball ins **Netz**
+              - Ball **nicht rüber**
               - Hinterfeldangriff
               - Sonstiges
                 - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Zuspiel
               - Absprache
-              - Unteres Zuspiel
-              - Oberes Zuspiel
+              - **Unteres** Zuspiel
+              - **Oberes** Zuspiel
               - Sonstiges
                 - Text-Eingabe (Mit Auswahl letzter 10 Eingaben)
             - Netz
@@ -351,12 +352,6 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] spielerwechsel verlauf aufzeichnen welcher spieler gegen welchen ausgewechselt wurde
 - [x] timer in der punktewertung anzeigen bis automatisch gebuacht wird, unten einen kleinen balken der langsam abläuft
 - [x] letzte buchung bearbeiten
-- [ ] Diagramm mit Differenzpunkten?
-- [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
-- [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
-- [ ] satzende soll automatisch erkannt werden?!
-- [ ] html export
-- [ ] linux installationsskript prüfen und ggf. anpassen.
 - [x] pdf export endless aber druckbar! (Layoutwahl: Endlos oder DIN A4 hoch)
 - [x] pdf export namen
 - [x] satz beenden soll optisch werte zurücksetzen
@@ -364,7 +359,23 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] zuspieler dingens oder zweiterball
 - [x] sonstiges überall als option
 - [x] satz beenden soll timer anhalten und erster punkt soll timer starten (falls er noch nicht läuft)
-- [ ] Mannschaftskasse
+- [ ] Diagramm mit Differenzpunkten?
+- [ ] Punktetafel mit Trainingsübungen (Spiel) Verknüpfen (Teams/Spielerstatistik über Rotation möglich)
+- [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
+- [ ] satzende soll automatisch erkannt werden?!
+- [ ] html export
+- [ ] linux installationsskript prüfen und ggf. anpassen.
+- [x] gleichartige punkte highlighten, schlüsselwörter fett (siehe oben bei der punktewertungdefinition)
+- [x] aufschlagspieler bei aufschlagpunkt direkt als markiert auswählen / highlighten
+- [x] aufschlagspieler bzw. rotation muss manuell geändert werden können, wenn das schiedgericht ggf. vorher / mitten drin mist gemacht
+- [x] buttons um notizen in die zeitleiste einzufügen während der punktewertung
+- [x] start aufaufstellung satz muss noch mal aufrufbar sein
+- [x] verlauf soll filterbar sein (z.b. nach spieler, nach punktart, nach spielerwechsel)
+- [ ] punktewertung übersicht als "graph" nach datum
+- [ ] filter für punkterwertung übersicht, nach z.b. gegner, spielort, spieler etc.
+- [ ] statistik meherer spiele soll wie beim export die spiel infos darstellen
+- [ ] im diagramm soll farblich dargestellt werden, in welchen sätzen bzw. zeiten der spieler auf dem feld war
+- [ ] 
 
 ## PDF-Export und Dateinamen
 
