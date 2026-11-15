@@ -369,7 +369,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] aufschlagspieler bei aufschlagpunkt direkt als markiert auswählen / highlighten
 - [x] aufschlagspieler bzw. rotation muss manuell geändert werden können, wenn das schiedgericht ggf. vorher / mitten drin mist gemacht
 - [x] buttons um notizen in die zeitleiste einzufügen während der punktewertung
-- [x] start aufaufstellung satz muss noch mal aufrufbar sein
+- [?] start aufaufstellung satz muss noch mal aufrufbar sein
 - [x] verlauf soll filterbar sein (z.b. nach spieler, nach punktart, nach spielerwechsel)
 - [ ] punktewertung übersicht als "graph" nach datum
 - [ ] filter für punkterwertung übersicht, nach z.b. gegner, spielort, spieler etc.

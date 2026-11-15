@@ -968,6 +968,51 @@ class _ScoringCategory {
   final bool requiresText;
 }
 
+TextSpan scoringCategoryLabelSpan(
+  String label, {
+  required Color highlightColor,
+}) {
+  const keywords = <String>[
+    'seitliche',
+    'hintere',
+    'Netz',
+    'zu Kurz',
+    'nicht rüber',
+    'Unteres',
+    'Oberes',
+    'Untere',
+    'Obere',
+  ];
+  final pattern = RegExp(
+    r'(?<![A-Za-zÄÖÜäöüß])(?:'
+    '${keywords.map(RegExp.escape).join('|')}'
+    r')(?![A-Za-zÄÖÜäöüß])',
+    caseSensitive: false,
+  );
+  final spans = <InlineSpan>[];
+  var start = 0;
+  for (final match in pattern.allMatches(label)) {
+    if (match.start > start) {
+      spans.add(TextSpan(text: label.substring(start, match.start)));
+    }
+    spans.add(
+      TextSpan(
+        text: match.group(0),
+        style: TextStyle(
+          color: highlightColor,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+    start = match.end;
+  }
+  if (start < label.length) spans.add(TextSpan(text: label.substring(start)));
+  return TextSpan(
+    children: spans,
+    style: const TextStyle(fontWeight: FontWeight.normal),
+  );
+}
+
 class _OtherCategoryDetailsDialog extends StatefulWidget {
   const _OtherCategoryDetailsDialog({required this.recentDetails});
 
@@ -3886,7 +3931,11 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   child: Center(
                     child: ListTile(
                       title: Text.rich(
-                        _categoryLabelSpan(category.label),
+                        scoringCategoryLabelSpan(
+                          category.label,
+                          highlightColor: Theme.of(context).iconTheme.color ??
+                              Theme.of(context).colorScheme.primary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       subtitle: wasUsedBefore
@@ -3914,41 +3963,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           },
         ),
       ),
-    );
-  }
-
-  TextSpan _categoryLabelSpan(String label) {
-    const keywords = <String>[
-      'seitliche',
-      'hintere',
-      'Netz',
-      'zu Kurz',
-      'nicht rüber',
-      'Untere',
-      'Obere',
-    ];
-    final pattern = RegExp(
-      keywords.map(RegExp.escape).join('|'),
-      caseSensitive: false,
-    );
-    final spans = <InlineSpan>[];
-    var start = 0;
-    for (final match in pattern.allMatches(label)) {
-      if (match.start > start) {
-        spans.add(TextSpan(text: label.substring(start, match.start)));
-      }
-      spans.add(
-        TextSpan(
-          text: match.group(0),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-      );
-      start = match.end;
-    }
-    if (start < label.length) spans.add(TextSpan(text: label.substring(start)));
-    return TextSpan(
-      children: spans,
-      style: const TextStyle(fontWeight: FontWeight.w600),
     );
   }
 

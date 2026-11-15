@@ -122,6 +122,45 @@ void main() {
     expect(event.category, 'Gegnerfehler');
   });
 
+  test('scoring labels bold the complete README keywords', () {
+    const highlightColor = Color(0xFF31A987);
+    const markedLabels = <String, String>{
+      'Ball ins seitliche Aus': 'seitliche',
+      'Ball ins hintere Aus': 'hintere',
+      'Ball ins Netz': 'Netz',
+      'Ball zu Kurz': 'zu Kurz',
+      'Untere Annahme': 'Untere',
+      'Obere Annahme': 'Obere',
+      'Ball nicht rüber': 'nicht rüber',
+      'Unteres Zuspiel': 'Unteres',
+      'Oberes Zuspiel': 'Oberes',
+    };
+
+    for (final entry in markedLabels.entries) {
+      final span = scoringCategoryLabelSpan(
+        entry.key,
+        highlightColor: highlightColor,
+      );
+      expect(span.toPlainText(), entry.key);
+      expect(span.style?.fontWeight, FontWeight.normal);
+      final emphasizedSpan = span.children!
+          .whereType<TextSpan>()
+          .singleWhere((child) => child.text == entry.value);
+      expect(emphasizedSpan.style?.fontWeight, FontWeight.bold);
+      expect(emphasizedSpan.style?.color, highlightColor);
+    }
+
+    final netzroller = scoringCategoryLabelSpan(
+      'Netzroller',
+      highlightColor: highlightColor,
+    );
+    expect(netzroller.toPlainText(), 'Netzroller');
+    expect(
+      (netzroller.children!.single as TextSpan).style?.color,
+      isNull,
+    );
+  });
+
   test('rotation follows the selected youth and senior rules', () {
     RotationTeamState team(String prefix) => RotationTeamState(
           players: List<RotationPlayer>.generate(
