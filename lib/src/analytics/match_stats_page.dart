@@ -413,6 +413,40 @@ int compareMatchesByGameTime(MatchGame first, MatchGame second) {
       : second.createdAt.compareTo(first.createdAt);
 }
 
+List<MatchGame> filterMatchesForOverview(
+  List<MatchGame> matches, {
+  String opponent = '',
+  String location = '',
+  String player = '',
+}) {
+  final opponentQuery = opponent.trim().toLowerCase();
+  final locationQuery = location.trim().toLowerCase();
+  final playerQuery = player.trim().toLowerCase();
+  return matches.where((match) {
+    if (opponentQuery.isNotEmpty &&
+        !match.opponentTeam.toLowerCase().contains(opponentQuery)) {
+      return false;
+    }
+    if (locationQuery.isNotEmpty &&
+        !match.location.toLowerCase().contains(locationQuery)) {
+      return false;
+    }
+    if (playerQuery.isNotEmpty) {
+      final names = <String>[
+        ...match.players.map((entry) => entry.name),
+        ...match.events.expand((event) => <String>[
+              event.playerName,
+              if (event.replacedPlayerName != null) event.replacedPlayerName!,
+            ]),
+      ];
+      if (!names.any((name) => name.toLowerCase().contains(playerQuery))) {
+        return false;
+      }
+    }
+    return true;
+  }).toList();
+}
+
 class MatchSetResult {
   const MatchSetResult({
     required this.us,
@@ -508,10 +542,7 @@ class MatchTimeRange {
 List<MatchTimeRange> matchTimeRangesFor(List<MatchGame> matches) {
   final ranges = <MatchTimeRange>[];
   for (final match in matches) {
-    final times = match.events
-        .where((event) => event.kind == 'point' || event.kind == 'error')
-        .map((event) => event.occurredAt)
-        .toList()
+    final times = match.events.map((event) => event.occurredAt).toList()
       ..sort();
     final start = times.firstOrNull ?? match.matchDateTime;
     final rawEnd = times.lastOrNull ?? start;
@@ -531,6 +562,8 @@ class MatchTrendSample {
     required this.opponentErrors,
     this.matchIndex = 0,
     this.beginsMatch = false,
+    this.playerOnCourt,
+    this.setNumber,
   });
 
   final DateTime time;
@@ -539,6 +572,8 @@ class MatchTrendSample {
   final int opponentErrors;
   final int matchIndex;
   final bool beginsMatch;
+  final bool? playerOnCourt;
+  final int? setNumber;
 }
 
 List<MatchTrendSample> matchPlayerTrendSamples(
@@ -581,13 +616,41 @@ List<MatchTrendSample> matchPlayerTrendSamples(
     final sourceMatch = entry.match;
     final range = entry.range;
     final sourcePlayer = sourcePlayerFor(sourceMatch);
-    final scoredEvents = sourceMatch.events
-        .where((event) => event.kind == 'point' || event.kind == 'error')
-        .toList()
+    final events = List<MatchEvent>.from(sourceMatch.events)
       ..sort((first, second) {
         final timeOrder = first.occurredAt.compareTo(second.occurredAt);
         return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
       });
+    final rotation = sourceMatch.rotationSetup;
+    final isCourtTracked = sourcePlayer != null && rotation != null;
+
+    Set<int> playerIdsOnCourt(RotationTeamState? team) {
+      if (team == null) return <int>{};
+      final ids = <int>{};
+      for (final rotationId in team.positions.whereType<String>()) {
+        final rotationPlayer =
+            team.players.where((player) => player.id == rotationId).firstOrNull;
+        final matchPlayer = sourceMatch.players.where((player) {
+          if (rotationId == 'match-${player.id}') return true;
+          return rotationPlayer != null &&
+              player.name.trim().toLowerCase() ==
+                  rotationPlayer.name.trim().toLowerCase() &&
+              (rotationPlayer.number == null ||
+                  rotationPlayer.number == player.number);
+        }).firstOrNull;
+        if (matchPlayer != null) ids.add(matchPlayer.id);
+      }
+      return ids;
+    }
+
+    var onCourtPlayerIds = playerIdsOnCourt(rotation?.left);
+    var ourSetScore = 0;
+    var opponentSetScore = 0;
+    var setNumber = 1;
+
+    void applyLineup(ScoreboardRotationState lineup) {
+      onCourtPlayerIds = playerIdsOnCourt(lineup.left);
+    }
 
     samples.add(MatchTrendSample(
       time: range.start,
@@ -596,15 +659,32 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       opponentErrors: opponentErrors,
       matchIndex: matchIndex,
       beginsMatch: true,
+      playerOnCourt:
+          isCourtTracked ? onCourtPlayerIds.contains(sourcePlayer.id) : null,
+      setNumber: setNumber,
     ));
-    for (final event in scoredEvents) {
+    for (final event in events) {
+      if (event.kind == 'lineup' && event.rotationState != null) {
+        applyLineup(event.rotationState!);
+      } else if (event.kind == 'substitution') {
+        if (event.replacedPlayerId != null) {
+          onCourtPlayerIds.remove(event.replacedPlayerId);
+        }
+        if (event.playerId != null) onCourtPlayerIds.add(event.playerId!);
+      }
+
       if (sourcePlayer != null && event.scorerIds.contains(sourcePlayer.id)) {
         if (event.kind == 'point') {
           points++;
           if (event.category == 'Gegnerfehler') opponentErrors++;
-        } else {
+        } else if (event.kind == 'error') {
           errors++;
         }
+      }
+      if (event.kind == 'point') {
+        ourSetScore++;
+      } else if (event.kind == 'error') {
+        opponentSetScore++;
       }
       samples.add(MatchTrendSample(
         time: event.occurredAt,
@@ -612,7 +692,18 @@ List<MatchTrendSample> matchPlayerTrendSamples(
         errors: errors,
         opponentErrors: opponentErrors,
         matchIndex: matchIndex,
+        playerOnCourt:
+            isCourtTracked ? onCourtPlayerIds.contains(sourcePlayer.id) : null,
+        setNumber: setNumber,
       ));
+      final setFinished = event.kind == _manualSetEndKind ||
+          (ourSetScore >= 25 && ourSetScore - opponentSetScore >= 2) ||
+          (opponentSetScore >= 25 && opponentSetScore - ourSetScore >= 2);
+      if (setFinished) {
+        setNumber++;
+        ourSetScore = 0;
+        opponentSetScore = 0;
+      }
     }
     samples.add(MatchTrendSample(
       time: range.end,
@@ -620,6 +711,9 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       errors: errors,
       opponentErrors: opponentErrors,
       matchIndex: matchIndex,
+      playerOnCourt:
+          isCourtTracked ? onCourtPlayerIds.contains(sourcePlayer.id) : null,
+      setNumber: setNumber,
     ));
   }
   return samples;
@@ -1455,6 +1549,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   String? _pendingScorerName;
   int _pendingScorerNumber = 0;
   final Set<int> _selectedMatchIds = <int>{};
+  String _matchOpponentFilter = '';
+  String _matchLocationFilter = '';
+  String _matchPlayerFilter = '';
   bool _isLoaded = false;
   int _nextMatchId = 1;
 
@@ -2749,8 +2846,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildMatchListView() {
-    final matches = List<MatchGame>.from(_matches)
-      ..sort(compareMatchesByGameTime);
+    final matches = filterMatchesForOverview(
+      _matches,
+      opponent: _matchOpponentFilter,
+      location: _matchLocationFilter,
+      player: _matchPlayerFilter,
+    )..sort(compareMatchesByGameTime);
+    final matchesByDate = <DateTime, List<MatchGame>>{};
+    for (final match in matches) {
+      final date = DateTime(
+        match.matchDateTime.year,
+        match.matchDateTime.month,
+        match.matchDateTime.day,
+      );
+      matchesByDate.putIfAbsent(date, () => <MatchGame>[]).add(match);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -2804,46 +2914,172 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ),
             ),
             const SizedBox(height: 12),
-            if (matches.isEmpty)
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  width: 220,
+                  child: TextField(
+                    key: const ValueKey('match-opponent-filter'),
+                    decoration: const InputDecoration(
+                      labelText: 'Gegner filtern',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) =>
+                        setState(() => _matchOpponentFilter = value),
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: TextField(
+                    key: const ValueKey('match-location-filter'),
+                    decoration: const InputDecoration(
+                      labelText: 'Spielort filtern',
+                      prefixIcon: Icon(Icons.place_outlined),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) =>
+                        setState(() => _matchLocationFilter = value),
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: TextField(
+                    key: const ValueKey('match-player-filter'),
+                    decoration: const InputDecoration(
+                      labelText: 'Spieler filtern',
+                      prefixIcon: Icon(Icons.person_search_outlined),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) =>
+                        setState(() => _matchPlayerFilter = value),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (matches.isEmpty && _matches.isEmpty)
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(20),
                   child: Text('Noch keine Spiele erfasst.'),
                 ),
               )
+            else if (matches.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Keine Spiele für diese Filter gefunden.'),
+                ),
+              )
             else
-              for (final match in matches)
-                Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    key: ValueKey('match-row-${match.id}'),
-                    leading: _selectedMatchIds.isEmpty
-                        ? _buildMatchIcon(context, match)
-                        : Checkbox(
-                            key: ValueKey(
-                              'select-match-${match.id}',
+              for (final group in matchesByDate.entries) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatDate(group.key),
+                        key: ValueKey(
+                          'match-date-group-${group.key.year}-${group.key.month}-${group.key.day}',
+                        ),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
-                            value: _selectedMatchIds.contains(match.id),
-                            onChanged: (_) => _toggleMatchSelection(match.id),
-                          ),
-                    title: Text(
-                      match.opponentTeam.isEmpty
-                          ? 'Neues Spiel'
-                          : 'vs. ${match.opponentTeam}',
-                    ),
-                    subtitle: Text(
-                      '${match.matchType} • ${_formatDateTime(match.matchDateTime)} • ${match.matchTag.isEmpty ? 'Ohne Stichwort' : match.matchTag} • ${match.location.isEmpty ? 'Ort offen' : match.location}',
-                    ),
-                    trailing: _selectedMatchIds.isNotEmpty
-                        ? null
-                        : const Icon(Icons.chevron_right),
-                    selected: _selectedMatchIds.contains(match.id),
-                    onLongPress: () => _toggleMatchSelection(match.id),
-                    onTap: _selectedMatchIds.isNotEmpty
-                        ? () => _toggleMatchSelection(match.id)
-                        : () => _showMatchDetail(match.id),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Divider(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                for (var index = 0; index < group.value.length; index++)
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              margin: const EdgeInsets.only(top: 20),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            if (index < group.value.length - 1)
+                              Container(
+                                width: 2,
+                                height: 72,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outlineVariant,
+                              ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            key: ValueKey('match-row-${group.value[index].id}'),
+                            leading: _selectedMatchIds.isEmpty
+                                ? _buildMatchIcon(context, group.value[index])
+                                : Checkbox(
+                                    key: ValueKey(
+                                      'select-match-${group.value[index].id}',
+                                    ),
+                                    value: _selectedMatchIds
+                                        .contains(group.value[index].id),
+                                    onChanged: (_) => _toggleMatchSelection(
+                                      group.value[index].id,
+                                    ),
+                                  ),
+                            title: Text(
+                              group.value[index].opponentTeam.isEmpty
+                                  ? 'Neues Spiel'
+                                  : 'vs. ${group.value[index].opponentTeam}',
+                            ),
+                            subtitle: Text(
+                              '${group.value[index].matchType} • ${_formatTime(group.value[index].matchDateTime)} • ${group.value[index].matchTag.isEmpty ? 'Ohne Stichwort' : group.value[index].matchTag} • ${group.value[index].location.isEmpty ? 'Ort offen' : group.value[index].location}',
+                            ),
+                            trailing: _selectedMatchIds.isNotEmpty
+                                ? null
+                                : const Icon(Icons.chevron_right),
+                            selected: _selectedMatchIds
+                                .contains(group.value[index].id),
+                            onLongPress: () =>
+                                _toggleMatchSelection(group.value[index].id),
+                            onTap: _selectedMatchIds.isNotEmpty
+                                ? () => _toggleMatchSelection(
+                                      group.value[index].id,
+                                    )
+                                : () => _showMatchDetail(
+                                      group.value[index].id,
+                                    ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
           ],
         ),
       ),
@@ -4016,7 +4252,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           padding: const EdgeInsets.all(16),
           children: [
             if (sourceMatches != null && sourceMatches.isNotEmpty) ...[
-              _SelectedMatchesSummary(matches: sourceMatches),
+              _SelectedMatchesSummary(
+                matches: sourceMatches,
+                teams: _teams,
+              ),
               const SizedBox(height: 12),
             ],
             if (showSets && sets.isNotEmpty) ...[
@@ -4109,8 +4348,12 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     int? playerId,
     List<MatchGame>? sourceMatches,
   }) {
-    if (playerId != null && sourceMatches != null) {
-      return matchPlayerTrendSamples(match, sourceMatches, playerId);
+    if (playerId != null) {
+      return matchPlayerTrendSamples(
+        match,
+        sourceMatches ?? <MatchGame>[match],
+        playerId,
+      );
     }
     final events = match.events
         .where(
@@ -4722,9 +4965,13 @@ class _PlayerStatsTableState extends State<_PlayerStatsTable> {
 typedef _SetScore = MatchSetResult;
 
 class _SelectedMatchesSummary extends StatelessWidget {
-  const _SelectedMatchesSummary({required this.matches});
+  const _SelectedMatchesSummary({
+    required this.matches,
+    required this.teams,
+  });
 
   final List<MatchGame> matches;
+  final List<Team> teams;
 
   String _formatDateTime(DateTime value) =>
       '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${value.year} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
@@ -4744,23 +4991,48 @@ class _SelectedMatchesSummary extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             for (var index = 0; index < matches.length; index++)
-              ListTile(
-                key: ValueKey('selected-match-summary-${matches[index].id}'),
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  radius: 14,
-                  child: Text('${index + 1}'),
-                ),
-                title: Text(
-                  matches[index].opponentTeam.isEmpty
-                      ? 'Spiel ohne Gegner'
-                      : 'vs. ${matches[index].opponentTeam}',
-                ),
-                subtitle: Text(
-                  '${matches[index].matchType} · ${_formatDateTime(matches[index].matchDateTime)}',
-                ),
-              ),
+              Builder(builder: (context) {
+                final match = matches[index];
+                final team = teams
+                    .where((entry) => entry.id == match.teamId)
+                    .firstOrNull;
+                final teamName = team?.name ??
+                    (match.rotationSetup?.left.name.isNotEmpty == true
+                        ? match.rotationSetup!.left.name
+                        : '');
+                final setScores = computeMatchSetResults(match)
+                    .where((set) => set.us > 0 || set.opponent > 0)
+                    .map((set) => '${set.us}:${set.opponent}')
+                    .join('  ');
+                final matchInfo = <String>[
+                  '${match.matchType} · ${_formatDateTime(match.matchDateTime)}',
+                  'Spielort: ${match.location.isEmpty ? 'Ort offen' : match.location}',
+                  if (match.matchTag.isNotEmpty) 'Stichwort: ${match.matchTag}',
+                  if (teamName.isNotEmpty) 'Eigenes Team: $teamName',
+                  if (match.coaches.isNotEmpty)
+                    'Trainer: ${match.coaches.map((coach) => coach.name).join(', ')}',
+                  if (match.players.isNotEmpty)
+                    'Spieler: ${match.players.map((player) => '${player.name} · ${player.number}').join(', ')}',
+                  if (setScores.isNotEmpty) 'Sätze: $setScores',
+                ];
+                return ListTile(
+                  key: ValueKey('selected-match-summary-${match.id}'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 14,
+                    child: Text('${index + 1}'),
+                  ),
+                  title: Text(
+                    match.opponentTeam.isEmpty
+                        ? 'Spiel ohne Gegner'
+                        : 'vs. ${match.opponentTeam}',
+                  ),
+                  subtitle: Text(
+                    matchInfo.join('\n'),
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -4770,6 +5042,16 @@ class _SelectedMatchesSummary extends StatelessWidget {
 
 double trendChartMaxTimeScale(int sampleCount) =>
     (sampleCount / 4).clamp(16.0, 64.0).toDouble();
+
+const List<Color> _courtSetColors = <Color>[
+  Color(0xFF66BB6A),
+  Color(0xFF26A69A),
+  Color(0xFFFFB74D),
+  Color(0xFF64B5F6),
+];
+
+Color _courtSetColor(int setNumber) =>
+    _courtSetColors[(setNumber - 1) % _courtSetColors.length];
 
 class _TrendChartCard extends StatefulWidget {
   const _TrendChartCard({
@@ -4802,6 +5084,13 @@ class _TrendChartCardState extends State<_TrendChartCard> {
 
   @override
   Widget build(BuildContext context) {
+    final trackedSets = widget.samples
+        .where((sample) => sample.playerOnCourt == true)
+        .map((sample) => sample.setNumber)
+        .whereType<int>()
+        .toSet()
+        .toList()
+      ..sort();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -4839,8 +5128,11 @@ class _TrendChartCardState extends State<_TrendChartCard> {
             Wrap(
               spacing: 12,
               runSpacing: 6,
-              children: const [
-                _TrendLegendDot(color: Colors.greenAccent, label: 'Punkte'),
+              children: [
+                const _TrendLegendDot(
+                  color: Colors.greenAccent,
+                  label: 'Punkte',
+                ),
                 _TrendLegendDot(
                   color: Color(0xFFe57373),
                   label: 'Fehler',
@@ -4853,6 +5145,11 @@ class _TrendChartCardState extends State<_TrendChartCard> {
                   color: Color(0xFFFFB74D),
                   label: 'Auszeit',
                 ),
+                for (final setNumber in trackedSets)
+                  _TrendLegendBand(
+                    color: _courtSetColor(setNumber),
+                    label: 'Satz $setNumber · auf dem Feld',
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -4956,6 +5253,30 @@ class _TrendLegendLine extends StatelessWidget {
   }
 }
 
+class _TrendLegendBand extends StatelessWidget {
+  const _TrendLegendBand({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.22),
+              border: Border.all(color: color),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      );
+}
+
 class _TrendChartPainter extends CustomPainter {
   _TrendChartPainter({
     required this.samples,
@@ -5021,6 +5342,24 @@ class _TrendChartPainter extends CustomPainter {
           Paint()..color = bandColors[index % bandColors.length],
         );
       }
+    }
+
+    for (var index = 0; index < samples.length - 1; index++) {
+      final sample = samples[index];
+      if (sample.playerOnCourt != true) continue;
+      final left = xFor(sample.time);
+      final right = xFor(samples[index + 1].time);
+      if (right <= left) continue;
+      final color = _courtSetColor(sample.setNumber ?? 1);
+      canvas.drawRect(
+        Rect.fromLTRB(
+          left.clamp(chartRect.left, chartRect.right),
+          chartRect.top,
+          right.clamp(chartRect.left, chartRect.right),
+          chartRect.bottom,
+        ),
+        Paint()..color = color.withValues(alpha: 0.14),
+      );
     }
 
     final gridPaint = Paint()

@@ -371,11 +371,11 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] buttons um notizen in die zeitleiste einzufügen während der punktewertung
 - [?] start aufaufstellung satz muss noch mal aufrufbar sein
 - [x] verlauf soll filterbar sein (z.b. nach spieler, nach punktart, nach spielerwechsel)
-- [ ] punktewertung übersicht als "graph" nach datum
-- [ ] filter für punkterwertung übersicht, nach z.b. gegner, spielort, spieler etc.
-- [ ] statistik meherer spiele soll wie beim export die spiel infos darstellen
-- [ ] im diagramm soll farblich dargestellt werden, in welchen sätzen bzw. zeiten der spieler auf dem feld war
-- [ ] 
+- [x] punktewertung übersicht als "graph" nach datum
+- [x] filter für punkterwertung übersicht, nach z.b. gegner, spielort, spieler etc.
+- [x] statistik meherer spiele soll wie beim export die spiel infos darstellen
+- [?] im diagramm soll farblich dargestellt werden, in welchen sätzen bzw. zeiten der spieler auf dem feld war
+- [ ] freitext-filter?
 
 ## PDF-Export und Dateinamen
 

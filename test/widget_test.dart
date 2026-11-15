@@ -3192,6 +3192,256 @@ void main() {
     expect(compareMatchesByGameTime(laterCreated, newerGame), greaterThan(0));
   });
 
+  test('match overview filters by opponent, location, and player', () {
+    final start = DateTime(2026, 10, 1, 18);
+    MatchGame match({
+      required int id,
+      required String opponent,
+      required String location,
+      required String player,
+    }) =>
+        MatchGame(
+          id: id,
+          createdAt: start,
+          location: location,
+          opponentTeam: opponent,
+          matchDateTime: start,
+          matchTag: '',
+          matchType: 'Liga',
+          players: [MatchPlayer(id: id, name: player, number: id)],
+          events: const [],
+        );
+    final matches = [
+      match(
+        id: 1,
+        opponent: 'Team Rot',
+        location: 'Halle Nord',
+        player: 'Ada',
+      ),
+      match(
+        id: 2,
+        opponent: 'Team Blau',
+        location: 'Halle Süd',
+        player: 'Berta',
+      ),
+    ];
+
+    expect(
+      filterMatchesForOverview(matches, opponent: 'rot')
+          .map((match) => match.id),
+      [1],
+    );
+    expect(
+      filterMatchesForOverview(matches, location: 'SÜD')
+          .map((match) => match.id),
+      [2],
+    );
+    expect(
+      filterMatchesForOverview(matches, player: 'ada').map((match) => match.id),
+      [1],
+    );
+  });
+
+  test('player trend marks court presence and set changes', () {
+    final start = DateTime(2026, 10, 1, 18);
+    MatchEvent event(
+      int id,
+      String kind,
+      int? playerId,
+      int minute, {
+      int? replacedPlayerId,
+    }) =>
+        MatchEvent(
+          id: id,
+          playerId: playerId,
+          playerName: playerId == 1 ? 'Ada' : 'Berta',
+          playerNumber: playerId ?? 0,
+          kind: kind,
+          category: kind == 'manual_set_end' ? 'Manuell' : 'Block',
+          occurredAt: start.add(Duration(minutes: minute)),
+          replacedPlayerId: replacedPlayerId,
+        );
+    final match = MatchGame(
+      id: 1,
+      createdAt: start,
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [
+        MatchPlayer(id: 1, name: 'Ada', number: 7),
+        MatchPlayer(id: 2, name: 'Berta', number: 8),
+      ],
+      events: [
+        event(1, 'point', 1, 0),
+        event(2, 'substitution', 2, 5, replacedPlayerId: 1),
+        event(3, 'point', 2, 10),
+        event(4, 'manual_set_end', null, 20),
+        event(5, 'substitution', 1, 21, replacedPlayerId: 2),
+        event(6, 'point', 1, 30),
+      ],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          players: [
+            RotationPlayer(id: 'match-1', name: 'Ada'),
+            RotationPlayer(id: 'match-2', name: 'Berta'),
+          ],
+          positions: ['match-1', 'match-2', null],
+        ),
+        right: RotationTeamState(),
+        servingSide: 0,
+      ),
+    );
+
+    final samples = matchPlayerTrendSamples(match, [match], 1);
+
+    expect(samples.first.playerOnCourt, isTrue);
+    expect(samples[2].playerOnCourt, isFalse);
+    expect(samples[4].setNumber, 1);
+    expect(samples[5].playerOnCourt, isTrue);
+    expect(samples[5].setNumber, 2);
+    expect(samples.last.playerOnCourt, isTrue);
+  });
+
+  testWidgets('match overview filters and multi-statistics show match details',
+      (
+    WidgetTester tester,
+  ) async {
+    final database =
+        await databaseFactoryMemory.openDatabase('match-overview.db');
+    final firstStart = DateTime(2026, 10, 4, 18);
+    final secondStart = DateTime(2026, 10, 5, 20);
+    MatchEvent scoreEvent(
+      int id,
+      int playerId,
+      String playerName,
+      String kind,
+      DateTime time,
+    ) =>
+        MatchEvent(
+          id: id,
+          playerId: playerId,
+          playerName: playerName,
+          playerNumber: playerId == 1 ? 7 : 8,
+          kind: kind,
+          category: 'Block',
+          occurredAt: time,
+        );
+    final firstMatch = MatchGame(
+      id: 1,
+      createdAt: firstStart,
+      location: 'Halle Nord',
+      opponentTeam: 'Team Rot',
+      matchDateTime: firstStart,
+      matchTag: 'Heimspiel',
+      matchType: 'Liga',
+      coaches: const [MatchCoach(id: 1, name: 'Coach Mara')],
+      players: const [MatchPlayer(id: 1, name: 'Ada', number: 7)],
+      events: [scoreEvent(1, 1, 'Ada', 'point', firstStart)],
+      rotationSetup: const ScoreboardRotationState(
+        league: 'U13',
+        left: RotationTeamState(
+          name: 'SV Nord',
+          players: [
+            RotationPlayer(id: 'team-4-101', name: 'Ada', number: 7),
+          ],
+          positions: ['team-4-101', null, null],
+        ),
+        right: RotationTeamState(),
+        servingSide: 0,
+      ),
+    );
+    final secondMatch = MatchGame(
+      id: 2,
+      createdAt: secondStart,
+      location: 'Halle Süd',
+      opponentTeam: 'Team Blau',
+      matchDateTime: secondStart,
+      matchTag: 'Auswärts',
+      matchType: 'Turnier',
+      players: const [MatchPlayer(id: 2, name: 'Berta', number: 8)],
+      events: [scoreEvent(1, 2, 'Berta', 'error', secondStart)],
+    );
+    await tester.runAsync(
+      () => MatchStatsRepository(database).save(
+        MatchStatsState(matches: [firstMatch, secondMatch]),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: MatchStatsPage(database: database)),
+    );
+    await _pumpUi(tester);
+
+    expect(find.byKey(const ValueKey('match-date-group-2026-10-4')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('match-date-group-2026-10-5')),
+        findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('match-opponent-filter')),
+      'rot',
+    );
+    await _pumpUi(tester);
+    expect(find.byKey(const ValueKey('match-row-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('match-row-2')), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('match-opponent-filter')),
+      '',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('match-location-filter')),
+      'süd',
+    );
+    await _pumpUi(tester);
+    expect(find.byKey(const ValueKey('match-row-1')), findsNothing);
+    expect(find.byKey(const ValueKey('match-row-2')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('match-location-filter')),
+      '',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('match-player-filter')),
+      'ada',
+    );
+    await _pumpUi(tester);
+    expect(find.byKey(const ValueKey('match-row-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('match-row-2')), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('match-player-filter')),
+      '',
+    );
+    await _pumpUi(tester);
+
+    final firstRow = find.byKey(const ValueKey('match-row-1'));
+    await tester.ensureVisible(firstRow);
+    await tester.longPress(firstRow);
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('match-row-2')));
+    await _pumpUi(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('multi-match-statistics-button')),
+    );
+    await _pumpUi(tester);
+
+    expect(
+        find.byKey(const ValueKey('selected-match-summary-1')), findsOneWidget);
+    expect(find.textContaining('Spielort: Halle Nord'), findsOneWidget);
+    expect(find.textContaining('Stichwort: Heimspiel'), findsOneWidget);
+    expect(find.textContaining('Eigenes Team: SV Nord'), findsOneWidget);
+    expect(find.textContaining('Trainer: Coach Mara'), findsOneWidget);
+    expect(find.textContaining('Spieler: Ada · 7'), findsOneWidget);
+    expect(find.textContaining('Sätze: 1:0'), findsOneWidget);
+    final courtLegend = find.text('Satz 1 · auf dem Feld');
+    await tester.scrollUntilVisible(
+      courtLegend,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _pumpUi(tester);
+    expect(courtLegend, findsOneWidget);
+  });
+
   testWidgets('Teams with players and coaches are persisted', (
     WidgetTester tester,
   ) async {
