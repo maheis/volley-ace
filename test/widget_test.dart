@@ -2230,11 +2230,11 @@ pq          SetResult(
       ));
       await tester.pump();
       expect(find.text('Spielvergleich'), findsOneWidget);
-      expect(find.text('Fehler: gestrichelt'), findsOneWidget);
+      expect(find.text('Fehler'), findsOneWidget);
       for (final entry in {
-        'Punkte: durchgezogen': Colors.greenAccent,
-        'Fehler: gestrichelt': const Color(0xFFe57373),
-        'Gegnerfehler: gepunktet': const Color(0xFF64B5F6),
+        'Punkte': Colors.greenAccent,
+        'Fehler': const Color(0xFFe57373),
+        'Gegnerfehler': const Color(0xFF64B5F6),
       }.entries) {
         final legend = find.ancestor(
           of: find.text(entry.key),

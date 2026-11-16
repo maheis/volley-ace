@@ -621,8 +621,9 @@ class MatchTrendSample {
 List<MatchTrendSample> matchPlayerTrendSamples(
   MatchGame combinedMatch,
   List<MatchGame> sourceMatches,
-  int combinedPlayerId,
-) {
+  int combinedPlayerId, {
+  bool resetPerMatch = false,
+}) {
   final combinedPlayer = combinedMatch.players
       .where((player) => player.id == combinedPlayerId)
       .firstOrNull;
@@ -654,6 +655,11 @@ List<MatchTrendSample> matchPlayerTrendSamples(
   var opponentErrors = 0;
   final samples = <MatchTrendSample>[];
   for (var matchIndex = 0; matchIndex < orderedMatches.length; matchIndex++) {
+    if (resetPerMatch) {
+      points = 0;
+      errors = 0;
+      opponentErrors = 0;
+    }
     final entry = orderedMatches[matchIndex];
     final sourceMatch = entry.match;
     final range = entry.range;
@@ -4572,6 +4578,27 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                   matchRanges: matchRanges,
                   height: 180,
                 ),
+                if (sourceMatches != null && sourceMatches.length > 1) ...[
+                  const SizedBox(height: 8),
+                  _TrendChartCard(
+                    title: '${player.name} · Spielvergleich · je Partie ab 0',
+                    samples: matchPlayerTrendSamples(
+                      match,
+                      sourceMatches,
+                      player.id,
+                      resetPerMatch: true,
+                    ),
+                    timeoutMarkers: const <DateTime>[],
+                    matchRanges: matchRanges,
+                    comparisonMode: true,
+                    matchLabels: comparisonMatches
+                        .map((source) => source.opponentTeam.isEmpty
+                            ? _formatDateTime(source.matchDateTime)
+                            : source.opponentTeam)
+                        .toList(),
+                    height: 180,
+                  ),
+                ],
                 const SizedBox(height: 12),
               ],
             ],
@@ -5429,37 +5456,23 @@ class _TrendChartCardState extends State<_TrendChartCard> {
               spacing: 12,
               runSpacing: 6,
               children: [
-                if (widget.comparisonMode) ...[
-                  const _TrendLegendLine(
-                    color: Colors.greenAccent,
-                    label: 'Punkte: durchgezogen',
-                  ),
-                  const _TrendLegendLine(
-                    color: Color(0xFFe57373),
-                    label: 'Fehler: gestrichelt',
-                  ),
-                  const _TrendLegendLine(
-                    color: Color(0xFF64B5F6),
-                    label: 'Gegnerfehler: gepunktet',
-                  ),
-                ] else ...[
-                  const _TrendLegendDot(
-                    color: Colors.greenAccent,
-                    label: 'Punkte',
-                  ),
-                  _TrendLegendDot(
-                    color: Color(0xFFe57373),
-                    label: 'Fehler',
-                  ),
-                  _TrendLegendDot(
-                    color: Color(0xFF64B5F6),
-                    label: 'Gegnerfehler',
-                  ),
+                const _TrendLegendDot(
+                  color: Colors.greenAccent,
+                  label: 'Punkte',
+                ),
+                const _TrendLegendDot(
+                  color: Color(0xFFe57373),
+                  label: 'Fehler',
+                ),
+                const _TrendLegendDot(
+                  color: Color(0xFF64B5F6),
+                  label: 'Gegnerfehler',
+                ),
+                if (!widget.comparisonMode)
                   _TrendLegendLine(
                     color: Color(0xFFFFB74D),
                     label: 'Auszeit',
                   ),
-                ],
                 const _TrendLegendLine(
                   color: Color(0xFF424242),
                   label: 'Satzende',
@@ -5743,56 +5756,30 @@ class _TrendChartPainter extends CustomPainter {
       return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     }
 
-    void paintSeries(
-      List<Offset> points,
-      Color color, {
-      bool dashed = false,
-      bool dotted = false,
-    }) {
+    final markOnlyIncreases =
+        samples.any((sample) => sample.playerInMatchRoster != null);
+
+    void paintSeries(List<Offset> points, Color color) {
       if (points.length < 2) return;
       final linePaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = dotted
-            ? 1.5
-            : dashed
-                ? 2
-                : 3
+        ..strokeWidth = 3
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
-      if (!dashed && !dotted) {
-        final path = Path()..moveTo(points.first.dx, points.first.dy);
-        for (final point in points.skip(1)) {
-          path.lineTo(point.dx, point.dy);
-        }
-        canvas.drawPath(path, linePaint);
-      } else {
-        final dashLength = dotted ? 1.5 : 6.0;
-        final gapLength = dotted ? 4.0 : 4.0;
-        for (var index = 0; index < points.length - 1; index++) {
-          final start = points[index];
-          final delta = points[index + 1] - start;
-          final length = delta.distance;
-          if (length == 0) continue;
-          final direction = delta / length;
-          for (var offset = 0.0;
-              offset < length;
-              offset += dashLength + gapLength) {
-            final endOffset = math.min(offset + dashLength, length);
-            canvas.drawLine(
-              start + direction * offset,
-              start + direction * endOffset,
-              linePaint,
-            );
-          }
-        }
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (final point in points.skip(1)) {
+        path.lineTo(point.dx, point.dy);
       }
+      canvas.drawPath(path, linePaint);
 
-      if (!dotted) {
-        final pointPaint = Paint()..color = color;
-        for (final point in points) {
-          canvas.drawCircle(point, 3.5, pointPaint);
+      final pointPaint = Paint()..color = color;
+      for (var index = 0; index < points.length; index++) {
+        if (markOnlyIncreases &&
+            (index == 0 || points[index].dy >= points[index - 1].dy)) {
+          continue;
         }
+        canvas.drawCircle(points[index], 3.5, pointPaint);
       }
     }
 
@@ -5840,7 +5827,6 @@ class _TrendChartPainter extends CustomPainter {
               .map((sample) => Offset(xForSample(sample), yFor(sample.errors)))
               .toList(),
           const Color(0xFFe57373),
-          dashed: true,
         );
         paintSeries(
           matchSamples
@@ -5848,7 +5834,6 @@ class _TrendChartPainter extends CustomPainter {
                   Offset(xForSample(sample), yFor(sample.opponentErrors)))
               .toList(),
           const Color(0xFF64B5F6),
-          dotted: true,
         );
       }
     } else {

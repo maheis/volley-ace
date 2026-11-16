@@ -469,6 +469,36 @@ class AppBackupService {
                   ),
                 ),
               ),
+              if (orderedSourceMatches != null &&
+                  orderedSourceMatches.length > 1) ...[
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  '${player.name} · Spielvergleich · je Partie ab 0',
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.SizedBox(
+                  height: 200,
+                  child: _timelineChart(
+                    const <MatchEvent>[],
+                    trendSamples: matchPlayerTrendSamples(
+                      match,
+                      orderedSourceMatches,
+                      player.id,
+                      resetPerMatch: true,
+                    ),
+                    comparisonMode: true,
+                    matchLabels: orderedSourceMatches
+                        .map((source) => source.opponentTeam.isEmpty
+                            ? _formatPdfDate(source.matchDateTime)
+                            : source.opponentTeam)
+                        .toList(),
+                  ),
+                ),
+              ],
             ],
             ..._playerErrorDetails(match, sortedEvents),
           ],
@@ -734,8 +764,11 @@ class AppBackupService {
       ],
     ));
 
-    for (var start = 0; start < match.players.length; start += 3) {
-      final players = match.players.skip(start).take(3).toList();
+    final showPlayerComparison =
+        sourceMatches != null && sourceMatches.length > 1;
+    final playersPerPage = showPlayerComparison ? 1 : 3;
+    for (var start = 0; start < match.players.length; start += playersPerPage) {
+      final players = match.players.skip(start).take(playersPerPage).toList();
       addFixedPage([
         heading('Zeitverlauf pro Spieler · ${match.opponentTeam}'),
         pw.SizedBox(height: 12),
@@ -762,6 +795,34 @@ class AppBackupService {
                     player.id,
                   ),
                 )),
+                if (showPlayerComparison) ...[
+                  pw.SizedBox(height: 12),
+                  pw.Text(
+                    '${player.name} · Spielvergleich · je Partie ab 0',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Expanded(
+                    child: _timelineChart(
+                      const <MatchEvent>[],
+                      trendSamples: matchPlayerTrendSamples(
+                        match,
+                        sourceMatches,
+                        player.id,
+                        resetPerMatch: true,
+                      ),
+                      comparisonMode: true,
+                      matchLabels: sourceMatches
+                          .map((source) => source.opponentTeam.isEmpty
+                              ? _formatPdfDate(source.matchDateTime)
+                              : source.opponentTeam)
+                          .toList(),
+                    ),
+                  ),
+                ],
               ],
             ),
           )),
@@ -1565,6 +1626,41 @@ class AppBackupService {
 
     final hasPlayerStatus =
         samples.any((sample) => sample.playerInMatchRoster != null);
+    pw.Widget comparisonStatusBands() {
+      final segments = <int, List<MatchTrendSample>>{};
+      for (final sample in samples) {
+        (segments[sample.matchIndex] ??= []).add(sample);
+      }
+      return pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          for (final segment in segments.values)
+            pw.Expanded(
+              child: segment.last.time.isAfter(segment.first.time)
+                  ? pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                      children: [
+                        for (var index = 0; index < segment.length - 1; index++)
+                          if (segment[index + 1]
+                              .time
+                              .isAfter(segment[index].time))
+                            pw.Expanded(
+                              flex: segment[index + 1]
+                                  .time
+                                  .difference(segment[index].time)
+                                  .inMilliseconds,
+                              child: pw.Container(
+                                color: statusColor(segment[index]),
+                              ),
+                            ),
+                      ],
+                    )
+                  : pw.Container(color: statusColor(segment.first)),
+            ),
+        ],
+      );
+    }
+
     final comparisonDatasets = <pw.LineDataSet<pw.PointChartValue>>[];
     if (comparisonMode) {
       final matchIndexes =
@@ -1609,10 +1705,9 @@ class AppBackupService {
                 ),
             ],
             color: pdf.PdfColors.red,
-            pointColor: pdf.PdfColors.red,
-            pointSize: 2.5,
-            drawLine: false,
-            drawPoints: true,
+            drawPoints: false,
+            lineWidth: 2,
+            isCurved: false,
           ),
           pw.LineDataSet<pw.PointChartValue>(
             data: [
@@ -1623,10 +1718,9 @@ class AppBackupService {
                 ),
             ],
             color: pdf.PdfColors.blue,
-            pointColor: pdf.PdfColors.blue,
-            pointSize: 1.4,
-            drawLine: false,
-            drawPoints: true,
+            drawPoints: false,
+            lineWidth: 2,
+            isCurved: false,
           ),
         ]);
         for (var index = 0; index < matchSamples.length; index++) {
@@ -1679,10 +1773,9 @@ class AppBackupService {
                 spacing: 8,
                 runSpacing: 3,
                 children: [
-                  _chartLegend(pdf.PdfColors.green, 'Punkte: Linie'),
-                  _chartLegend(pdf.PdfColors.red, 'Fehler: Punkte'),
-                  _chartLegend(
-                      pdf.PdfColors.blue, 'Gegnerfehler: kleine Punkte'),
+                  _chartLegend(pdf.PdfColors.green, 'Punkte'),
+                  _chartLegend(pdf.PdfColors.red, 'Fehler'),
+                  _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
                 ],
               )
             else
@@ -1723,17 +1816,21 @@ class AppBackupService {
             children: [
               if (hasPlayerStatus)
                 pw.Positioned.fill(
-                  child: pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                    children: [
-                      for (var index = 0; index < samples.length - 1; index++)
-                        pw.Expanded(
-                          child: pw.Container(
-                            color: statusColor(samples[index]),
-                          ),
+                  child: comparisonMode
+                      ? comparisonStatusBands()
+                      : pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                          children: [
+                            for (var index = 0;
+                                index < samples.length - 1;
+                                index++)
+                              pw.Expanded(
+                                child: pw.Container(
+                                  color: statusColor(samples[index]),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                 ),
               pw.Chart(
                 grid: pw.CartesianGrid(
