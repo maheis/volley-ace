@@ -8,22 +8,48 @@ import 'package:sembast/sembast.dart';
 import '../analytics/match_stats_page.dart';
 import '../backup/app_backup_service.dart';
 import '../theme/app_palette.dart';
+import 'players_page.dart';
 
 class LocalPerson {
   const LocalPerson({
     required this.id,
     required this.memberNumber,
     required this.name,
+    this.birthDate,
+    this.isPlayer = false,
+    this.isCoach = false,
   });
 
   final int id;
   final int memberNumber;
   final String name;
+  final DateTime? birthDate;
+  final bool isPlayer;
+  final bool isCoach;
+
+  LocalPerson copyWith({
+    String? name,
+    DateTime? birthDate,
+    bool clearBirthDate = false,
+    bool? isPlayer,
+    bool? isCoach,
+  }) =>
+      LocalPerson(
+        id: id,
+        memberNumber: memberNumber,
+        name: name ?? this.name,
+        birthDate: clearBirthDate ? null : birthDate ?? this.birthDate,
+        isPlayer: isPlayer ?? this.isPlayer,
+        isCoach: isCoach ?? this.isCoach,
+      );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'memberNumber': memberNumber,
         'name': name,
+        'birthDateMillis': birthDate?.millisecondsSinceEpoch,
+        'isPlayer': isPlayer,
+        'isCoach': isCoach,
       };
 
   static LocalPerson fromJson(Map<String, dynamic> data) => LocalPerson(
@@ -32,6 +58,12 @@ class LocalPerson {
             ? (data['memberNumber'] as num).toInt()
             : 0,
         name: data['name'] is String ? data['name'] as String : '',
+        birthDate: data['birthDateMillis'] is num
+            ? DateTime.fromMillisecondsSinceEpoch(
+                (data['birthDateMillis'] as num).toInt())
+            : null,
+        isPlayer: data['isPlayer'] == true,
+        isCoach: data['isCoach'] == true,
       );
 }
 
@@ -44,8 +76,8 @@ class PeopleRepository {
 
   final Database _database;
 
-  Future<List<LocalPerson>> load() async {
-    final data = await _store.record(_recordKey).get(_database);
+  Future<List<LocalPerson>> load({DatabaseClient? client}) async {
+    final data = await _store.record(_recordKey).get(client ?? _database);
     final stored = data?['people'];
     return stored is List
         ? stored
@@ -56,12 +88,237 @@ class PeopleRepository {
         : <LocalPerson>[];
   }
 
-  Future<void> save(List<LocalPerson> people) => _store.record(_recordKey).put(
-        _database,
+  Future<void> save(List<LocalPerson> people, {DatabaseClient? client}) =>
+      _store.record(_recordKey).put(
+        client ?? _database,
         <String, dynamic>{
           'people': people.map((person) => person.toJson()).toList(),
         },
       );
+
+  Future<({List<LocalPerson> people, List<Team> teams})> loadDirectory() =>
+      _database.transaction((transaction) async {
+        final people = await load(client: transaction);
+        final repository = TeamsRepository(_database);
+        final teams = await repository.load(client: transaction);
+        final previousPeople =
+            jsonEncode(people.map((person) => person.toJson()).toList());
+        final previousTeams =
+            jsonEncode(teams.map((team) => team.toJson()).toList());
+        var nextId = people.fold<int>(
+                0,
+                (maximum, person) =>
+                    person.id > maximum ? person.id : maximum) +
+            1;
+        var nextNumber = people.fold<int>(
+                0,
+                (maximum, person) => person.memberNumber > maximum
+                    ? person.memberNumber
+                    : maximum) +
+            1;
+
+        LocalPerson resolve(int? personId, String name, DateTime? birthDate,
+          {required bool isPlayer, required bool isCoach}) {
+          var person =
+              people.where((entry) => entry.id == personId).firstOrNull;
+          if (personId == null) {
+            person = people
+                .where((entry) =>
+                    entry.name.trim().toLowerCase() ==
+                    name.trim().toLowerCase())
+                .firstOrNull;
+          }
+          if (person == null) {
+            final id = personId ?? nextId++;
+            if (id >= nextId) nextId = id + 1;
+            person = LocalPerson(
+                id: id,
+                memberNumber: nextNumber++,
+                name: name,
+                birthDate: birthDate,
+                isPlayer: isPlayer,
+                isCoach: isCoach);
+            people.add(person);
+          } else {
+            person = person.copyWith(
+                birthDate: person.birthDate ?? birthDate,
+                isPlayer: person.isPlayer || isPlayer,
+                isCoach: person.isCoach || isCoach);
+            people[people.indexWhere((entry) => entry.id == person!.id)] =
+                person;
+          }
+          return person;
+        }
+
+        final linked = teams
+            .map((team) => team.copyWith(
+                  players: team.players.map((player) {
+                    final person = resolve(
+                      player.personId,
+                      player.name,
+                      player.birthDate,
+                      isPlayer: true,
+                      isCoach: false,
+                    );
+                    return player.copyWith(
+                        personId: person.id,
+                        memberNumber: person.memberNumber,
+                        name: person.name,
+                        birthDate: person.birthDate,
+                        clearBirthDate: person.birthDate == null);
+                  }).toList(),
+                  coaches: team.coaches.map((coach) {
+                    final person = resolve(
+                      coach.personId,
+                      coach.name,
+                      coach.birthDate,
+                      isPlayer: false,
+                      isCoach: true,
+                    );
+                    return coach.copyWith(
+                        personId: person.id,
+                        memberNumber: person.memberNumber,
+                        name: person.name,
+                        birthDate: person.birthDate,
+                        clearBirthDate: person.birthDate == null);
+                  }).toList(),
+                ))
+            .toList();
+        if (previousPeople !=
+            jsonEncode(people.map((person) => person.toJson()).toList())) {
+          await save(people, client: transaction);
+        }
+        if (previousTeams !=
+            jsonEncode(linked.map((team) => team.toJson()).toList())) {
+          await repository.save(linked, client: transaction);
+        }
+        return (people: people, teams: linked);
+      });
+
+  Future<LocalPerson> savePlayer(LocalPerson person) =>
+      savePerson(person.copyWith(isPlayer: true));
+
+    Future<LocalPerson> saveCoach(LocalPerson person) =>
+      savePerson(person.copyWith(isCoach: true));
+
+    Future<LocalPerson> savePerson(LocalPerson person) =>
+      _database.transaction((transaction) async {
+        final people = await load(client: transaction);
+        final repository = TeamsRepository(_database);
+        final teams = await repository.load(client: transaction);
+        if (person.name.trim().isEmpty) {
+          throw ArgumentError('Ein Personenname ist erforderlich.');
+        }
+        final saved = person.id == 0
+            ? LocalPerson(
+                id: people.fold<int>(
+                        0,
+                        (maximum, entry) =>
+                            entry.id > maximum ? entry.id : maximum) +
+                    1,
+                memberNumber: people.fold<int>(
+                        0,
+                        (maximum, entry) => entry.memberNumber > maximum
+                            ? entry.memberNumber
+                            : maximum) +
+                    1,
+                name: person.name.trim(),
+                birthDate: person.birthDate,
+                isPlayer: person.isPlayer,
+                isCoach: person.isCoach)
+              : person.copyWith(name: person.name.trim());
+        final index = people.indexWhere((entry) => entry.id == saved.id);
+        if (index == -1) {
+          people.add(saved);
+        } else {
+          people[index] = saved;
+        }
+        await save(people, client: transaction);
+        await repository.save(
+            teams
+                .map((team) => team.copyWith(
+                      players: team.players
+                          .map((player) => player.personId == saved.id
+                              ? player.copyWith(
+                                  name: saved.name,
+                                  birthDate: saved.birthDate,
+                                  clearBirthDate: saved.birthDate == null)
+                              : player)
+                          .toList(),
+                      coaches: team.coaches
+                          .map((coach) => coach.personId == saved.id
+                              ? coach.copyWith(
+                                  name: saved.name,
+                                  birthDate: saved.birthDate,
+                                  clearBirthDate: saved.birthDate == null)
+                              : coach)
+                          .toList(),
+                    ))
+                .toList(),
+            client: transaction);
+        return saved;
+      });
+}
+
+extension PlayerTeamLinks on PeopleRepository {
+  Future<void> linkPlayer(int personId, int teamId) =>
+      linkPerson(personId, teamId);
+
+  Future<void> linkPerson(int personId, int teamId) =>
+      _database.transaction((transaction) async {
+        final people = await load(client: transaction);
+        final person = people.firstWhere((person) => person.id == personId);
+        final repository = TeamsRepository(_database);
+        final teams = await repository.load(client: transaction);
+        final index = teams.indexWhere((team) => team.id == teamId);
+        if (index == -1) throw StateError('Mannschaft nicht mehr vorhanden.');
+        final team = teams[index];
+        var players = team.players;
+        var coaches = team.coaches;
+        if (person.isPlayer &&
+            !players.any((player) => player.personId == personId)) {
+          final nextId = players.fold<int>(
+                  0,
+                  (maximum, player) =>
+                      player.id > maximum ? player.id : maximum) +
+              1;
+          players = [
+            ...players,
+            TeamPlayer(
+              id: nextId,
+              name: person.name,
+              number: null,
+              birthDate: person.birthDate,
+              position: '',
+              profile: '',
+              personId: person.id,
+              memberNumber: person.memberNumber,
+            ),
+          ];
+        }
+        if (person.isCoach &&
+            !coaches.any((coach) => coach.personId == personId)) {
+          final nextId = coaches.fold<int>(
+                  0,
+                  (maximum, coach) =>
+                      coach.id > maximum ? coach.id : maximum) +
+              1;
+          coaches = [
+            ...coaches,
+            TeamCoach(
+              id: nextId,
+              name: person.name,
+              profile: '',
+              birthDate: person.birthDate,
+              position: '',
+              personId: person.id,
+              memberNumber: person.memberNumber,
+            ),
+          ];
+        }
+        teams[index] = team.copyWith(players: players, coaches: coaches);
+        await repository.save(teams, client: transaction);
+      });
 }
 
 class TeamPlayer {
@@ -301,8 +558,8 @@ class TeamsRepository {
 
   final Database _database;
 
-  Future<List<Team>> load() async {
-    final data = await _store.record(_recordKey).get(_database);
+  Future<List<Team>> load({DatabaseClient? client}) async {
+    final data = await _store.record(_recordKey).get(client ?? _database);
     final value = data?['teams'];
     return value is List
         ? value
@@ -312,8 +569,9 @@ class TeamsRepository {
         : <Team>[];
   }
 
-  Future<void> save(List<Team> teams) => _store.record(_recordKey).put(
-        _database,
+  Future<void> save(List<Team> teams, {DatabaseClient? client}) =>
+      _store.record(_recordKey).put(
+        client ?? _database,
         <String, dynamic>{
           'teams': teams.map((team) => team.toJson()).toList(),
         },
@@ -321,9 +579,15 @@ class TeamsRepository {
 }
 
 class TeamsPage extends StatefulWidget {
-  const TeamsPage({super.key, required this.database});
+  const TeamsPage(
+      {super.key,
+      required this.database,
+      this.initialTeamId,
+      this.initialSection});
 
   final Database database;
+  final int? initialTeamId;
+  final String? initialSection;
 
   @override
   State<TeamsPage> createState() => _TeamsPageState();
@@ -356,7 +620,6 @@ class _TeamsPageState extends State<TeamsPage> {
   int? _teamPrimaryColorValue;
   int? _teamSecondaryColorValue;
   String _teamLeague = '';
-  DateTime? _playerBirthDate;
   DateTime? _coachBirthDate;
   TeamPlayer? _editingPlayer;
   TeamCoach? _editingCoach;
@@ -366,6 +629,7 @@ class _TeamsPageState extends State<TeamsPage> {
   int? _selectedCoachId;
   int _nextTeamId = 1;
   bool _isLoaded = false;
+  bool _initialRouteApplied = false;
 
   static const List<String> _leagues = <String>[
     'U12',
@@ -402,77 +666,22 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 
   Future<void> _load() async {
+    final directory = await _peopleRepository.loadDirectory();
     final results = await Future.wait<Object?>([
-      _repository.load(),
-      _peopleRepository.load(),
       _matchStatsStore.record('match_stats').get(widget.database),
     ]);
-    final teams = results[0] as List<Team>;
-    final people = results[1] as List<LocalPerson>;
-    final matchStats = results[2] as Map<String, dynamic>?;
+    final teams = directory.teams;
+    final people = directory.people;
+    final matchStats = results[0] as Map<String, dynamic>?;
     final storedMatches = matchStats?['matches'];
-    var nextPersonId = people.isEmpty
-        ? 1
-        : people.map((person) => person.id).reduce((a, b) => a > b ? a : b) + 1;
-    var nextMemberNumber = people.isEmpty
-        ? 1
-        : people
-                .map((person) => person.memberNumber)
-                .reduce((a, b) => a > b ? a : b) +
-            1;
-    final migratedPeople = [...people];
-    final knownNames = <String, LocalPerson>{
-      for (final person in migratedPeople) person.name.toLowerCase(): person,
-    };
-    final migratedTeams = teams.map((team) {
-      final players = team.players.map((player) {
-        final nameKey = player.name.toLowerCase();
-        final person = player.personId == null
-            ? (knownNames[nameKey] ??
-                LocalPerson(
-                  id: nextPersonId++,
-                  memberNumber: nextMemberNumber++,
-                  name: player.name,
-                ))
-            : null;
-        if (person != null && !knownNames.containsKey(nameKey)) {
-          migratedPeople.add(person);
-          knownNames[nameKey] = person;
-        }
-        return person == null
-            ? player
-            : player.copyWith(
-                personId: person.id, memberNumber: person.memberNumber);
-      }).toList();
-      final coaches = team.coaches.map((coach) {
-        final nameKey = coach.name.toLowerCase();
-        final person = coach.personId == null
-            ? (knownNames[nameKey] ??
-                LocalPerson(
-                  id: nextPersonId++,
-                  memberNumber: nextMemberNumber++,
-                  name: coach.name,
-                ))
-            : null;
-        if (person != null && !knownNames.containsKey(nameKey)) {
-          migratedPeople.add(person);
-          knownNames[nameKey] = person;
-        }
-        return person == null
-            ? coach
-            : coach.copyWith(
-                personId: person.id, memberNumber: person.memberNumber);
-      }).toList();
-      return team.copyWith(players: players, coaches: coaches);
-    }).toList();
     if (!mounted) return;
     setState(() {
       _teams
         ..clear()
-        ..addAll(migratedTeams);
+        ..addAll(teams);
       _people
         ..clear()
-        ..addAll(migratedPeople);
+        ..addAll(people);
       _matches
         ..clear()
         ..addAll(
@@ -487,9 +696,13 @@ class _TeamsPageState extends State<TeamsPage> {
           : _teams.map((team) => team.id).reduce((a, b) => a > b ? a : b) + 1;
       _isLoaded = true;
     });
-    if (migratedPeople.length != people.length || migratedTeams != teams) {
-      await _peopleRepository.save(migratedPeople);
-      await _repository.save(migratedTeams);
+    if (!_initialRouteApplied) {
+      _initialRouteApplied = true;
+      final initialTeam =
+          _teams.where((team) => team.id == widget.initialTeamId).firstOrNull;
+      if (initialTeam != null) {
+        _openTeam(initialTeam, section: widget.initialSection);
+      }
     }
   }
 
@@ -506,8 +719,24 @@ class _TeamsPageState extends State<TeamsPage> {
   Future<LocalPerson> _getOrCreatePerson(
     String name, {
     LocalPerson? selectedPerson,
+    bool isPlayer = false,
+    bool isCoach = false,
+    DateTime? birthDate,
   }) async {
-    if (selectedPerson != null) return selectedPerson;
+    if (selectedPerson != null) {
+      if ((!isPlayer || selectedPerson.isPlayer) &&
+          (!isCoach || selectedPerson.isCoach)) {
+        return selectedPerson;
+      }
+      final updated = selectedPerson.copyWith(
+        isPlayer: selectedPerson.isPlayer || isPlayer,
+        isCoach: selectedPerson.isCoach || isCoach,
+      );
+      _people[_people.indexWhere((person) => person.id == updated.id)] =
+          updated;
+      await _peopleRepository.save(_people);
+      return updated;
+    }
     final nextNumber = _people.isEmpty
         ? 1
         : _people
@@ -522,6 +751,9 @@ class _TeamsPageState extends State<TeamsPage> {
       id: nextId,
       memberNumber: nextNumber,
       name: name.trim(),
+      birthDate: birthDate,
+      isPlayer: isPlayer,
+      isCoach: isCoach,
     );
     _people.add(created);
     await _peopleRepository.save(_people);
@@ -711,7 +943,6 @@ class _TeamsPageState extends State<TeamsPage> {
     _playerNumberController.clear();
     _playerPositionController.clear();
     _playerProfileController.clear();
-    _playerBirthDate = null;
     _editingPlayer = null;
     _selectedPlayerPerson = null;
   }
@@ -745,6 +976,7 @@ class _TeamsPageState extends State<TeamsPage> {
     final person = await _getOrCreatePerson(
       name,
       selectedPerson: _selectedPlayerPerson,
+      isPlayer: true,
     );
     final nextId = team.players.isEmpty
         ? 1
@@ -753,11 +985,11 @@ class _TeamsPageState extends State<TeamsPage> {
                 .reduce((a, b) => a > b ? a : b) +
             1;
     final player = editingPlayer?.copyWith(
-          name: name,
+          name: person.name,
           number: number,
           clearNumber: numberText.isEmpty,
-          birthDate: _playerBirthDate,
-          clearBirthDate: _playerBirthDate == null,
+          birthDate: person.birthDate,
+          clearBirthDate: person.birthDate == null,
           personId: person.id,
           memberNumber: person.memberNumber,
           position: _playerPositionController.text.trim(),
@@ -765,9 +997,9 @@ class _TeamsPageState extends State<TeamsPage> {
         ) ??
         TeamPlayer(
           id: nextId,
-          name: name,
+          name: person.name,
           number: number,
-          birthDate: _playerBirthDate,
+          birthDate: person.birthDate,
           position: _playerPositionController.text.trim(),
           profile: _playerProfileController.text.trim(),
           personId: person.id,
@@ -795,6 +1027,8 @@ class _TeamsPageState extends State<TeamsPage> {
     final person = await _getOrCreatePerson(
       name,
       selectedPerson: _selectedCoachPerson,
+      isCoach: true,
+      birthDate: _coachBirthDate,
     );
     final nextId = team.coaches.isEmpty
         ? 1
@@ -804,19 +1038,19 @@ class _TeamsPageState extends State<TeamsPage> {
             1;
     final profile = _coachProfileController.text.trim();
     final coach = editingCoach?.copyWith(
-          name: name,
+          name: person.name,
           profile: profile,
-          birthDate: _coachBirthDate,
-          clearBirthDate: _coachBirthDate == null,
+          birthDate: person.birthDate,
+          clearBirthDate: person.birthDate == null,
           position: _coachPositionController.text.trim(),
           personId: person.id,
           memberNumber: person.memberNumber,
         ) ??
         TeamCoach(
           id: nextId,
-          name: name,
+          name: person.name,
           profile: profile,
-          birthDate: _coachBirthDate,
+          birthDate: person.birthDate,
           position: _coachPositionController.text.trim(),
           personId: person.id,
           memberNumber: person.memberNumber,
@@ -842,7 +1076,6 @@ class _TeamsPageState extends State<TeamsPage> {
       _playerNumberController.text = player.number?.toString() ?? '';
       _playerPositionController.text = player.position;
       _playerProfileController.text = player.profile;
-      _playerBirthDate = player.birthDate;
     });
   }
 
@@ -1183,6 +1416,7 @@ class _TeamsPageState extends State<TeamsPage> {
     required TextEditingController controller,
     required String label,
     required ValueChanged<LocalPerson?> onPersonChanged,
+    bool readOnly = false,
   }) {
     return Autocomplete<LocalPerson>(
       displayStringForOption: (person) => person.name,
@@ -1215,6 +1449,7 @@ class _TeamsPageState extends State<TeamsPage> {
           key: key,
           controller: fieldController,
           focusNode: focusNode,
+          readOnly: readOnly,
           textCapitalization: TextCapitalization.words,
           onSubmitted: (_) => onSubmitted(),
           onChanged: (_) => onPersonChanged(null),
@@ -1286,10 +1521,22 @@ class _TeamsPageState extends State<TeamsPage> {
               key: const ValueKey('team-player-name-input'),
               controller: _playerNameController,
               label: 'Name',
+              readOnly: _editingPlayer != null,
               onPersonChanged: (person) => setState(
                 () => _selectedPlayerPerson = person,
               ),
             ),
+            if (_selectedPlayerPerson != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('edit-player-general-info'),
+                  onPressed: () =>
+                      _openPlayerGeneralInfo(_selectedPlayerPerson!),
+                  icon: const Icon(Icons.person_outline),
+                  label: const Text('Spielerstammdaten'),
+                ),
+              ),
             const SizedBox(height: 12),
             TextField(
                 key: const ValueKey('team-player-number-input'),
@@ -1322,19 +1569,9 @@ class _TeamsPageState extends State<TeamsPage> {
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.calendar_today),
-                title: Text(_playerBirthDate == null
+                title: Text(_selectedPlayerPerson?.birthDate == null
                     ? 'Nicht angegeben'
-                    : _formatDate(_playerBirthDate!)),
-                onTap: () async {
-                  final date = await showDatePicker(
-                      context: context,
-                      initialDate: _playerBirthDate ?? DateTime(2000),
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime.now());
-                  if (date != null && mounted) {
-                    setState(() => _playerBirthDate = date);
-                  }
-                },
+                    : _formatDate(_selectedPlayerPerson!.birthDate!)),
               ),
             ),
             const SizedBox(height: 12),
@@ -1413,6 +1650,57 @@ class _TeamsPageState extends State<TeamsPage> {
           ],
         ),
       );
+
+  Future<void> _openPlayerGeneralInfo(LocalPerson person) async {
+    final editingId = _editingPlayer?.id;
+    await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+      builder: (_) => PlayersPage(
+        database: widget.database,
+        initialPersonId: person.id,
+      ),
+    ));
+    if (!mounted) return;
+    await _load();
+    if (!mounted) return;
+    final updatedPlayer = _selectedTeam?.players
+        .where((player) => player.id == editingId)
+        .firstOrNull;
+    if (updatedPlayer != null) {
+      _startEditingPlayer(updatedPlayer);
+    } else {
+      setState(() {
+        _selectedPlayerPerson =
+            _people.where((entry) => entry.id == person.id).firstOrNull;
+        _playerNameController.text = _selectedPlayerPerson?.name ?? '';
+      });
+    }
+  }
+
+  Future<void> _openCoachGeneralInfo(LocalPerson person) async {
+    final editingId = _editingCoach?.id;
+    await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+      builder: (_) => PlayersPage(
+        database: widget.database,
+        initialPersonId: person.id,
+      ),
+    ));
+    if (!mounted) return;
+    await _load();
+    if (!mounted) return;
+    final updatedCoach = _selectedTeam?.coaches
+        .where((coach) => coach.id == editingId)
+        .firstOrNull;
+    if (updatedCoach != null) {
+      _startEditingCoach(updatedCoach);
+    } else {
+      setState(() {
+        _selectedCoachPerson =
+            _people.where((entry) => entry.id == person.id).firstOrNull;
+        _coachNameController.text = _selectedCoachPerson?.name ?? '';
+        _coachBirthDate = _selectedCoachPerson?.birthDate;
+      });
+    }
+  }
 
   Future<void> _openPlayerMatch(_PlayerMatchStats game) async {
     await Navigator.of(context).push<void>(
@@ -1568,10 +1856,22 @@ class _TeamsPageState extends State<TeamsPage> {
               key: const ValueKey('team-coach-name-input'),
               controller: _coachNameController,
               label: 'Name',
+              readOnly: _editingCoach != null && _selectedCoachPerson != null,
               onPersonChanged: (person) => setState(
                 () => _selectedCoachPerson = person,
               ),
             ),
+            if (_selectedCoachPerson != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('edit-coach-general-info'),
+                  onPressed: () =>
+                      _openCoachGeneralInfo(_selectedCoachPerson!),
+                  icon: const Icon(Icons.person_outline),
+                  label: const Text('Trainerstammdaten'),
+                ),
+              ),
             const SizedBox(height: 12),
             TextField(
               key: const ValueKey('team-coach-position-input'),
@@ -1590,13 +1890,22 @@ class _TeamsPageState extends State<TeamsPage> {
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.calendar_today),
-                title: Text(_coachBirthDate == null
+                title: Text((_selectedCoachPerson?.birthDate ??
+                      _coachBirthDate) ==
+                    null
                     ? 'Nicht angegeben'
-                    : _formatDate(_coachBirthDate!)),
-                onTap: () async {
+                  : _formatDate(
+                    _selectedCoachPerson?.birthDate ?? _coachBirthDate!)),
+                onTap: _selectedCoachPerson != null
+                  ? () => _openCoachGeneralInfo(_selectedCoachPerson!)
+                  : _editingCoach != null
+                    ? null
+                  : () async {
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: _coachBirthDate ?? DateTime(1980),
+                    initialDate: _selectedCoachPerson?.birthDate ??
+                      _coachBirthDate ??
+                      DateTime(1980),
                     firstDate: DateTime(1900),
                     lastDate: DateTime.now(),
                   );

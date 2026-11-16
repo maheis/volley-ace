@@ -73,7 +73,13 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Taktiken importieren
   - [x] Mehrere Seiten pro Taktik
   - [x] Text-Notizen pro Seite
-- [ ] Spieler?
+- [x] Spieler / Trainer
+  - [x] Eigener Hauptmenüpunkt über Teams mit Personenliste nach ID
+  - [x] Freitextfilter nach Person und/oder Mannschaft
+  - [x] Spieler und Trainer zentral mit Name und Geburtsdatum pflegen
+  - [x] Mannschaftsverknüpfungen anzeigen und passenden Team-Bereich direkt öffnen
+  - [x] Personen ohne Mannschaft anlegen und einer Mannschaft zuordnen
+  - [x] Trikotnummer, Position und Profile bleiben mannschaftsspezifisch
 - [x] Team
   - [x] Info
     - [x] Teamname
@@ -85,19 +91,18 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
     - [ ] Teambewertung
     - [ ] Achievements
   - [x] Spieler
-    - [x] Name
     - [x] Trikotnummer
-    - [x] Geburtsdatum / Alter
     - [x] Position
     - [x] Spielerprofil
+    - [ ] Spielerstatistik
     - [x] Spielerstatistik
       - [x] Punktewertung
       - [ ] Trainingsstatistik
-    - [ ] Spielerbewertung
     - [ ] Trainingsteilnahme
     - [ ] Trainingsbewertungen
     - [ ] Trainingsstände
     - [ ] Achievements
+  - [ ] Spielerbewertung
   - [x] Trainer
     - [x] Name
     - [x] Geburtsdatum / Alter

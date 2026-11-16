@@ -38,6 +38,7 @@ class HomePage extends StatefulWidget {
     required this.onOpenScoreboard,
     required this.onOpenMatchStats,
     required this.onOpenTeams,
+    this.onOpenPlayers,
     required this.onOpenTactics,
     required this.onOpenTraining,
     required this.onOpenTrainingSession,
@@ -51,6 +52,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback onOpenScoreboard;
   final VoidCallback onOpenMatchStats;
   final VoidCallback onOpenTeams;
+  final VoidCallback? onOpenPlayers;
   final VoidCallback onOpenTactics;
   final Future<void> Function() onOpenTraining;
   final Future<void> Function(TrainingSession session) onOpenTrainingSession;
@@ -351,6 +353,17 @@ class _HomePageState extends State<HomePage> {
               subtitle: const Text('Aufstellungen und Laufwege zeichnen.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: widget.onOpenTactics,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              key: const ValueKey('main-menu-players'),
+              leading: Icon(Icons.people_outline, color: highlightColor),
+              title: const Text('Spieler / Trainer'),
+              subtitle: const Text('Personen und Teamzugehörigkeit verwalten.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: widget.onOpenPlayers,
             ),
           ),
           const SizedBox(height: 12),
