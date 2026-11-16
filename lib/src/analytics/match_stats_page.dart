@@ -5347,14 +5347,6 @@ double trendChartMaxTimeScale(int sampleCount) =>
 const Color _onCourtBandColor = Color(0xFF43A047);
 const Color _benchBandColor = Color(0xFFF9A825);
 const Color _notPlayedBandColor = Color(0xFFE53935);
-const List<Color> matchComparisonColors = <Color>[
-  Color(0xFF1565C0),
-  Color(0xFF2E7D32),
-  Color(0xFFEF6C00),
-  Color(0xFFC62828),
-  Color(0xFF00838F),
-  Color(0xFF6D4C41),
-];
 
 Color? _playerStatusBandColor(MatchTrendSample sample) {
   if (sample.playerInMatchRoster == null) return null;
@@ -5438,24 +5430,16 @@ class _TrendChartCardState extends State<_TrendChartCard> {
               runSpacing: 6,
               children: [
                 if (widget.comparisonMode) ...[
-                  for (var index = 0;
-                      index < widget.matchLabels.length;
-                      index++)
-                    _TrendLegendDot(
-                      color: matchComparisonColors[
-                          index % matchComparisonColors.length],
-                      label: widget.matchLabels[index],
-                    ),
                   const _TrendLegendLine(
-                    color: Color(0xFF424242),
+                    color: Colors.greenAccent,
                     label: 'Punkte: durchgezogen',
                   ),
                   const _TrendLegendLine(
-                    color: Color(0xFF424242),
+                    color: Color(0xFFe57373),
                     label: 'Fehler: gestrichelt',
                   ),
                   const _TrendLegendLine(
-                    color: Color(0xFF424242),
+                    color: Color(0xFF64B5F6),
                     label: 'Gegnerfehler: gepunktet',
                   ),
                 ] else ...[
@@ -5845,19 +5829,17 @@ class _TrendChartPainter extends CustomPainter {
       for (final matchIndex in matchIndexes) {
         final matchSamples =
             samples.where((sample) => sample.matchIndex == matchIndex).toList();
-        final color =
-            matchComparisonColors[matchIndex % matchComparisonColors.length];
         paintSeries(
           matchSamples
               .map((sample) => Offset(xForSample(sample), yFor(sample.points)))
               .toList(),
-          color,
+          Colors.greenAccent,
         );
         paintSeries(
           matchSamples
               .map((sample) => Offset(xForSample(sample), yFor(sample.errors)))
               .toList(),
-          color,
+          const Color(0xFFe57373),
           dashed: true,
         );
         paintSeries(
@@ -5865,7 +5847,7 @@ class _TrendChartPainter extends CustomPainter {
               .map((sample) =>
                   Offset(xForSample(sample), yFor(sample.opponentErrors)))
               .toList(),
-          color,
+          const Color(0xFF64B5F6),
           dotted: true,
         );
       }

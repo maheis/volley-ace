@@ -1565,14 +1565,6 @@ class AppBackupService {
 
     final hasPlayerStatus =
         samples.any((sample) => sample.playerInMatchRoster != null);
-    const comparisonColors = <pdf.PdfColor>[
-      pdf.PdfColor(0.08, 0.4, 0.76),
-      pdf.PdfColor(0.18, 0.49, 0.2),
-      pdf.PdfColor(0.9, 0.38, 0.0),
-      pdf.PdfColor(0.78, 0.16, 0.16),
-      pdf.PdfColor(0.0, 0.52, 0.55),
-      pdf.PdfColor(0.43, 0.3, 0.25),
-    ];
     final comparisonDatasets = <pw.LineDataSet<pw.PointChartValue>>[];
     if (comparisonMode) {
       final matchIndexes =
@@ -1581,7 +1573,6 @@ class AppBackupService {
         final matchSamples =
             samples.where((sample) => sample.matchIndex == matchIndex).toList();
         if (matchSamples.isEmpty) continue;
-        final color = comparisonColors[matchIndex % comparisonColors.length];
         final duration = math.max(
           1,
           matchSamples.last.time
@@ -1604,7 +1595,7 @@ class AppBackupService {
                   matchSamples[index].points.toDouble(),
                 ),
             ],
-            color: color,
+            color: pdf.PdfColors.green,
             drawPoints: false,
             lineWidth: 2,
             isCurved: false,
@@ -1617,8 +1608,8 @@ class AppBackupService {
                   matchSamples[index].errors.toDouble(),
                 ),
             ],
-            color: color,
-            pointColor: color,
+            color: pdf.PdfColors.red,
+            pointColor: pdf.PdfColors.red,
             pointSize: 2.5,
             drawLine: false,
             drawPoints: true,
@@ -1631,8 +1622,8 @@ class AppBackupService {
                   matchSamples[index].opponentErrors.toDouble(),
                 ),
             ],
-            color: color,
-            pointColor: color,
+            color: pdf.PdfColors.blue,
+            pointColor: pdf.PdfColors.blue,
             pointSize: 1.4,
             drawLine: false,
             drawPoints: true,
@@ -1683,16 +1674,15 @@ class AppBackupService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            if (comparisonMode && matchLabels.isNotEmpty)
+            if (comparisonMode)
               pw.Wrap(
                 spacing: 8,
                 runSpacing: 3,
                 children: [
-                  for (var index = 0; index < matchLabels.length; index++)
-                    _chartLegend(
-                      comparisonColors[index % comparisonColors.length],
-                      matchLabels[index],
-                    ),
+                  _chartLegend(pdf.PdfColors.green, 'Punkte: Linie'),
+                  _chartLegend(pdf.PdfColors.red, 'Fehler: Punkte'),
+                  _chartLegend(
+                      pdf.PdfColors.blue, 'Gegnerfehler: kleine Punkte'),
                 ],
               )
             else
@@ -1710,14 +1700,7 @@ class AppBackupService {
               spacing: 8,
               runSpacing: 3,
               children: [
-                if (comparisonMode) ...[
-                  _chartLegend(pdf.PdfColors.grey800, 'Punkte: Linie'),
-                  pw.SizedBox(width: 8),
-                  _chartLegend(pdf.PdfColors.grey800, 'Fehler: Punkte'),
-                  pw.SizedBox(width: 8),
-                  _chartLegend(
-                      pdf.PdfColors.grey800, 'Gegnerfehler: kleine Punkte'),
-                ] else if (hasPlayerStatus) ...[
+                if (hasPlayerStatus) ...[
                   _chartLegend(pdf.PdfColor(0.82, 0.93, 0.82), 'Auf dem Feld'),
                   pw.SizedBox(width: 8),
                   _chartLegend(pdf.PdfColor(1, 0.94, 0.7), 'Bank · gespielt'),

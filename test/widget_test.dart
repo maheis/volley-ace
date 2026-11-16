@@ -2231,6 +2231,21 @@ pq          SetResult(
       await tester.pump();
       expect(find.text('Spielvergleich'), findsOneWidget);
       expect(find.text('Fehler: gestrichelt'), findsOneWidget);
+      for (final entry in {
+        'Punkte: durchgezogen': Colors.greenAccent,
+        'Fehler: gestrichelt': const Color(0xFFe57373),
+        'Gegnerfehler: gepunktet': const Color(0xFF64B5F6),
+      }.entries) {
+        final legend = find.ancestor(
+          of: find.text(entry.key),
+          matching: find.byType(Row),
+        ).first;
+        final swatch = tester.widget<Container>(find.descendant(
+          of: legend,
+          matching: find.byType(Container),
+        ));
+        expect(swatch.color, entry.value);
+      }
       expect(tester.takeException(), isNull);
     }
     await tester.binding.setSurfaceSize(null);
