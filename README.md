@@ -289,7 +289,11 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Statistik- und Exportdiagramme für Statusfarben und Markierungen angleichen
 - [x] spiel als beendet markiern
 - [x] statistik diagramme mehrere spiele sollen einmal ein diagram über alle selektierten spiele darstellen, also fortlaufend aggregiert und darunter soll ein diagram sein das pro spiel wieder bei 0 startet und rauf zählt, so dass man alle spiele direkt nebeneinander vergleichen kann. soll sowohl für den export, als auch für die statistik in app dargestellt werden.
-- [ ]
+- [x] punkte / fehler in der statistik als baum kaskadieren und nach oben summieren
+  - [x] Spieler als Tabellenspalten, Punkte und Fehler als Zeilen je Baumknoten
+  - [x] Summen von den Unterkategorien bis zu den Oberkategorien und Gesamt
+  - [x] Baumdiagramm im Statistik- und Gesamtexport
+- [ ] spieler / trainer sind die akchen noch seltsam designt
 
 ## Linux-Installation
 
@@ -319,6 +323,8 @@ bash test/linux_installation_test.sh
 ```
 
 ## PDF-Export und Dateinamen
+
+Statistik und Gesamtexport bieten beim PDF-Export Baumdiagramme zu Punkten und Fehlern. Unterkategorien werden eingerueckt dargestellt; Oberkategorien und Gesamt enthalten jeweils die aufsummierten Werte. Die Statistiktabelle fuehrt Spieler als Spalten und Punkte beziehungsweise Fehler als Zeilen.
 
 Statistik, Gesamtexport und Spielverlauf bieten beim PDF-Export drei Layouts:
 

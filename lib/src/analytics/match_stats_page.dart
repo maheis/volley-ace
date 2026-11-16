@@ -407,6 +407,103 @@ class MatchGame {
   }
 }
 
+class CategoryStatisticNode {
+  const CategoryStatisticNode({
+    required this.label,
+    required this.depth,
+    required this.pointsCount,
+    required this.errorsCount,
+    required this.pointsByPlayer,
+    required this.errorsByPlayer,
+    required this.children,
+  });
+
+  final String label;
+  final int depth;
+  final int pointsCount;
+  final int errorsCount;
+  final Map<int?, int> pointsByPlayer;
+  final Map<int?, int> errorsByPlayer;
+  final List<CategoryStatisticNode> children;
+}
+
+class _MutableCategoryStatisticNode {
+  _MutableCategoryStatisticNode(this.label, this.depth);
+
+  final String label;
+  final int depth;
+  int pointsCount = 0;
+  int errorsCount = 0;
+  final Map<int?, int> pointsByPlayer = <int?, int>{};
+  final Map<int?, int> errorsByPlayer = <int?, int>{};
+  final Map<String, _MutableCategoryStatisticNode> children =
+      <String, _MutableCategoryStatisticNode>{};
+
+  CategoryStatisticNode freeze() {
+    final sortedChildren = children.values.toList()
+      ..sort((first, second) => first.label.compareTo(second.label));
+    return CategoryStatisticNode(
+      label: label,
+      depth: depth,
+      pointsCount: pointsCount,
+      errorsCount: errorsCount,
+      pointsByPlayer: Map<int?, int>.unmodifiable(pointsByPlayer),
+      errorsByPlayer: Map<int?, int>.unmodifiable(errorsByPlayer),
+      children: sortedChildren.map((child) => child.freeze()).toList(),
+    );
+  }
+}
+
+List<CategoryStatisticNode> categoryStatisticsTree(
+  List<MatchEvent> events,
+  List<MatchPlayer> players,
+) {
+  final knownPlayerIds = players.map((player) => player.id).toSet();
+  final root = _MutableCategoryStatisticNode('Gesamt', 0);
+  for (final event in events) {
+    if (event.kind != 'point' && event.kind != 'error') continue;
+    final scorerIds = event.scorerIds.where(knownPlayerIds.contains).toSet();
+    final buckets = scorerIds.isEmpty ? <int?>[null] : scorerIds.cast<int?>();
+    final segments = <String>[];
+    for (final categoryPart in event.category.split(' · ')) {
+      final separator = categoryPart.indexOf(':');
+      final category =
+          (separator < 0 ? categoryPart : categoryPart.substring(0, separator))
+              .trim();
+      if (category.isNotEmpty) segments.add(category);
+      if (separator >= 0) {
+        final detail = categoryPart.substring(separator + 1).trim();
+        if (detail.isNotEmpty) segments.add(detail);
+      }
+    }
+    if (segments.isEmpty) segments.add('Sonstiges');
+
+    final ancestors = <_MutableCategoryStatisticNode>[root];
+    var parent = root;
+    for (final segment in segments) {
+      parent = parent.children.putIfAbsent(
+        segment,
+        () => _MutableCategoryStatisticNode(segment, parent.depth + 1),
+      );
+      ancestors.add(parent);
+    }
+    for (final ancestor in ancestors) {
+      final Map<int?, int> values;
+      if (event.kind == 'point') {
+        ancestor.pointsCount++;
+        values = ancestor.pointsByPlayer;
+      } else {
+        ancestor.errorsCount++;
+        values = ancestor.errorsByPlayer;
+      }
+      for (final playerId in buckets) {
+        values.update(playerId, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+  }
+  return [root.freeze()];
+}
+
 int compareMatchesByGameTime(MatchGame first, MatchGame second) {
   final gameTimeOrder = second.matchDateTime.compareTo(first.matchDateTime);
   return gameTimeOrder != 0
@@ -2941,22 +3038,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _scheduleScoringSelectionTimeout(match);
   }
 
-  Map<String, int> _pointSummary(MatchGame match) {
-    final summary = <String, int>{};
-    for (final event in match.events.where((entry) => entry.kind == 'point')) {
-      summary[event.category] = (summary[event.category] ?? 0) + 1;
-    }
-    return summary;
-  }
-
-  Map<String, int> _errorSummary(MatchGame match) {
-    final summary = <String, int>{};
-    for (final event in match.events.where((entry) => entry.kind == 'error')) {
-      summary[event.category] = (summary[event.category] ?? 0) + 1;
-    }
-    return summary;
-  }
-
   List<String> _categoriesInMatch(MatchGame match, String kind) => match.events
       .where((event) => event.kind == kind)
       .map((event) => event.category)
@@ -4457,8 +4538,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     List<MatchGame>? sourceMatches,
   }) {
     final statisticsMatch = _matchWithAggregateScorerRows(match);
-    final points = _pointSummary(match);
-    final errors = _errorSummary(match);
+    final categoryTree =
+        categoryStatisticsTree(match.events, statisticsMatch.players);
     final sets = _computeSets(match);
     final comparisonMatches = List<MatchGame>.from(sourceMatches ?? [])
       ..sort((first, second) => compareMatchesByGameTime(second, first));
@@ -4511,9 +4592,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               _SetsOverview(sets: sets),
               const SizedBox(height: 12),
             ],
-            _StatGroup(title: 'Punkte pro Art', entries: points),
-            const SizedBox(height: 12),
-            _StatGroup(title: 'Fehler pro Art', entries: errors),
+            _CategoryTreeStatsTable(
+              tree: categoryTree,
+              players: statisticsMatch.players,
+            ),
             const SizedBox(height: 12),
             _TrendChartCard(
               title: 'Zeitverlauf gesamt',
@@ -6785,37 +6867,121 @@ class _SetsOverview extends StatelessWidget {
   }
 }
 
-class _StatGroup extends StatelessWidget {
-  const _StatGroup({required this.title, required this.entries});
+class _CategoryTreeStatsTable extends StatelessWidget {
+  const _CategoryTreeStatsTable({required this.tree, required this.players});
 
-  final String title;
-  final Map<String, int> entries;
+  final List<CategoryStatisticNode> tree;
+  final List<MatchPlayer> players;
+
+  List<CategoryStatisticNode> get _rows => [
+        for (final node in tree) ...[
+          node,
+          ..._descendants(node),
+        ],
+      ];
+
+  Iterable<CategoryStatisticNode> _descendants(
+    CategoryStatisticNode node,
+  ) sync* {
+    for (final child in node.children) {
+      yield child;
+      yield* _descendants(child);
+    }
+  }
+
+  bool get _hasUnassigned => _rows.any((node) =>
+      node.pointsByPlayer.containsKey(null) ||
+      node.errorsByPlayer.containsKey(null));
 
   @override
   Widget build(BuildContext context) {
-    final sorted = entries.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
+    if (_rows.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Noch keine Punkte oder Fehler erfasst.'),
+        ),
+      );
+    }
     return Card(
+      key: const ValueKey('category-tree-stats-table'),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Punkte und Fehler nach Art',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
-            if (sorted.isEmpty)
-              const Text('Noch keine Einträge.')
-            else
-              ...sorted.map(
-                (entry) => Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(child: Text(entry.key)),
-                    Text('${entry.value}'),
-                  ],
-                ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: [
+                  const DataColumn(label: Text('Art / Wertung')),
+                  for (final player in players)
+                    DataColumn(
+                      label: Text(player.id == -1
+                          ? 'Unbekannt'
+                          : player.id == -2
+                              ? 'Mannschaft'
+                              : '${player.name} · ${player.number}'),
+                    ),
+                  if (_hasUnassigned)
+                    const DataColumn(label: Text('Nicht zugeordnet')),
+                ],
+                rows: [
+                  for (final node in _rows)
+                    for (final metric in [
+                      (
+                        label: 'Punkte',
+                        color: Colors.green,
+                        values: node.pointsByPlayer,
+                      ),
+                      (
+                        label: 'Fehler',
+                        color: const Color(0xFFc62828),
+                        values: node.errorsByPlayer,
+                      ),
+                    ])
+                      DataRow(
+                        cells: [
+                          DataCell(
+                            SizedBox(
+                              width: 205,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  left: node.depth * 16.0,
+                                ),
+                                child: Text(
+                                  '${node.label} · ${metric.label}',
+                                  style: TextStyle(
+                                    color: metric.color,
+                                    fontWeight: node.children.isEmpty
+                                        ? FontWeight.normal
+                                        : FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          for (final player in players)
+                            DataCell(Text(
+                              '${metric.values[player.id] ?? 0}',
+                              style: TextStyle(
+                                fontWeight: node.children.isEmpty
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
+                              ),
+                            )),
+                          if (_hasUnassigned)
+                            DataCell(Text('${metric.values[null] ?? 0}')),
+                        ],
+                      ),
+                ],
               ),
+            ),
           ],
         ),
       ),
