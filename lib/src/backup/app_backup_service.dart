@@ -410,6 +410,28 @@ class AppBackupService {
               height: 220,
               child: _timelineChart(sortedEvents, matchTimes: matchTimes),
             ),
+          if (orderedSourceMatches != null &&
+              orderedSourceMatches.length > 1) ...[
+            pw.SizedBox(height: 18),
+            pw.Text(
+              'Spielvergleich · je Partie ab 0',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            pw.SizedBox(
+              height: 220,
+              child: _timelineChart(
+                sortedEvents,
+                trendSamples: matchComparisonTrendSamples(orderedSourceMatches),
+                comparisonMode: true,
+                matchLabels: orderedSourceMatches
+                    .map((source) => source.opponentTeam.isEmpty
+                        ? _formatPdfDate(source.matchDateTime)
+                        : source.opponentTeam)
+                    .toList(),
+              ),
+            ),
+          ],
           if (match.players.isNotEmpty) ...[
             pw.SizedBox(height: 22),
             pw.Text(
@@ -681,6 +703,24 @@ class AppBackupService {
         pw.SizedBox(height: 12),
         pw.SizedBox(
             height: 310, child: _timelineChart(events, matchTimes: matchTimes)),
+        if (sourceMatches != null && sourceMatches.length > 1) ...[
+          pw.SizedBox(height: 18),
+          heading('Spielvergleich · je Partie ab 0'),
+          pw.SizedBox(height: 8),
+          pw.SizedBox(
+            height: 230,
+            child: _timelineChart(
+              events,
+              trendSamples: matchComparisonTrendSamples(sourceMatches),
+              comparisonMode: true,
+              matchLabels: sourceMatches
+                  .map((source) => source.opponentTeam.isEmpty
+                      ? _formatPdfDate(source.matchDateTime)
+                      : source.opponentTeam)
+                  .toList(),
+            ),
+          ),
+        ],
         pw.SizedBox(height: 22),
         heading('Spielübersicht'),
         pw.SizedBox(height: 8),
@@ -1351,9 +1391,15 @@ class AppBackupService {
     List<MatchEvent> events, {
     List<DateTime> matchTimes = const <DateTime>[],
     List<MatchTrendSample>? trendSamples,
+    bool comparisonMode = false,
+    List<String> matchLabels = const <String>[],
   }) {
     if (trendSamples != null) {
-      return _playerTimelineChartFromSamples(trendSamples);
+      return _playerTimelineChartFromSamples(
+        trendSamples,
+        comparisonMode: comparisonMode,
+        matchLabels: matchLabels,
+      );
     }
     final timelineEvents = events
         .where((event) =>
@@ -1451,8 +1497,10 @@ class AppBackupService {
   }
 
   static pw.Widget _playerTimelineChartFromSamples(
-    List<MatchTrendSample> samples,
-  ) {
+    List<MatchTrendSample> samples, {
+    bool comparisonMode = false,
+    List<String> matchLabels = const <String>[],
+  }) {
     if (samples.isEmpty) return pw.Text('Keine Punktdaten.');
 
     final pointData = <pw.PointChartValue>[
@@ -1472,7 +1520,10 @@ class AppBackupService {
     ];
     final end = (samples.length - 1).toDouble();
     if (end <= 0) return pw.Text('Keine Punktdaten.');
-    final middle = end / 2;
+    final chartEnd = comparisonMode && matchLabels.isNotEmpty
+        ? matchLabels.length.toDouble()
+        : end;
+    final middle = chartEnd / 2;
     final labelAt = (double position) => _formatPdfDateTime(
           samples[position.round().clamp(0, samples.length - 1)].time,
         );
@@ -1514,6 +1565,117 @@ class AppBackupService {
 
     final hasPlayerStatus =
         samples.any((sample) => sample.playerInMatchRoster != null);
+    const comparisonColors = <pdf.PdfColor>[
+      pdf.PdfColor(0.08, 0.4, 0.76),
+      pdf.PdfColor(0.18, 0.49, 0.2),
+      pdf.PdfColor(0.9, 0.38, 0.0),
+      pdf.PdfColor(0.78, 0.16, 0.16),
+      pdf.PdfColor(0.0, 0.52, 0.55),
+      pdf.PdfColor(0.43, 0.3, 0.25),
+    ];
+    final comparisonDatasets = <pw.LineDataSet<pw.PointChartValue>>[];
+    if (comparisonMode) {
+      final matchIndexes =
+          samples.map((sample) => sample.matchIndex).toSet().toList()..sort();
+      for (final matchIndex in matchIndexes) {
+        final matchSamples =
+            samples.where((sample) => sample.matchIndex == matchIndex).toList();
+        if (matchSamples.isEmpty) continue;
+        final color = comparisonColors[matchIndex % comparisonColors.length];
+        final duration = math.max(
+          1,
+          matchSamples.last.time
+              .difference(matchSamples.first.time)
+              .inMilliseconds,
+        );
+        double xForIndex(int index) =>
+            matchIndex +
+            matchSamples[index]
+                    .time
+                    .difference(matchSamples.first.time)
+                    .inMilliseconds /
+                duration;
+        comparisonDatasets.addAll([
+          pw.LineDataSet<pw.PointChartValue>(
+            data: [
+              for (var index = 0; index < matchSamples.length; index++)
+                pw.PointChartValue(
+                  xForIndex(index),
+                  matchSamples[index].points.toDouble(),
+                ),
+            ],
+            color: color,
+            drawPoints: false,
+            lineWidth: 2,
+            isCurved: false,
+          ),
+          pw.LineDataSet<pw.PointChartValue>(
+            data: [
+              for (var index = 0; index < matchSamples.length; index++)
+                pw.PointChartValue(
+                  xForIndex(index),
+                  matchSamples[index].errors.toDouble(),
+                ),
+            ],
+            color: color,
+            pointColor: color,
+            pointSize: 2.5,
+            drawLine: false,
+            drawPoints: true,
+          ),
+          pw.LineDataSet<pw.PointChartValue>(
+            data: [
+              for (var index = 0; index < matchSamples.length; index++)
+                pw.PointChartValue(
+                  xForIndex(index),
+                  matchSamples[index].opponentErrors.toDouble(),
+                ),
+            ],
+            color: color,
+            pointColor: color,
+            pointSize: 1.4,
+            drawLine: false,
+            drawPoints: true,
+          ),
+        ]);
+        for (var index = 0; index < matchSamples.length; index++) {
+          final sample = matchSamples[index];
+          if (!sample.endsSet && !sample.endsMatch) continue;
+          final x = xForIndex(index);
+          for (final offset in sample.endsMatch ? [0.0, -0.008] : [0.0]) {
+            comparisonDatasets.add(pw.LineDataSet<pw.PointChartValue>(
+              data: [
+                pw.PointChartValue(x + offset, 0),
+                pw.PointChartValue(x + offset, math.max(1, maxValue)),
+              ],
+              color: pdf.PdfColors.grey800,
+              lineWidth: 2,
+              drawPoints: false,
+              isCurved: false,
+            ));
+          }
+        }
+      }
+    }
+    final axisPositions = comparisonMode && matchLabels.isNotEmpty
+        ? <double>[
+            0,
+            for (var index = 0; index < matchLabels.length; index++)
+              index + 0.5,
+            matchLabels.length.toDouble(),
+          ]
+        : <double>[0, middle, end];
+
+    String axisLabel(double value) {
+      if (comparisonMode && matchLabels.isNotEmpty) {
+        if (value <= 0 || value >= matchLabels.length) return '';
+        final index = (value - 0.5).round().clamp(0, matchLabels.length - 1);
+        return matchLabels[index];
+      }
+      if (value <= 0) return dateLabels.first;
+      if (value >= end) return dateLabels.last;
+      return dateLabels[1];
+    }
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -1521,19 +1683,41 @@ class AppBackupService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Row(
-              children: [
-                _chartLegend(pdf.PdfColors.green, 'Punkte'),
-                pw.SizedBox(width: 12),
-                _chartLegend(pdf.PdfColors.red, 'Fehler'),
-                pw.SizedBox(width: 12),
-                _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
-              ],
-            ),
+            if (comparisonMode && matchLabels.isNotEmpty)
+              pw.Wrap(
+                spacing: 8,
+                runSpacing: 3,
+                children: [
+                  for (var index = 0; index < matchLabels.length; index++)
+                    _chartLegend(
+                      comparisonColors[index % comparisonColors.length],
+                      matchLabels[index],
+                    ),
+                ],
+              )
+            else
+              pw.Row(
+                children: [
+                  _chartLegend(pdf.PdfColors.green, 'Punkte'),
+                  pw.SizedBox(width: 12),
+                  _chartLegend(pdf.PdfColors.red, 'Fehler'),
+                  pw.SizedBox(width: 12),
+                  _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
+                ],
+              ),
             pw.SizedBox(height: 3),
-            pw.Row(
+            pw.Wrap(
+              spacing: 8,
+              runSpacing: 3,
               children: [
-                if (hasPlayerStatus) ...[
+                if (comparisonMode) ...[
+                  _chartLegend(pdf.PdfColors.grey800, 'Punkte: Linie'),
+                  pw.SizedBox(width: 8),
+                  _chartLegend(pdf.PdfColors.grey800, 'Fehler: Punkte'),
+                  pw.SizedBox(width: 8),
+                  _chartLegend(
+                      pdf.PdfColors.grey800, 'Gegnerfehler: kleine Punkte'),
+                ] else if (hasPlayerStatus) ...[
                   _chartLegend(pdf.PdfColor(0.82, 0.93, 0.82), 'Auf dem Feld'),
                   pw.SizedBox(width: 8),
                   _chartLegend(pdf.PdfColor(1, 0.94, 0.7), 'Bank · gespielt'),
@@ -1571,12 +1755,8 @@ class AppBackupService {
               pw.Chart(
                 grid: pw.CartesianGrid(
                   xAxis: pw.FixedAxis<double>(
-                    [0, middle, end],
-                    format: (value) {
-                      if (value <= 0) return dateLabels.first;
-                      if (value >= end) return dateLabels.last;
-                      return dateLabels[1];
-                    },
+                    comparisonMode ? axisPositions : <double>[0, middle, end],
+                    format: (value) => axisLabel(value.toDouble()),
                     textStyle: const pw.TextStyle(fontSize: 7),
                   ),
                   yAxis: pw.FixedAxis<double>(
@@ -1586,64 +1766,67 @@ class AppBackupService {
                     textStyle: const pw.TextStyle(fontSize: 8),
                   ),
                 ),
-                datasets: [
-                  pw.LineDataSet<pw.PointChartValue>(
-                    data: pointData,
-                    legend: 'Punkte',
-                    color: pdf.PdfColors.green,
-                    drawPoints: false,
-                    isCurved: true,
-                  ),
-                  pw.LineDataSet<pw.PointChartValue>(
-                    data: errorData,
-                    legend: 'Fehler',
-                    color: pdf.PdfColors.red,
-                    drawPoints: false,
-                    isCurved: true,
-                  ),
-                  pw.LineDataSet<pw.PointChartValue>(
-                    data: opponentErrorData,
-                    legend: 'Gegnerfehler',
-                    color: pdf.PdfColors.blue,
-                    drawPoints: false,
-                    isCurved: true,
-                  ),
-                ],
-              ),
-              pw.Positioned.fill(
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                  children: [
-                    for (var index = 1; index < samples.length; index++)
-                      pw.Expanded(
-                        child: pw.Container(
-                          alignment: pw.Alignment.centerRight,
-                          child: samples[index].endsMatch
-                              ? pw.Row(
-                                  mainAxisSize: pw.MainAxisSize.min,
-                                  children: [
-                                    pw.Container(
-                                      width: 2.5,
-                                      color: pdf.PdfColors.grey800,
-                                    ),
-                                    pw.SizedBox(width: 2),
-                                    pw.Container(
-                                      width: 2.5,
-                                      color: pdf.PdfColors.grey800,
-                                    ),
-                                  ],
-                                )
-                              : samples[index].endsSet
-                                  ? pw.Container(
-                                      width: 2.5,
-                                      color: pdf.PdfColors.grey800,
-                                    )
-                                  : null,
+                datasets: comparisonMode
+                    ? comparisonDatasets
+                    : [
+                        pw.LineDataSet<pw.PointChartValue>(
+                          data: pointData,
+                          legend: 'Punkte',
+                          color: pdf.PdfColors.green,
+                          drawPoints: false,
+                          isCurved: true,
                         ),
-                      ),
-                  ],
-                ),
+                        pw.LineDataSet<pw.PointChartValue>(
+                          data: errorData,
+                          legend: 'Fehler',
+                          color: pdf.PdfColors.red,
+                          drawPoints: false,
+                          isCurved: true,
+                        ),
+                        pw.LineDataSet<pw.PointChartValue>(
+                          data: opponentErrorData,
+                          legend: 'Gegnerfehler',
+                          color: pdf.PdfColors.blue,
+                          drawPoints: false,
+                          isCurved: true,
+                        ),
+                      ],
               ),
+              if (!comparisonMode)
+                pw.Positioned.fill(
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                    children: [
+                      for (var index = 1; index < samples.length; index++)
+                        pw.Expanded(
+                          child: pw.Container(
+                            alignment: pw.Alignment.centerRight,
+                            child: samples[index].endsMatch
+                                ? pw.Row(
+                                    mainAxisSize: pw.MainAxisSize.min,
+                                    children: [
+                                      pw.Container(
+                                        width: 2.5,
+                                        color: pdf.PdfColors.grey800,
+                                      ),
+                                      pw.SizedBox(width: 2),
+                                      pw.Container(
+                                        width: 2.5,
+                                        color: pdf.PdfColors.grey800,
+                                      ),
+                                    ],
+                                  )
+                                : samples[index].endsSet
+                                    ? pw.Container(
+                                        width: 2.5,
+                                        color: pdf.PdfColors.grey800,
+                                      )
+                                    : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),

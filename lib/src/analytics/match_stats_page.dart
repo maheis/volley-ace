@@ -829,6 +829,86 @@ List<MatchTrendSample> matchPlayerTrendSamples(
   return samples;
 }
 
+List<MatchTrendSample> matchComparisonTrendSamples(
+  List<MatchGame> sourceMatches,
+) {
+  final matches = List<MatchGame>.from(sourceMatches)
+    ..sort((first, second) => compareMatchesByGameTime(second, first));
+  final samples = <MatchTrendSample>[];
+  for (var matchIndex = 0; matchIndex < matches.length; matchIndex++) {
+    final match = matches[matchIndex];
+    final range = matchTimeRangesFor([match]).single;
+    final events = match.events
+        .where((event) =>
+            event.kind == 'point' ||
+            event.kind == 'error' ||
+            event.kind == _manualSetEndKind)
+        .toList()
+      ..sort((first, second) {
+        final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+        return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+      });
+    var points = 0;
+    var errors = 0;
+    var opponentErrors = 0;
+    var ourSetScore = 0;
+    var opponentSetScore = 0;
+    var setNumber = 1;
+    samples.add(
+      MatchTrendSample(
+        time: range.start,
+        points: 0,
+        errors: 0,
+        opponentErrors: 0,
+        matchIndex: matchIndex,
+        beginsMatch: true,
+        setNumber: setNumber,
+      ),
+    );
+    for (final event in events) {
+      if (event.kind == 'point') {
+        points++;
+        ourSetScore++;
+        if (event.category == 'Gegnerfehler') opponentErrors++;
+      } else if (event.kind == 'error') {
+        errors++;
+        opponentSetScore++;
+      }
+      final endsSet = event.kind == _manualSetEndKind ||
+          (ourSetScore >= 25 && ourSetScore - opponentSetScore >= 2) ||
+          (opponentSetScore >= 25 && opponentSetScore - ourSetScore >= 2);
+      samples.add(
+        MatchTrendSample(
+          time: event.occurredAt,
+          points: points,
+          errors: errors,
+          opponentErrors: opponentErrors,
+          matchIndex: matchIndex,
+          setNumber: setNumber,
+          endsSet: endsSet,
+        ),
+      );
+      if (endsSet) {
+        setNumber++;
+        ourSetScore = 0;
+        opponentSetScore = 0;
+      }
+    }
+    samples.add(
+      MatchTrendSample(
+        time: range.end,
+        points: points,
+        errors: errors,
+        opponentErrors: opponentErrors,
+        matchIndex: matchIndex,
+        setNumber: setNumber,
+        endsMatch: true,
+      ),
+    );
+  }
+  return samples;
+}
+
 double compressedMatchTimelinePosition(
   DateTime time,
   List<MatchTimeRange> ranges,
@@ -4374,6 +4454,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final points = _pointSummary(match);
     final errors = _errorSummary(match);
     final sets = _computeSets(match);
+    final comparisonMatches = List<MatchGame>.from(sourceMatches ?? [])
+      ..sort((first, second) => compareMatchesByGameTime(second, first));
     final matchRanges = sourceMatches == null
         ? const <MatchTimeRange>[]
         : matchTimeRangesFor(sourceMatches);
@@ -4434,6 +4516,22 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               matchRanges: matchRanges,
               height: 220,
             ),
+            if (sourceMatches != null && sourceMatches.length > 1) ...[
+              const SizedBox(height: 12),
+              _TrendChartCard(
+                title: 'Spielvergleich · je Partie ab 0',
+                samples: matchComparisonTrendSamples(sourceMatches),
+                timeoutMarkers: const <DateTime>[],
+                matchRanges: matchRanges,
+                comparisonMode: true,
+                matchLabels: comparisonMatches
+                    .map((source) => source.opponentTeam.isEmpty
+                        ? _formatDateTime(source.matchDateTime)
+                        : source.opponentTeam)
+                    .toList(),
+                height: 220,
+              ),
+            ],
             const SizedBox(height: 12),
             if (statisticsMatch.players.isNotEmpty) ...[
               const Text(
@@ -5249,6 +5347,14 @@ double trendChartMaxTimeScale(int sampleCount) =>
 const Color _onCourtBandColor = Color(0xFF43A047);
 const Color _benchBandColor = Color(0xFFF9A825);
 const Color _notPlayedBandColor = Color(0xFFE53935);
+const List<Color> matchComparisonColors = <Color>[
+  Color(0xFF1565C0),
+  Color(0xFF2E7D32),
+  Color(0xFFEF6C00),
+  Color(0xFFC62828),
+  Color(0xFF00838F),
+  Color(0xFF6D4C41),
+];
 
 Color? _playerStatusBandColor(MatchTrendSample sample) {
   if (sample.playerInMatchRoster == null) return null;
@@ -5262,6 +5368,8 @@ class _TrendChartCard extends StatefulWidget {
     required this.samples,
     required this.timeoutMarkers,
     this.matchRanges = const <MatchTimeRange>[],
+    this.comparisonMode = false,
+    this.matchLabels = const <String>[],
     required this.height,
   });
 
@@ -5269,6 +5377,8 @@ class _TrendChartCard extends StatefulWidget {
   final List<MatchTrendSample> samples;
   final List<DateTime> timeoutMarkers;
   final List<MatchTimeRange> matchRanges;
+  final bool comparisonMode;
+  final List<String> matchLabels;
   final double height;
 
   @override
@@ -5327,22 +5437,45 @@ class _TrendChartCardState extends State<_TrendChartCard> {
               spacing: 12,
               runSpacing: 6,
               children: [
-                const _TrendLegendDot(
-                  color: Colors.greenAccent,
-                  label: 'Punkte',
-                ),
-                _TrendLegendDot(
-                  color: Color(0xFFe57373),
-                  label: 'Fehler',
-                ),
-                _TrendLegendDot(
-                  color: Color(0xFF64B5F6),
-                  label: 'Gegnerfehler',
-                ),
-                _TrendLegendLine(
-                  color: Color(0xFFFFB74D),
-                  label: 'Auszeit',
-                ),
+                if (widget.comparisonMode) ...[
+                  for (var index = 0;
+                      index < widget.matchLabels.length;
+                      index++)
+                    _TrendLegendDot(
+                      color: matchComparisonColors[
+                          index % matchComparisonColors.length],
+                      label: widget.matchLabels[index],
+                    ),
+                  const _TrendLegendLine(
+                    color: Color(0xFF424242),
+                    label: 'Punkte: durchgezogen',
+                  ),
+                  const _TrendLegendLine(
+                    color: Color(0xFF424242),
+                    label: 'Fehler: gestrichelt',
+                  ),
+                  const _TrendLegendLine(
+                    color: Color(0xFF424242),
+                    label: 'Gegnerfehler: gepunktet',
+                  ),
+                ] else ...[
+                  const _TrendLegendDot(
+                    color: Colors.greenAccent,
+                    label: 'Punkte',
+                  ),
+                  _TrendLegendDot(
+                    color: Color(0xFFe57373),
+                    label: 'Fehler',
+                  ),
+                  _TrendLegendDot(
+                    color: Color(0xFF64B5F6),
+                    label: 'Gegnerfehler',
+                  ),
+                  _TrendLegendLine(
+                    color: Color(0xFFFFB74D),
+                    label: 'Auszeit',
+                  ),
+                ],
                 const _TrendLegendLine(
                   color: Color(0xFF424242),
                   label: 'Satzende',
@@ -5386,6 +5519,8 @@ class _TrendChartCardState extends State<_TrendChartCard> {
                               samples: widget.samples,
                               timeoutMarkers: widget.timeoutMarkers,
                               matchRanges: widget.matchRanges,
+                              comparisonMode: widget.comparisonMode,
+                              matchLabels: widget.matchLabels,
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -5407,6 +5542,8 @@ class MatchStatsTrendChart extends StatelessWidget {
     required this.samples,
     required this.timeoutMarkers,
     this.matchRanges = const <MatchTimeRange>[],
+    this.comparisonMode = false,
+    this.matchLabels = const <String>[],
     required this.height,
   });
 
@@ -5414,6 +5551,8 @@ class MatchStatsTrendChart extends StatelessWidget {
   final List<MatchTrendSample> samples;
   final List<DateTime> timeoutMarkers;
   final List<MatchTimeRange> matchRanges;
+  final bool comparisonMode;
+  final List<String> matchLabels;
   final double height;
 
   @override
@@ -5422,6 +5561,8 @@ class MatchStatsTrendChart extends StatelessWidget {
         samples: samples,
         timeoutMarkers: timeoutMarkers,
         matchRanges: matchRanges,
+        comparisonMode: comparisonMode,
+        matchLabels: matchLabels,
         height: height,
       );
 }
@@ -5443,7 +5584,7 @@ class _TrendLegendDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(label),
+        Flexible(child: Text(label)),
       ],
     );
   }
@@ -5462,7 +5603,7 @@ class _TrendLegendLine extends StatelessWidget {
       children: [
         Container(width: 2, height: 12, color: color),
         const SizedBox(width: 6),
-        Text(label),
+        Flexible(child: Text(label)),
       ],
     );
   }
@@ -5516,11 +5657,16 @@ class _TrendChartPainter extends CustomPainter {
     required this.samples,
     required this.timeoutMarkers,
     required this.matchRanges,
+    required this.comparisonMode,
+    required this.matchLabels,
   });
 
   final List<MatchTrendSample> samples;
   final List<DateTime> timeoutMarkers;
   final List<MatchTimeRange> matchRanges;
+  final bool comparisonMode;
+
+  final List<String> matchLabels;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -5552,12 +5698,28 @@ class _TrendChartPainter extends CustomPainter {
       return chartRect.left + chartRect.width * relative;
     }
 
+    double xForSample(MatchTrendSample sample) {
+      if (!comparisonMode || matchRanges.length < 2) {
+        return xFor(sample.time);
+      }
+      final range = matchRanges[sample.matchIndex];
+      final duration = math.max(1, range.durationMilliseconds);
+      final elapsed = sample.time.isBefore(range.start)
+          ? 0
+          : sample.time.isAfter(range.end)
+              ? duration
+              : sample.time.difference(range.start).inMilliseconds;
+      final position =
+          (sample.matchIndex + elapsed / duration) / matchRanges.length;
+      return chartRect.left + chartRect.width * position;
+    }
+
     for (var index = 0; index < samples.length - 1; index++) {
       final sample = samples[index];
       final statusColor = _playerStatusBandColor(sample);
       if (statusColor == null) continue;
-      final left = xFor(sample.time);
-      final right = xFor(samples[index + 1].time);
+      final left = xForSample(sample);
+      final right = xForSample(samples[index + 1]);
       if (right <= left) continue;
       canvas.drawRect(
         Rect.fromLTRB(
@@ -5597,23 +5759,56 @@ class _TrendChartPainter extends CustomPainter {
       return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     }
 
-    void paintSeries(List<Offset> points, Color color) {
+    void paintSeries(
+      List<Offset> points,
+      Color color, {
+      bool dashed = false,
+      bool dotted = false,
+    }) {
       if (points.length < 2) return;
-      final path = Path()..moveTo(points.first.dx, points.first.dy);
-      for (final point in points.skip(1)) {
-        path.lineTo(point.dx, point.dy);
-      }
       final linePaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
+        ..strokeWidth = dotted
+            ? 1.5
+            : dashed
+                ? 2
+                : 3
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
-      canvas.drawPath(path, linePaint);
+      if (!dashed && !dotted) {
+        final path = Path()..moveTo(points.first.dx, points.first.dy);
+        for (final point in points.skip(1)) {
+          path.lineTo(point.dx, point.dy);
+        }
+        canvas.drawPath(path, linePaint);
+      } else {
+        final dashLength = dotted ? 1.5 : 6.0;
+        final gapLength = dotted ? 4.0 : 4.0;
+        for (var index = 0; index < points.length - 1; index++) {
+          final start = points[index];
+          final delta = points[index + 1] - start;
+          final length = delta.distance;
+          if (length == 0) continue;
+          final direction = delta / length;
+          for (var offset = 0.0;
+              offset < length;
+              offset += dashLength + gapLength) {
+            final endOffset = math.min(offset + dashLength, length);
+            canvas.drawLine(
+              start + direction * offset,
+              start + direction * endOffset,
+              linePaint,
+            );
+          }
+        }
+      }
 
-      final pointPaint = Paint()..color = color;
-      for (final point in points) {
-        canvas.drawCircle(point, 3.5, pointPaint);
+      if (!dotted) {
+        final pointPaint = Paint()..color = color;
+        for (final point in points) {
+          canvas.drawCircle(point, 3.5, pointPaint);
+        }
       }
     }
 
@@ -5633,26 +5828,59 @@ class _TrendChartPainter extends CustomPainter {
     }
 
     final pointSeries = samples
-        .map((sample) => Offset(xFor(sample.time), yFor(sample.points)))
+        .map((sample) => Offset(xForSample(sample), yFor(sample.points)))
         .toList();
     final errorSeries = samples
-        .map((sample) => Offset(xFor(sample.time), yFor(sample.errors)))
+        .map((sample) => Offset(xForSample(sample), yFor(sample.errors)))
         .toList();
     final opponentErrorSeries = samples
-        .map((sample) => Offset(xFor(sample.time), yFor(sample.opponentErrors)))
+        .map(
+            (sample) => Offset(xForSample(sample), yFor(sample.opponentErrors)))
         .toList();
 
     paintTimeoutMarkers(timeoutMarkers);
-    paintSeries(pointSeries, Colors.greenAccent);
-    paintSeries(errorSeries, const Color(0xFFe57373));
-    paintSeries(opponentErrorSeries, const Color(0xFF64B5F6));
+    if (comparisonMode) {
+      final matchIndexes =
+          samples.map((sample) => sample.matchIndex).toSet().toList()..sort();
+      for (final matchIndex in matchIndexes) {
+        final matchSamples =
+            samples.where((sample) => sample.matchIndex == matchIndex).toList();
+        final color =
+            matchComparisonColors[matchIndex % matchComparisonColors.length];
+        paintSeries(
+          matchSamples
+              .map((sample) => Offset(xForSample(sample), yFor(sample.points)))
+              .toList(),
+          color,
+        );
+        paintSeries(
+          matchSamples
+              .map((sample) => Offset(xForSample(sample), yFor(sample.errors)))
+              .toList(),
+          color,
+          dashed: true,
+        );
+        paintSeries(
+          matchSamples
+              .map((sample) =>
+                  Offset(xForSample(sample), yFor(sample.opponentErrors)))
+              .toList(),
+          color,
+          dotted: true,
+        );
+      }
+    } else {
+      paintSeries(pointSeries, Colors.greenAccent);
+      paintSeries(errorSeries, const Color(0xFFe57373));
+      paintSeries(opponentErrorSeries, const Color(0xFF64B5F6));
+    }
 
     final boundaryPaint = Paint()
       ..color = const Color(0xFF424242).withValues(alpha: 0.9)
       ..strokeWidth = 3;
     for (final sample in samples) {
       if (sample.endsMatch) {
-        final x = xFor(sample.time);
+        final x = xForSample(sample);
         canvas.drawLine(
           Offset(x - 3, chartRect.top),
           Offset(x - 3, chartRect.bottom),
@@ -5664,7 +5892,7 @@ class _TrendChartPainter extends CustomPainter {
           boundaryPaint,
         );
       } else if (sample.endsSet) {
-        final x = xFor(sample.time);
+        final x = xForSample(sample);
         canvas.drawLine(
           Offset(x, chartRect.top),
           Offset(x, chartRect.bottom),
@@ -5695,6 +5923,25 @@ class _TrendChartPainter extends CustomPainter {
       fontSize: 10,
       fontWeight: FontWeight.w600,
     );
+    if (comparisonMode && matchLabels.isNotEmpty) {
+      final segmentWidth = chartRect.width / matchLabels.length;
+      for (var index = 0; index < matchLabels.length; index++) {
+        final label = TextPainter(
+          text: TextSpan(text: matchLabels[index], style: axisLabelStyle),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+          ellipsis: '...',
+        )..layout(maxWidth: math.max(0, segmentWidth - 8));
+        label.paint(
+          canvas,
+          Offset(
+            chartRect.left + segmentWidth * (index + 0.5) - label.width / 2,
+            chartRect.bottom + 4,
+          ),
+        );
+      }
+      return;
+    }
     final startLabel = TextPainter(
       text: TextSpan(text: formatTime(firstTime), style: axisLabelStyle),
       textDirection: TextDirection.ltr,
@@ -5733,6 +5980,8 @@ class _TrendChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
     return oldDelegate.samples != samples ||
+        oldDelegate.comparisonMode != comparisonMode ||
+        oldDelegate.matchLabels != matchLabels ||
         oldDelegate.timeoutMarkers != timeoutMarkers ||
         oldDelegate.matchRanges != matchRanges;
   }

@@ -385,7 +385,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] Raster entfernen; Satzende mit kräftigem Strich, Spielende mit Doppelstrich; auch im PDF-Export
 - [x] Statistik- und Exportdiagramme für Statusfarben und Markierungen angleichen
 - [x] spiel als beendet markiern
-- [ ] 
+- [x] statistik diagramme mehrere spiele sollen einmal ein diagram über alle selektierten spiele darstellen, also fortlaufend aggregiert und darunter soll ein diagram sein das pro spiel wieder bei 0 startet und rauf zählt, so dass man alle spiele direkt nebeneinander vergleichen kann. soll sowohl für den export, als auch für die statistik in app dargestellt werden.
+- [ ]
 
 ## PDF-Export und Dateinamen
 
@@ -394,6 +395,8 @@ Statistik, Gesamtexport und Spielverlauf bieten beim PDF-Export drei Layouts:
 - **Endlos (Bildschirm):** eine lange Seite ohne Seitenwechsel. Die Seitenhoehe richtet sich nach dem Inhalt; es wird kein pauschaler leerer Anhang angehaengt.
 - **DIN A4 hoch (Druck):** Seite 1 mit Spielinfos sowie gruppiertem Punkte-/Fehler-Diagramm und Tabelle nach Hauptkategorie. Danach folgen Gesamt-Zeitverlauf, Spieluebersicht und Spieleruebersicht. Die Spieler-Zeitverlaeufe stehen auf eigenen Seiten mit maximal drei Spielern pro Seite; bei weniger Spielern wird die verfuegbare Hoehe auf deren Diagramme verteilt.
 - **DIN A4 Kachel (zum Kleben):** Der fortlaufende Statistikbericht wird ohne Umbruch neu zu layouten in feste A4-Fenster aufgeteilt und an den Blattgrenzen hart abgeschnitten. Oben gibt es keinen Rand, seitlich und unten jeweils 0,5 cm; der untere Rand dient als Schnitt-/Klebekante.
+
+Bei mehreren ausgewaehlten Spielen zeigen App und Statistikexport zuerst den fortlaufend aggregierten Zeitverlauf und darunter einen Spielvergleich. Im Vergleich beginnen Punkte, Fehler und Gegnerfehler je Partie bei 0; die Spiele stehen chronologisch in gleich breiten Abschnitten mit eigener Farbe nebeneinander.
 
 Unterkategorien bleiben als separate Detailtabelle erhalten. Beide Layouts enthalten ausserdem Fehler pro Spieler nach Fehlerart mit Anzahl und Gesamtsumme; Spieler ohne Fehler werden mit 0 ausgewiesen. An den Spieler-Zeitverlaeufen stehen Punkte und Fehler zusaetzlich als Zahlen. Sehr grosse Kategorie- oder Uebersichtstabellen werden auf Folgeseiten fortgesetzt. Bei mehreren Partien folgen die Einzelberichte nach demselben Aufbau; Spielbericht und Verlauf bleiben im Gesamtexport enthalten.
 

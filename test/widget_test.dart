@@ -1599,7 +1599,7 @@ void main() {
         timeoutSide: null,
         timeoutStartedAt: null,
         completedSets: <SetResult>[
-          SetResult(
+pq          SetResult(
             leftPoints: 25,
             rightPoints: 18,
             winnerColor: ScoreboardState.defaultLeftColor,
@@ -2186,6 +2186,54 @@ void main() {
       tester.state<ScrollableState>(chartScrollable).position.pixels,
       greaterThan(0),
     );
+  });
+
+  testWidgets('comparison trend renders on phone and desktop', (tester) async {
+    final matches = List.generate(2, (index) {
+      final time = DateTime(2026, 6, index + 1, 18);
+      return MatchGame(
+        id: index,
+        createdAt: time,
+        location: '',
+        opponentTeam: 'Team mit einem sehr langen Namen $index',
+        matchDateTime: time,
+        matchTag: '',
+        matchType: 'Liga',
+        players: const [],
+        events: [
+          MatchEvent(
+            id: 1,
+            playerId: null,
+            playerName: '',
+            playerNumber: 0,
+            kind: index == 0 ? 'point' : 'error',
+            category: 'Block',
+            occurredAt: time,
+          ),
+        ],
+      );
+    });
+    for (final width in [320.0, 900.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 800));
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: MatchStatsTrendChart(
+            title: 'Spielvergleich',
+            samples: matchComparisonTrendSamples(matches),
+            timeoutMarkers: const [],
+            matchRanges: matchTimeRangesFor(matches),
+            comparisonMode: true,
+            matchLabels: matches.map((match) => match.opponentTeam).toList(),
+            height: 220,
+          ),
+        ),
+      ));
+      await tester.pump();
+      expect(find.text('Spielvergleich'), findsOneWidget);
+      expect(find.text('Fehler: gestrichelt'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.binding.setSurfaceSize(null);
   });
 
   test('multiselect trend charts allow more time-axis expansion', () {
@@ -2828,6 +2876,29 @@ void main() {
     );
     final selectedMatches = [secondMatch, match];
     final combinedMatch = combineMatchesForStatistics(selectedMatches);
+    final comparison = matchComparisonTrendSamples(selectedMatches);
+    final firstSamples =
+        comparison.where((sample) => sample.matchIndex == 0).toList();
+    final secondSamples =
+        comparison.where((sample) => sample.matchIndex == 1).toList();
+    expect(firstSamples.first.time, match.matchDateTime);
+    for (final samples in [firstSamples, secondSamples]) {
+      expect(samples.first.beginsMatch, isTrue);
+      expect(samples.first.points, 0);
+      expect(samples.first.errors, 0);
+      expect(samples.first.opponentErrors, 0);
+      expect(samples.last.endsMatch, isTrue);
+    }
+    expect(firstSamples.last.points, 2);
+    expect(firstSamples.last.errors, 2);
+    expect(secondSamples.last.points, 1);
+    expect(secondSamples.last.errors, 0);
+    expect(secondSamples.last.opponentErrors, 1);
+    final emptyComparison = matchComparisonTrendSamples([
+      secondMatch.copyWith(events: const []),
+    ]);
+    expect(emptyComparison, hasLength(2));
+    expect(emptyComparison.every((sample) => sample.points == 0), isTrue);
     expect(
       AppBackupService.matchExportFileName(selectedMatches, extension: 'pdf'),
       '2026-06-01_18-00_halle_team-rot_team-blau.pdf',
