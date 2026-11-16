@@ -14,6 +14,8 @@ import 'package:share_plus/share_plus.dart';
 import '../analytics/match_stats_page.dart';
 import '../teams/teams_page.dart';
 
+enum _PdfExportLayout { continuous, a4, tiledA4 }
+
 class AppBackupService {
   AppBackupService._();
 
@@ -236,6 +238,7 @@ class AppBackupService {
     List<MatchGame>? sourceMatches,
     bool landscape = false,
     bool continuous = false,
+    bool tiled = false,
     bool includeFullMatchDetails = false,
   }) async {
     final orderedSourceMatches =
@@ -277,8 +280,8 @@ class AppBackupService {
         ? _formatPdfDate(match.matchDateTime)
         : '${_formatPdfDateTime(firstEventTime)} – ${_formatPdfDateTime(lastEventTime)}';
     final document = pw.Document();
-    final pageFormat = _pageFormat(landscape);
-    if (!continuous) {
+    final pageFormat = tiled ? pdf.PdfPageFormat.a4 : _pageFormat(landscape);
+    if (!continuous && !tiled) {
       _addPortraitStatistics(document, match,
           title: title,
           sourceMatches: orderedSourceMatches,
@@ -293,170 +296,181 @@ class AppBackupService {
       return document.save();
     }
 
-    final reportWidgets = <pw.Widget>[
-      pw.Text(
-        title,
-        style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-      ),
-      pw.SizedBox(height: 4),
-      pw.Text(
-        match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
-        style: const pw.TextStyle(fontSize: 13),
-      ),
-      if (orderedSourceMatches != null && orderedSourceMatches.isNotEmpty) ...[
-        pw.SizedBox(height: 14),
-        pw.Text(
-          'Ausgewählte Partien (${orderedSourceMatches.length})',
-          style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        _selectedMatchesTable(orderedSourceMatches),
-      ],
-      pw.Text(
-        '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
-        style: const pw.TextStyle(
-          color: pdf.PdfColors.grey700,
-          fontSize: 10,
-        ),
-      ),
-      if (includeFullMatchDetails) ...[
-        if (orderedSourceMatches != null &&
-            orderedSourceMatches.length > 1) ...[
-          pw.SizedBox(height: 18),
+    final continuousContent = continuous || tiled;
+    List<pw.Widget> buildReportWidgets() => <pw.Widget>[
           pw.Text(
-            'Einzelspiele: Bericht, Verlauf und Statistik',
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-          ),
-          for (final sourceMatch in orderedSourceMatches)
-            ..._individualMatchReportWidgets(
-              sourceMatch,
-              includeMatchDetails: true,
-              continuous: continuous,
-            ),
-        ] else ...[
-          pw.SizedBox(height: 18),
-          pw.Text(
-            'Spielbericht',
-            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            match.matchReport.trim().isEmpty
-                ? 'Kein Spielbericht erfasst.'
-                : match.matchReport,
-          ),
-          pw.SizedBox(height: 18),
-          pw.Text(
-            'Spielverlauf',
-            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 6),
-          ..._matchHistoryWidgets(match, sortedEvents),
-        ],
-      ],
-      pw.SizedBox(height: 18),
-      pw.Row(
-        children: [
-          pw.Expanded(
-            child: _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
-          ),
-          pw.SizedBox(width: 12),
-          pw.Expanded(
-            child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
-          ),
-          pw.SizedBox(width: 12),
-          pw.Expanded(
-            child: _summaryCard(
-              'Einträge',
-              '${pointCount + errorCount}',
-              pdf.PdfColors.blue,
-            ),
-          ),
-        ],
-      ),
-      pw.SizedBox(height: 22),
-      pw.Text(
-        'Punkte und Fehler nach Art',
-        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-      ),
-      pw.SizedBox(height: 8),
-      if (categories.isEmpty)
-        pw.Text('Noch keine Punkte oder Fehler erfasst.')
-      else
-        ..._categoryChartWidgets(categories, points, errors,
-            continuous: continuous),
-      if (categories.isNotEmpty) ...[
-        pw.SizedBox(height: 8),
-        _categorySummaryTable(categories, points, errors),
-      ],
-      pw.Text(
-        'Zeitverlauf',
-        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-      ),
-      pw.SizedBox(height: 8),
-      if (pointCount + errorCount == 0)
-        pw.Text('Noch keine Verlaufsdaten vorhanden.')
-      else
-        pw.SizedBox(
-          height: 220,
-          child: _timelineChart(sortedEvents, matchTimes: matchTimes),
-        ),
-      if (match.players.isNotEmpty) ...[
-        pw.SizedBox(height: 22),
-        pw.Text(
-          'Spielerübersicht',
-          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 8),
-        _playerTable(match, sortedEvents),
-        pw.SizedBox(height: 18),
-        pw.Text(
-          'Zeitverlauf pro Spieler',
-          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-        ),
-        for (final player in match.players) ...[
-          pw.SizedBox(height: 12),
-          pw.Text(
-            _playerStatisticsLabel(player, sortedEvents),
-            style: pw.TextStyle(
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            title,
+            style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 4),
-          pw.SizedBox(
-            height: 150,
-            child: _timelineChart(
-              sortedEvents
-                  .where((event) => event.scorerIds.contains(player.id))
-                  .toList(),
-              matchTimes: matchTimes,
-              trendSamples: orderedSourceMatches != null &&
-                      orderedSourceMatches.length > 1
-                  ? matchPlayerTrendSamples(
-                      match,
-                      orderedSourceMatches,
-                      player.id,
-                    )
-                  : null,
+          pw.Text(
+            match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam,
+            style: const pw.TextStyle(fontSize: 13),
+          ),
+          if (orderedSourceMatches != null &&
+              orderedSourceMatches.isNotEmpty) ...[
+            pw.SizedBox(height: 14),
+            pw.Text(
+              'Ausgewählte Partien (${orderedSourceMatches.length})',
+              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 6),
+            _selectedMatchesTable(orderedSourceMatches),
+          ],
+          pw.Text(
+            '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
+            style: const pw.TextStyle(
+              color: pdf.PdfColors.grey700,
+              fontSize: 10,
             ),
           ),
-        ],
-        ..._playerErrorDetails(match, sortedEvents),
-      ],
-      if (orderedSourceMatches != null &&
-          orderedSourceMatches.length > 1 &&
-          !includeFullMatchDetails) ...[
-        pw.SizedBox(height: 24),
-        pw.Divider(color: pdf.PdfColors.grey400),
-        pw.Text(
-          'Einzelstatistiken',
-          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-        ),
-        for (final sourceMatch in orderedSourceMatches)
-          ..._individualMatchReportWidgets(sourceMatch, continuous: continuous),
-      ],
-    ];
+          if (includeFullMatchDetails) ...[
+            if (orderedSourceMatches != null &&
+                orderedSourceMatches.length > 1) ...[
+              pw.SizedBox(height: 18),
+              pw.Text(
+                'Einzelspiele: Bericht, Verlauf und Statistik',
+                style:
+                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+              ),
+              for (final sourceMatch in orderedSourceMatches)
+                ..._individualMatchReportWidgets(
+                  sourceMatch,
+                  includeMatchDetails: true,
+                  continuous: continuousContent,
+                ),
+            ] else ...[
+              pw.SizedBox(height: 18),
+              pw.Text(
+                'Spielbericht',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                match.matchReport.trim().isEmpty
+                    ? 'Kein Spielbericht erfasst.'
+                    : match.matchReport,
+              ),
+              pw.SizedBox(height: 18),
+              pw.Text(
+                'Spielverlauf',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.SizedBox(height: 6),
+              ..._matchHistoryWidgets(match, sortedEvents),
+            ],
+          ],
+          pw.SizedBox(height: 18),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child:
+                    _summaryCard('Punkte', '$pointCount', pdf.PdfColors.green),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _summaryCard('Fehler', '$errorCount', pdf.PdfColors.red),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _summaryCard(
+                  'Einträge',
+                  '${pointCount + errorCount}',
+                  pdf.PdfColors.blue,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 22),
+          pw.Text(
+            'Punkte und Fehler nach Art',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (categories.isEmpty)
+            pw.Text('Noch keine Punkte oder Fehler erfasst.')
+          else
+            ..._categoryChartWidgets(categories, points, errors,
+                continuous: continuousContent),
+          if (categories.isNotEmpty) ...[
+            pw.SizedBox(height: 8),
+            _categorySummaryTable(categories, points, errors),
+          ],
+          pw.Text(
+            'Zeitverlauf',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (pointCount + errorCount == 0)
+            pw.Text('Noch keine Verlaufsdaten vorhanden.')
+          else
+            pw.SizedBox(
+              height: 220,
+              child: _timelineChart(sortedEvents, matchTimes: matchTimes),
+            ),
+          if (match.players.isNotEmpty) ...[
+            pw.SizedBox(height: 22),
+            pw.Text(
+              'Spielerübersicht',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            _playerTable(match, sortedEvents),
+            pw.SizedBox(height: 18),
+            pw.Text(
+              'Zeitverlauf pro Spieler',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            for (final player in match.players) ...[
+              pw.SizedBox(height: 12),
+              pw.Text(
+                _playerStatisticsLabel(player, sortedEvents),
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.SizedBox(
+                height: 150,
+                child: _timelineChart(
+                  sortedEvents
+                      .where((event) => event.scorerIds.contains(player.id))
+                      .toList(),
+                  matchTimes: matchTimes,
+                  trendSamples: matchPlayerTrendSamples(
+                    match,
+                    orderedSourceMatches ?? <MatchGame>[match],
+                    player.id,
+                  ),
+                ),
+              ),
+            ],
+            ..._playerErrorDetails(match, sortedEvents),
+          ],
+          if (orderedSourceMatches != null &&
+              orderedSourceMatches.length > 1 &&
+              !includeFullMatchDetails) ...[
+            pw.SizedBox(height: 24),
+            pw.Divider(color: pdf.PdfColors.grey400),
+            pw.Text(
+              'Einzelstatistiken',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+            for (final sourceMatch in orderedSourceMatches)
+              ..._individualMatchReportWidgets(
+                sourceMatch,
+                continuous: continuousContent,
+              ),
+          ],
+        ];
+
+    if (tiled) {
+      await _addTiledPrintPages(document, buildReportWidgets);
+      return document.save();
+    }
 
     document.addPage(
       pw.Page(
@@ -465,7 +479,7 @@ class AppBackupService {
         build: (_) => pw.Column(
           mainAxisSize: pw.MainAxisSize.min,
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: reportWidgets,
+          children: buildReportWidgets(),
         ),
       ),
     );
@@ -474,7 +488,7 @@ class AppBackupService {
   }
 
   static Future<Uint8List> buildMatchHistoryPdf(MatchGame match,
-      {bool continuous = true}) async {
+      {bool continuous = true, bool tiled = false}) async {
     final events = List<MatchEvent>.from(match.events)
       ..sort((first, second) {
         final timeOrder = first.occurredAt.compareTo(second.occurredAt);
@@ -484,20 +498,23 @@ class AppBackupService {
     final historyWidgets = _matchHistoryWidgetsFromRows(historyRows);
     final landscapeFormat = _pageFormat(true);
     final document = pw.Document();
-    final widgets = <pw.Widget>[
-      pw.Text(
-        'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
-        style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
-      ),
-      pw.SizedBox(height: 4),
-      pw.Text(
-        '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
-        style: const pw.TextStyle(color: pdf.PdfColors.grey700, fontSize: 10),
-      ),
-      pw.SizedBox(height: 18),
-      ...historyWidgets,
-    ];
-    if (continuous) {
+    List<pw.Widget> buildWidgets() => <pw.Widget>[
+          pw.Text(
+            'Spielverlauf · ${match.opponentTeam.isEmpty ? match.matchType : match.opponentTeam}',
+            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            '${_formatPdfDateTime(match.matchDateTime).replaceAll('–', '-')} · ${match.location.isEmpty ? 'Ort offen' : match.location} · ${match.matchType}',
+            style:
+                const pw.TextStyle(color: pdf.PdfColors.grey700, fontSize: 10),
+          ),
+          pw.SizedBox(height: 18),
+          ...historyWidgets,
+        ];
+    if (tiled) {
+      await _addTiledPrintPages(document, buildWidgets);
+    } else if (continuous) {
       document.addPage(
         pw.Page(
           pageFormat: pdf.PdfPageFormat(landscapeFormat.width, double.infinity),
@@ -505,7 +522,7 @@ class AppBackupService {
           build: (_) => pw.Column(
             mainAxisSize: pw.MainAxisSize.min,
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: widgets,
+            children: buildWidgets(),
           ),
         ),
       );
@@ -518,7 +535,7 @@ class AppBackupService {
           alignment: pw.Alignment.centerRight,
           child: pw.Text('${context.pageNumber} / ${context.pagesCount}'),
         ),
-        build: (_) => widgets,
+        build: (_) => buildWidgets(),
       ));
     }
     return document.save();
@@ -699,10 +716,11 @@ class AppBackupService {
                       .where((event) => event.scorerIds.contains(player.id))
                       .toList(),
                   matchTimes: matchTimes,
-                  trendSamples: sourceMatches != null &&
-                          sourceMatches.length > 1
-                      ? matchPlayerTrendSamples(match, sourceMatches, player.id)
-                      : null,
+                  trendSamples: matchPlayerTrendSamples(
+                    match,
+                    sourceMatches ?? <MatchGame>[match],
+                    player.id,
+                  ),
                 )),
               ],
             ),
@@ -799,6 +817,9 @@ class AppBackupService {
       } else if (event.kind == 'manual_set_end') {
         action = 'Satzende';
         details = 'Manuell';
+      } else if (event.kind == 'match_end') {
+        action = 'Spielende';
+        details = 'Manuell beendet';
       } else {
         action = event.kind;
         details = event.category;
@@ -862,6 +883,68 @@ class AppBackupService {
     return landscape
         ? pdf.PdfPageFormat(portrait.height, portrait.width)
         : portrait;
+  }
+
+  static Future<void> _addTiledPrintPages(
+    pw.Document document,
+    List<pw.Widget> Function() buildWidgets,
+  ) async {
+    const pageFormat = pdf.PdfPageFormat.a4;
+    const seamMargin = 5 * pdf.PdfPageFormat.mm;
+    const measurementMargins = pw.EdgeInsets.fromLTRB(
+      seamMargin,
+      0,
+      seamMargin,
+      0,
+    );
+    const printMargins = pw.EdgeInsets.fromLTRB(
+      seamMargin,
+      0,
+      seamMargin,
+      seamMargin,
+    );
+    final tileHeight = pageFormat.height - seamMargin;
+    final measurementDocument = pw.Document();
+    final measurementPage = pw.Page(
+      pageFormat: pdf.PdfPageFormat(pageFormat.width, double.infinity),
+      margin: measurementMargins,
+      build: (_) => pw.Column(
+        mainAxisSize: pw.MainAxisSize.min,
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: buildWidgets(),
+      ),
+    );
+    measurementDocument.addPage(measurementPage);
+    await measurementDocument.save();
+    final contentHeight = measurementPage.pageFormat.height;
+    final pageCount = math.max(1, (contentHeight / tileHeight).ceil());
+
+    for (var index = 0; index < pageCount; index++) {
+      document.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          margin: printMargins,
+          clip: true,
+          build: (_) => pw.Transform.rotateBox(
+            angle: 0,
+            unconstrained: true,
+            child: pw.ConstrainedBox(
+              constraints: pw.BoxConstraints.tightFor(
+                width: pageFormat.width - seamMargin * 2,
+              ),
+              child: pw.Transform.translate(
+                offset: pdf.PdfPoint(0, index * tileHeight),
+                child: pw.Column(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: buildWidgets(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   static List<pw.Widget> _individualMatchReportWidgets(
@@ -1198,7 +1281,7 @@ class AppBackupService {
               xAxis: pw.FixedAxis<double>(
                 [0, maxValue],
                 format: (value) => value.toStringAsFixed(0),
-                divisions: true,
+                divisions: false,
                 textStyle: const pw.TextStyle(fontSize: 8),
               ),
               yAxis: pw.FixedAxis.fromStrings(
@@ -1272,149 +1355,99 @@ class AppBackupService {
     if (trendSamples != null) {
       return _playerTimelineChartFromSamples(trendSamples);
     }
-    final scoredEvents = events
-        .where((event) => event.kind == 'point' || event.kind == 'error')
-        .toList();
-    if (scoredEvents.isEmpty) return pw.Text('Keine Punktdaten.');
+    final timelineEvents = events
+        .where((event) =>
+            event.kind == 'point' ||
+            event.kind == 'error' ||
+            event.kind == 'manual_set_end')
+        .toList()
+      ..sort((first, second) {
+        final timeOrder = first.occurredAt.compareTo(second.occurredAt);
+        return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
+      });
+    if (timelineEvents.isEmpty) return pw.Text('Keine Punktdaten.');
+
+    final sortedMatchTimes = List<DateTime>.from(matchTimes)..sort();
+    final matchStartPositions = sortedMatchTimes
+        .map((time) => timelineEvents.indexWhere(
+              (event) => !event.occurredAt.isBefore(time),
+            ))
+        .where((index) => index >= 0)
+        .map((index) => index + 1)
+        .toSet()
+        .toList()
+      ..sort();
+    if (matchStartPositions.isEmpty || matchStartPositions.first != 1) {
+      matchStartPositions.insert(0, 1);
+    }
+    final matchEndPositions = <int>{};
+    for (var index = 0; index < matchStartPositions.length; index++) {
+      final endPosition = index + 1 < matchStartPositions.length
+          ? matchStartPositions[index + 1] - 1
+          : timelineEvents.length;
+      if (endPosition > 0) matchEndPositions.add(endPosition);
+    }
 
     var points = 0;
     var errors = 0;
     var opponentErrors = 0;
-    final pointData = <pw.PointChartValue>[
-      const pw.PointChartValue(0, 0),
+    var ourSetScore = 0;
+    var opponentSetScore = 0;
+    var setNumber = 1;
+    final samples = <MatchTrendSample>[
+      MatchTrendSample(
+        time: timelineEvents.first.occurredAt,
+        points: 0,
+        errors: 0,
+        opponentErrors: 0,
+        beginsMatch: true,
+        setNumber: setNumber,
+      ),
     ];
-    final errorData = <pw.PointChartValue>[
-      const pw.PointChartValue(0, 0),
-    ];
-    final opponentErrorData = <pw.PointChartValue>[
-      const pw.PointChartValue(0, 0),
-    ];
-    for (var index = 0; index < scoredEvents.length; index++) {
-      if (scoredEvents[index].kind == 'point') {
+    for (var index = 0; index < timelineEvents.length; index++) {
+      final event = timelineEvents[index];
+      final sampleIndex = index + 1;
+      if (matchStartPositions.contains(sampleIndex) && sampleIndex != 1) {
+        setNumber = 1;
+        ourSetScore = 0;
+        opponentSetScore = 0;
+      }
+      if (event.kind == 'point') {
         points++;
-        if (scoredEvents[index].category == 'Gegnerfehler') {
-          opponentErrors++;
-        }
-      } else {
+        ourSetScore++;
+        if (event.category == 'Gegnerfehler') opponentErrors++;
+      } else if (event.kind == 'error') {
         errors++;
+        opponentSetScore++;
       }
-      pointData
-          .add(pw.PointChartValue((index + 1).toDouble(), points.toDouble()));
-      errorData
-          .add(pw.PointChartValue((index + 1).toDouble(), errors.toDouble()));
-      opponentErrorData.add(
-        pw.PointChartValue((index + 1).toDouble(), opponentErrors.toDouble()),
+      final endsSet = event.kind == 'manual_set_end' ||
+          (ourSetScore >= 25 && ourSetScore - opponentSetScore >= 2) ||
+          (opponentSetScore >= 25 && opponentSetScore - ourSetScore >= 2);
+      final endsMatch = matchEndPositions.contains(sampleIndex);
+      samples.add(
+        MatchTrendSample(
+          time: event.occurredAt,
+          points: points,
+          errors: errors,
+          opponentErrors: opponentErrors,
+          beginsMatch: matchStartPositions.contains(sampleIndex),
+          setNumber: setNumber,
+          endsSet: endsSet,
+          endsMatch: endsMatch,
+        ),
       );
-    }
-
-    final end = scoredEvents.length.toDouble();
-    final middle = end / 2;
-    final dateLabels = [0.0, middle, end].map((position) {
-      final eventIndex =
-          (position - 1).round().clamp(0, scoredEvents.length - 1);
-      return _formatPdfDateTime(scoredEvents[eventIndex].occurredAt);
-    }).toList();
-    final maxValue =
-        math.max(points, math.max(errors, opponentErrors)).toDouble();
-    final matchStarts = matchTimes
-        .map((time) => scoredEvents.indexWhere(
-              (event) => !event.occurredAt.isBefore(time),
-            ))
-        .where((index) => index >= 0)
-        .toSet()
-        .toList()
-      ..sort();
-    if (matchStarts.isEmpty || matchStarts.first > 0) matchStarts.insert(0, 0);
-    final segmentWidths = <int>[];
-    for (var index = 0; index < matchStarts.length; index++) {
-      final next = index + 1 < matchStarts.length
-          ? matchStarts[index + 1]
-          : scoredEvents.length;
-      if (next > matchStarts[index]) {
-        segmentWidths.add(next - matchStarts[index]);
+      if (endsSet) {
+        setNumber++;
+        ourSetScore = 0;
+        opponentSetScore = 0;
+      }
+      if (endsMatch) {
+        setNumber = 1;
+        ourSetScore = 0;
+        opponentSetScore = 0;
       }
     }
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        pw.Row(
-          children: [
-            _chartLegend(pdf.PdfColors.green, 'Punkte'),
-            pw.SizedBox(width: 16),
-            _chartLegend(pdf.PdfColors.red, 'Fehler'),
-            pw.SizedBox(width: 16),
-            _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
-          ],
-        ),
-        pw.SizedBox(height: 8),
-        pw.Expanded(
-          child: pw.Stack(
-            fit: pw.StackFit.expand,
-            children: [
-              if (segmentWidths.length > 1)
-                pw.Positioned.fill(
-                  child: pw.Row(
-                    children: [
-                      for (var index = 0; index < segmentWidths.length; index++)
-                        pw.Expanded(
-                          flex: segmentWidths[index],
-                          child: pw.Container(
-                            color: index.isEven
-                                ? pdf.PdfColor(0.93, 0.97, 1)
-                                : pdf.PdfColor(1, 0.96, 0.9),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              pw.Chart(
-                grid: pw.CartesianGrid(
-                  xAxis: pw.FixedAxis<double>(
-                    [0, middle, end],
-                    format: (value) {
-                      if (value <= 0) return dateLabels.first;
-                      if (value >= end) return dateLabels.last;
-                      return dateLabels[1];
-                    },
-                    textStyle: const pw.TextStyle(fontSize: 7),
-                  ),
-                  yAxis: pw.FixedAxis<double>(
-                    [0, math.max(1, maxValue)],
-                    format: (value) => value.toStringAsFixed(0),
-                    divisions: true,
-                    textStyle: const pw.TextStyle(fontSize: 8),
-                  ),
-                ),
-                datasets: [
-                  pw.LineDataSet<pw.PointChartValue>(
-                    data: pointData,
-                    legend: 'Punkte',
-                    color: pdf.PdfColors.green,
-                    drawPoints: false,
-                    isCurved: true,
-                  ),
-                  pw.LineDataSet<pw.PointChartValue>(
-                    data: errorData,
-                    legend: 'Fehler',
-                    color: pdf.PdfColors.red,
-                    drawPoints: false,
-                    isCurved: true,
-                  ),
-                  pw.LineDataSet<pw.PointChartValue>(
-                    data: opponentErrorData,
-                    legend: 'Gegnerfehler',
-                    color: pdf.PdfColors.blue,
-                    drawPoints: false,
-                    isCurved: true,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    return _playerTimelineChartFromSamples(samples);
   }
 
   static pw.Widget _playerTimelineChartFromSamples(
@@ -1453,34 +1486,67 @@ class AppBackupService {
         ),
       );
     }).toDouble();
-    final matchStarts = samples
-        .asMap()
-        .entries
-        .where((entry) => entry.value.beginsMatch)
-        .map((entry) => entry.key)
-        .toList();
-    if (matchStarts.isEmpty || matchStarts.first != 0) {
-      matchStarts.insert(0, 0);
+    pdf.PdfColor? statusColor(MatchTrendSample sample) {
+      if (sample.playerInMatchRoster == null) return null;
+      if (sample.playerOnCourt == true) return pdf.PdfColor(0.82, 0.93, 0.82);
+      return sample.playerInMatchRoster!
+          ? pdf.PdfColor(1, 0.94, 0.7)
+          : pdf.PdfColor(0.96, 0.82, 0.82);
     }
-    final segmentWidths = <int>[];
-    for (var index = 0; index < matchStarts.length; index++) {
-      final next = index + 1 < matchStarts.length
-          ? matchStarts[index + 1]
-          : samples.length - 1;
-      final width = next - matchStarts[index];
-      if (width > 0) segmentWidths.add(width);
-    }
+
+    pw.Widget markerLegend({required String label, bool doubleLine = false}) =>
+        pw.Row(
+          mainAxisSize: pw.MainAxisSize.min,
+          children: [
+            pw.Container(width: 2.5, height: 9, color: pdf.PdfColors.grey800),
+            if (doubleLine) ...[
+              pw.SizedBox(width: 2),
+              pw.Container(
+                width: 2.5,
+                height: 9,
+                color: pdf.PdfColors.grey800,
+              ),
+            ],
+            pw.SizedBox(width: 4),
+            pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
+          ],
+        );
+
+    final hasPlayerStatus =
+        samples.any((sample) => sample.playerInMatchRoster != null);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        pw.Row(
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            _chartLegend(pdf.PdfColors.green, 'Punkte'),
-            pw.SizedBox(width: 16),
-            _chartLegend(pdf.PdfColors.red, 'Fehler'),
-            pw.SizedBox(width: 16),
-            _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
+            pw.Row(
+              children: [
+                _chartLegend(pdf.PdfColors.green, 'Punkte'),
+                pw.SizedBox(width: 12),
+                _chartLegend(pdf.PdfColors.red, 'Fehler'),
+                pw.SizedBox(width: 12),
+                _chartLegend(pdf.PdfColors.blue, 'Gegnerfehler'),
+              ],
+            ),
+            pw.SizedBox(height: 3),
+            pw.Row(
+              children: [
+                if (hasPlayerStatus) ...[
+                  _chartLegend(pdf.PdfColor(0.82, 0.93, 0.82), 'Auf dem Feld'),
+                  pw.SizedBox(width: 8),
+                  _chartLegend(pdf.PdfColor(1, 0.94, 0.7), 'Bank · gespielt'),
+                  pw.SizedBox(width: 8),
+                  _chartLegend(
+                      pdf.PdfColor(0.96, 0.82, 0.82), 'Nicht eingesetzt'),
+                  pw.SizedBox(width: 12),
+                ],
+                markerLegend(label: 'Satzende'),
+                pw.SizedBox(width: 8),
+                markerLegend(label: 'Spielende', doubleLine: true),
+              ],
+            ),
           ],
         ),
         pw.SizedBox(height: 8),
@@ -1488,17 +1554,15 @@ class AppBackupService {
           child: pw.Stack(
             fit: pw.StackFit.expand,
             children: [
-              if (segmentWidths.length > 1)
+              if (hasPlayerStatus)
                 pw.Positioned.fill(
                   child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                     children: [
-                      for (var index = 0; index < segmentWidths.length; index++)
+                      for (var index = 0; index < samples.length - 1; index++)
                         pw.Expanded(
-                          flex: segmentWidths[index],
                           child: pw.Container(
-                            color: index.isEven
-                                ? pdf.PdfColor(0.93, 0.97, 1)
-                                : pdf.PdfColor(1, 0.96, 0.9),
+                            color: statusColor(samples[index]),
                           ),
                         ),
                     ],
@@ -1518,7 +1582,7 @@ class AppBackupService {
                   yAxis: pw.FixedAxis<double>(
                     [0, math.max(1, maxValue)],
                     format: (value) => value.toStringAsFixed(0),
-                    divisions: true,
+                    divisions: false,
                     textStyle: const pw.TextStyle(fontSize: 8),
                   ),
                 ),
@@ -1545,6 +1609,40 @@ class AppBackupService {
                     isCurved: true,
                   ),
                 ],
+              ),
+              pw.Positioned.fill(
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: [
+                    for (var index = 1; index < samples.length; index++)
+                      pw.Expanded(
+                        child: pw.Container(
+                          alignment: pw.Alignment.centerRight,
+                          child: samples[index].endsMatch
+                              ? pw.Row(
+                                  mainAxisSize: pw.MainAxisSize.min,
+                                  children: [
+                                    pw.Container(
+                                      width: 2.5,
+                                      color: pdf.PdfColors.grey800,
+                                    ),
+                                    pw.SizedBox(width: 2),
+                                    pw.Container(
+                                      width: 2.5,
+                                      color: pdf.PdfColors.grey800,
+                                    ),
+                                  ],
+                                )
+                              : samples[index].endsSet
+                                  ? pw.Container(
+                                      width: 2.5,
+                                      color: pdf.PdfColors.grey800,
+                                    )
+                                  : null,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1773,16 +1871,26 @@ class AppBackupService {
     List<MatchGame>? sourceMatches,
     bool landscape = true,
     bool? continuous,
+    bool tiled = false,
     bool includeFullMatchDetails = false,
   }) async {
-    final useContinuous = continuous ?? await _choosePdfLayout(context);
-    if (useContinuous == null || !context.mounted) return;
+    final layout = tiled
+        ? _PdfExportLayout.tiledA4
+        : continuous == null
+            ? await _choosePdfLayout(context)
+            : continuous
+                ? _PdfExportLayout.continuous
+                : _PdfExportLayout.a4;
+    if (layout == null || !context.mounted) return;
+    final useContinuous = layout == _PdfExportLayout.continuous;
+    final useTiled = layout == _PdfExportLayout.tiledA4;
     final bytes = await buildMatchStatsPdf(
       match,
       title: title,
       sourceMatches: sourceMatches,
       landscape: useContinuous ? landscape : false,
       continuous: useContinuous,
+      tiled: useTiled,
       includeFullMatchDetails: includeFullMatchDetails,
     );
     if (!context.mounted) return;
@@ -1791,7 +1899,11 @@ class AppBackupService {
       sourceMatches == null || sourceMatches.isEmpty ? [match] : sourceMatches,
       extension: 'pdf',
       suffix:
-          '${includeFullMatchDetails ? 'gesamt' : 'statistik'}_${useContinuous ? 'endlos' : 'a4-hoch'}',
+          '${includeFullMatchDetails ? 'gesamt' : 'statistik'}_${switch (layout) {
+        _PdfExportLayout.continuous => 'endlos',
+        _PdfExportLayout.a4 => 'a4-hoch',
+        _PdfExportLayout.tiledA4 => 'a4-kachel',
+      }}',
     );
 
     if (platform == TargetPlatform.linux ||
@@ -1838,15 +1950,25 @@ class AppBackupService {
     BuildContext context,
     MatchGame match,
   ) async {
-    final continuous = await _choosePdfLayout(context);
-    if (continuous == null || !context.mounted) return;
-    final bytes = await buildMatchHistoryPdf(match, continuous: continuous);
+    final layout = await _choosePdfLayout(context);
+    if (layout == null || !context.mounted) return;
+    final continuous = layout == _PdfExportLayout.continuous;
+    final tiled = layout == _PdfExportLayout.tiledA4;
+    final bytes = await buildMatchHistoryPdf(
+      match,
+      continuous: continuous,
+      tiled: tiled,
+    );
     if (!context.mounted) return;
     final platform = Theme.of(context).platform;
     final suggestedName = matchExportFileName(
       [match],
       extension: 'pdf',
-      suffix: 'verlauf_${continuous ? 'endlos' : 'a4-hoch'}',
+      suffix: 'verlauf_${switch (layout) {
+        _PdfExportLayout.continuous => 'endlos',
+        _PdfExportLayout.a4 => 'a4-hoch',
+        _PdfExportLayout.tiledA4 => 'a4-kachel',
+      }}',
     );
 
     if (platform == TargetPlatform.linux ||
@@ -2819,24 +2941,32 @@ class AppBackupService {
     return true;
   }
 
-  static Future<bool?> _choosePdfLayout(BuildContext context) {
-    return showDialog<bool>(
+  static Future<_PdfExportLayout?> _choosePdfLayout(BuildContext context) {
+    return showDialog<_PdfExportLayout>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('PDF-Layout'),
         children: [
           SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () =>
+                Navigator.pop(context, _PdfExportLayout.continuous),
             child: const ListTile(
               leading: Icon(Icons.view_day_outlined),
               title: Text('Endlos (Bildschirm)'),
             ),
           ),
           SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context, _PdfExportLayout.a4),
             child: const ListTile(
               leading: Icon(Icons.print_outlined),
               title: Text('DIN A4 hoch (Druck)'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, _PdfExportLayout.tiledA4),
+            child: const ListTile(
+              leading: Icon(Icons.grid_on_outlined),
+              title: Text('DIN A4 Kachel (zum Kleben)'),
             ),
           ),
         ],

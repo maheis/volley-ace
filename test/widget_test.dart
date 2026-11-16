@@ -114,6 +114,119 @@ void main() {
     expect(alreadyRunning.stopwatchStartedAt, start);
   });
 
+  test('ending a match records an undoable event and pauses the clock', () {
+    final start = DateTime(2026, 10, 27, 12);
+    final match = MatchGame(
+      id: 1,
+      createdAt: start,
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: null,
+          playerName: 'Mannschaft',
+          playerNumber: 0,
+          kind: 'point',
+          category: 'Block',
+          occurredAt: start,
+        ),
+      ],
+      stopwatchRunning: true,
+      stopwatchElapsed: const Duration(minutes: 4),
+      stopwatchStartedAt: start,
+    );
+    final endEvent = MatchEvent(
+      id: 2,
+      playerId: null,
+      playerName: 'Spiel beendet',
+      playerNumber: 0,
+      kind: 'match_end',
+      category: 'Manuell',
+      occurredAt: start.add(const Duration(seconds: 45)),
+    );
+
+    final ended = recordMatchEvent(
+      match,
+      endEvent,
+      recordedAt: start.add(const Duration(seconds: 45)),
+    );
+
+    expect(matchIsEnded(ended), isTrue);
+    expect(ended.stopwatchRunning, isFalse);
+    expect(ended.stopwatchElapsed, const Duration(minutes: 4, seconds: 45));
+    expect(lastMatchActionEvent(ended)?.kind, 'match_end');
+    expect(matchIsEnded(undoLastMatchAction(ended)), isFalse);
+  });
+
+  testWidgets('scoring can end and undo a match', (WidgetTester tester) async {
+    final database = await databaseFactoryMemory.openDatabase('end-match.db');
+    final start = DateTime(2026, 10, 27, 12);
+    final match = MatchGame(
+      id: 90,
+      createdAt: start,
+      location: 'Halle',
+      opponentTeam: 'Team Rot',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: [
+        MatchEvent(
+          id: 1,
+          playerId: null,
+          playerName: 'Mannschaft',
+          playerNumber: 0,
+          kind: 'point',
+          category: 'Block',
+          occurredAt: start,
+        ),
+      ],
+    );
+    await tester.runAsync(
+      () => MatchStatsRepository(database).save(
+        MatchStatsState(matches: [match]),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MatchStatsPage(
+          database: database,
+          initialMatchId: match.id,
+          initialSection: 'scoring',
+        ),
+      ),
+    );
+    await _pumpUi(tester);
+
+    await tester.tap(find.byKey(const ValueKey('end-match-button')));
+    await _pumpUi(tester);
+    expect(find.text('Spiel beenden?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('confirm-end-match')));
+    await _pumpUi(tester);
+    expect(
+      tester
+          .widget<FilledButton>(
+              find.byKey(const ValueKey('record-point-button')))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('undo-last-match-action')));
+    await _pumpUi(tester);
+    expect(
+      tester
+          .widget<FilledButton>(
+              find.byKey(const ValueKey('record-point-button')))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   test('legacy opponent-error category is normalized', () {
     final event = MatchEvent.fromJson({
       'id': 1,
@@ -1599,6 +1712,7 @@ void main() {
       players: const [
         MatchPlayer(id: 1, name: 'Ada', number: 7),
         MatchPlayer(id: 2, name: 'Berta', number: 8),
+        MatchPlayer(id: 3, name: 'Cara', number: 10),
       ],
       events: [restored],
     );
@@ -1634,6 +1748,7 @@ void main() {
       players: const [
         MatchPlayer(id: 1, name: 'Ada', number: 7),
         MatchPlayer(id: 2, name: 'Berta', number: 8),
+        MatchPlayer(id: 3, name: 'Cara', number: 10),
       ],
       events: [restored],
     );
@@ -2002,6 +2117,7 @@ void main() {
     expect(find.text('PDF-Layout'), findsOneWidget);
     expect(find.text('Endlos (Bildschirm)'), findsOneWidget);
     expect(find.text('DIN A4 hoch (Druck)'), findsOneWidget);
+    expect(find.text('DIN A4 Kachel (zum Kleben)'), findsOneWidget);
     await tester.tapAt(const Offset(5, 5));
     await _pumpUi(tester);
     expect(find.text('PDF-Layout'), findsNothing);
@@ -2161,6 +2277,8 @@ void main() {
       false,
     ]);
     expect(samples[3].time, secondMatchTime);
+    expect(samples[3].playerOnCourt, isFalse);
+    expect(samples[3].playerInMatchRoster, isFalse);
     expect(samples.last.time, secondMatchTime.add(const Duration(minutes: 1)));
   });
 
@@ -2776,6 +2894,26 @@ void main() {
       double.parse(continuousPageBox.group(2)!),
       greaterThan(double.parse(continuousPageBox.group(1)!)),
     );
+
+    final tiledBytes = await AppBackupService.buildMatchStatsPdf(
+      combinedMatch,
+      title: 'Statistik · 2 Spiele',
+      sourceMatches: selectedMatches,
+      tiled: true,
+    );
+    final tiledPageBoxes = RegExp(
+      r'/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]',
+    ).allMatches(String.fromCharCodes(tiledBytes));
+    expect(tiledPageBoxes.length, greaterThan(1));
+    for (final pageBox in tiledPageBoxes) {
+      expect(double.parse(pageBox.group(1)!), closeTo(595.28, 1));
+      expect(double.parse(pageBox.group(2)!), closeTo(841.89, 1));
+    }
+    final previewDirectory = Platform.environment['VOLLEYACE_PDF_PREVIEW_DIR'];
+    if (previewDirectory != null) {
+      await Directory(previewDirectory).create(recursive: true);
+      await File('$previewDirectory/tiled.pdf').writeAsBytes(tiledBytes);
+    }
 
     final singleMatchBytes = await AppBackupService.buildMatchStatsPdf(
       match,
@@ -3416,6 +3554,8 @@ void main() {
       players: const [
         MatchPlayer(id: 1, name: 'Ada', number: 7),
         MatchPlayer(id: 2, name: 'Berta', number: 8),
+        MatchPlayer(id: 3, name: 'Cara', number: 10),
+        MatchPlayer(id: 4, name: 'Dora', number: 11),
       ],
       events: [
         event(1, 'point', 1, 0),
@@ -3431,6 +3571,7 @@ void main() {
           players: [
             RotationPlayer(id: 'match-1', name: 'Ada'),
             RotationPlayer(id: 'match-2', name: 'Berta'),
+            RotationPlayer(id: 'match-3', name: 'Cara', number: 10),
           ],
           positions: ['match-1', 'match-2', null],
         ),
@@ -3443,10 +3584,78 @@ void main() {
 
     expect(samples.first.playerOnCourt, isTrue);
     expect(samples[2].playerOnCourt, isFalse);
+    expect(samples[2].playerInMatchRoster, isTrue);
+    expect(samples[4].endsSet, isTrue);
     expect(samples[4].setNumber, 1);
-    expect(samples[5].playerOnCourt, isTrue);
+    expect(samples[5].playerOnCourt, isFalse);
+    expect(samples[5].playerInMatchRoster, isTrue);
     expect(samples[5].setNumber, 2);
+    expect(samples[6].playerOnCourt, isTrue);
     expect(samples.last.playerOnCourt, isTrue);
+    expect(samples.last.endsMatch, isTrue);
+
+    final unusedPlayerSamples = matchPlayerTrendSamples(match, [match], 3);
+    expect(unusedPlayerSamples.first.playerInMatchRoster, isTrue);
+    expect(unusedPlayerSamples.first.playerOnCourt, isFalse);
+    final absentPlayerSamples = matchPlayerTrendSamples(match, [match], 4);
+    expect(absentPlayerSamples.first.playerInMatchRoster, isFalse);
+    expect(absentPlayerSamples.first.playerOnCourt, isFalse);
+  });
+
+  testWidgets('player trend chart shows status colors and boundary legends', (
+    WidgetTester tester,
+  ) async {
+    final start = DateTime(2026, 10, 1, 18);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MatchStatsTrendChart(
+            title: 'Ada',
+            samples: [
+              MatchTrendSample(
+                time: start,
+                points: 0,
+                errors: 0,
+                opponentErrors: 0,
+                playerOnCourt: true,
+                playerInMatchRoster: true,
+                setNumber: 1,
+              ),
+              MatchTrendSample(
+                time: start.add(const Duration(minutes: 5)),
+                points: 1,
+                errors: 0,
+                opponentErrors: 0,
+                playerOnCourt: false,
+                playerInMatchRoster: true,
+                setNumber: 1,
+                endsSet: true,
+              ),
+              MatchTrendSample(
+                time: start.add(const Duration(minutes: 20)),
+                points: 1,
+                errors: 0,
+                opponentErrors: 0,
+                playerOnCourt: false,
+                playerInMatchRoster: false,
+                setNumber: 2,
+                endsMatch: true,
+              ),
+            ],
+            timeoutMarkers: const [],
+            height: 180,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Auf dem Feld'), findsOneWidget);
+    expect(find.text('Bank · gespielt'), findsOneWidget);
+    expect(find.text('Nicht eingesetzt'), findsOneWidget);
+    expect(find.text('Satzende'), findsOneWidget);
+    expect(find.text('Spielende'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('trend-chart-content-Ada')), findsOneWidget);
   });
 
   testWidgets('match overview filters and multi-statistics show match details',
@@ -3508,6 +3717,15 @@ void main() {
       players: const [MatchPlayer(id: 2, name: 'Berta', number: 8)],
       events: [scoreEvent(1, 2, 'Berta', 'error', secondStart)],
     );
+    final combinedMatches = combineMatchesForStatistics(
+      [firstMatch, secondMatch],
+    );
+    final adaTrendSamples = matchPlayerTrendSamples(
+      combinedMatches,
+      [firstMatch, secondMatch],
+      combinedMatches.players.singleWhere((player) => player.name == 'Ada').id,
+    );
+    expect(adaTrendSamples.first.playerInMatchRoster, isTrue);
     await tester.runAsync(
       () => MatchStatsRepository(database).save(
         MatchStatsState(matches: [firstMatch, secondMatch]),
@@ -3559,14 +3777,6 @@ void main() {
     expect(find.textContaining('Trainer: Coach Mara'), findsOneWidget);
     expect(find.textContaining('Spieler: Ada · 7'), findsOneWidget);
     expect(find.textContaining('Sätze: 1:0'), findsOneWidget);
-    final courtLegend = find.text('Satz 1 · auf dem Feld');
-    await tester.scrollUntilVisible(
-      courtLegend,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await _pumpUi(tester);
-    expect(courtLegend, findsOneWidget);
   });
 
   testWidgets('Teams with players and coaches are persisted', (

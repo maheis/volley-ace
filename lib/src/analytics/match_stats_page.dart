@@ -500,7 +500,7 @@ MatchGame recordMatchEvent(MatchGame match, MatchEvent event,
       computeMatchSetResults(updated).where((set) => set.isFinished).length;
   final setEnded =
       finishedSets > previousSets.where((set) => set.isFinished).length;
-  if (setEnded && updated.stopwatchRunning) {
+  if ((setEnded || event.kind == 'match_end') && updated.stopwatchRunning) {
     final startedAt = updated.stopwatchStartedAt;
     final elapsed = startedAt == null || now.isBefore(startedAt)
         ? Duration.zero
@@ -513,6 +513,9 @@ MatchGame recordMatchEvent(MatchGame match, MatchEvent event,
   }
   return updated;
 }
+
+bool matchIsEnded(MatchGame match) =>
+    match.events.any((event) => event.kind == 'match_end');
 
 List<MatchSetResult> computeMatchSetResults(MatchGame match) {
   final sortedEvents = List<MatchEvent>.from(match.events)
@@ -596,7 +599,10 @@ class MatchTrendSample {
     this.matchIndex = 0,
     this.beginsMatch = false,
     this.playerOnCourt,
+    this.playerInMatchRoster,
     this.setNumber,
+    this.endsSet = false,
+    this.endsMatch = false,
   });
 
   final DateTime time;
@@ -606,7 +612,10 @@ class MatchTrendSample {
   final int matchIndex;
   final bool beginsMatch;
   final bool? playerOnCourt;
+  final bool? playerInMatchRoster;
   final int? setNumber;
+  final bool endsSet;
+  final bool endsMatch;
 }
 
 List<MatchTrendSample> matchPlayerTrendSamples(
@@ -655,7 +664,29 @@ List<MatchTrendSample> matchPlayerTrendSamples(
         return timeOrder != 0 ? timeOrder : first.id.compareTo(second.id);
       });
     final rotation = sourceMatch.rotationSetup;
-    final isCourtTracked = sourcePlayer != null && rotation != null;
+
+    bool eventBelongsToPlayer(MatchEvent event) {
+      if (sourcePlayer != null && event.scorerIds.contains(sourcePlayer.id)) {
+        return true;
+      }
+      bool nameMatches(String? name, int? number) =>
+          name?.trim().toLowerCase() ==
+              combinedPlayer.name.trim().toLowerCase() &&
+          (number == null || number == 0 || number == combinedPlayer.number);
+      return nameMatches(event.playerName, event.playerNumber) ||
+          nameMatches(event.replacedPlayerName, event.replacedPlayerNumber);
+    }
+
+    final rotationRostered = rotation?.left.players.any((player) =>
+            player.name.trim().toLowerCase() ==
+                combinedPlayer.name.trim().toLowerCase() &&
+            (player.number == null ||
+                player.number == combinedPlayer.number)) ==
+        true;
+    final hasRecordedParticipation = events.any(eventBelongsToPlayer);
+    final playerInMatchRoster = rotation == null
+        ? sourcePlayer != null || hasRecordedParticipation
+        : rotationRostered || hasRecordedParticipation;
 
     Set<int> playerIdsOnCourt(RotationTeamState? team) {
       if (team == null) return <int>{};
@@ -676,13 +707,56 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       return ids;
     }
 
-    var onCourtPlayerIds = playerIdsOnCourt(rotation?.left);
+    final initialOnCourtPlayerIds = playerIdsOnCourt(rotation?.left);
+    var onCourtPlayerIds = Set<int>.from(initialOnCourtPlayerIds);
+    final playedInSet = <int, bool>{};
     var ourSetScore = 0;
     var opponentSetScore = 0;
     var setNumber = 1;
 
-    void applyLineup(ScoreboardRotationState lineup) {
-      onCourtPlayerIds = playerIdsOnCourt(lineup.left);
+    bool playerIsOnCourt() {
+      if (rotation != null && sourcePlayer != null) {
+        return onCourtPlayerIds.contains(sourcePlayer.id);
+      }
+      return playedInSet[setNumber] ?? false;
+    }
+
+    void applyRotationEvent(MatchEvent event, Set<int> ids) {
+      if (event.kind == 'lineup' && event.rotationState != null) {
+        ids
+          ..clear()
+          ..addAll(playerIdsOnCourt(event.rotationState!.left));
+      } else if (event.kind == 'substitution') {
+        if (event.replacedPlayerId != null) {
+          ids.remove(event.replacedPlayerId);
+        }
+        if (event.playerId != null) ids.add(event.playerId!);
+      }
+    }
+
+    bool setFinishedFor(MatchEvent event, int us, int opponent) =>
+        event.kind == _manualSetEndKind ||
+        (us >= 25 && us - opponent >= 2) ||
+        (opponent >= 25 && opponent - us >= 2);
+
+    var scanSetNumber = 1;
+    var scanUs = 0;
+    var scanOpponent = 0;
+    for (final event in events) {
+      if (eventBelongsToPlayer(event) &&
+          (event.kind == 'point' || event.kind == 'error')) {
+        playedInSet[scanSetNumber] = true;
+      }
+      if (event.kind == 'point') {
+        scanUs++;
+      } else if (event.kind == 'error') {
+        scanOpponent++;
+      }
+      if (setFinishedFor(event, scanUs, scanOpponent)) {
+        scanSetNumber++;
+        scanUs = 0;
+        scanOpponent = 0;
+      }
     }
 
     samples.add(MatchTrendSample(
@@ -692,21 +766,14 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       opponentErrors: opponentErrors,
       matchIndex: matchIndex,
       beginsMatch: true,
-      playerOnCourt:
-          isCourtTracked ? onCourtPlayerIds.contains(sourcePlayer.id) : null,
+      playerOnCourt: playerIsOnCourt(),
+      playerInMatchRoster: playerInMatchRoster,
       setNumber: setNumber,
     ));
     for (final event in events) {
-      if (event.kind == 'lineup' && event.rotationState != null) {
-        applyLineup(event.rotationState!);
-      } else if (event.kind == 'substitution') {
-        if (event.replacedPlayerId != null) {
-          onCourtPlayerIds.remove(event.replacedPlayerId);
-        }
-        if (event.playerId != null) onCourtPlayerIds.add(event.playerId!);
-      }
+      applyRotationEvent(event, onCourtPlayerIds);
 
-      if (sourcePlayer != null && event.scorerIds.contains(sourcePlayer.id)) {
+      if (eventBelongsToPlayer(event)) {
         if (event.kind == 'point') {
           points++;
           if (event.category == 'Gegnerfehler') opponentErrors++;
@@ -719,23 +786,32 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       } else if (event.kind == 'error') {
         opponentSetScore++;
       }
+      final setFinished = setFinishedFor(event, ourSetScore, opponentSetScore);
       samples.add(MatchTrendSample(
         time: event.occurredAt,
         points: points,
         errors: errors,
         opponentErrors: opponentErrors,
         matchIndex: matchIndex,
-        playerOnCourt:
-            isCourtTracked ? onCourtPlayerIds.contains(sourcePlayer.id) : null,
+        playerOnCourt: playerIsOnCourt(),
+        playerInMatchRoster: playerInMatchRoster,
         setNumber: setNumber,
+        endsSet: setFinished,
       ));
-      final setFinished = event.kind == _manualSetEndKind ||
-          (ourSetScore >= 25 && ourSetScore - opponentSetScore >= 2) ||
-          (opponentSetScore >= 25 && opponentSetScore - ourSetScore >= 2);
       if (setFinished) {
         setNumber++;
         ourSetScore = 0;
         opponentSetScore = 0;
+        samples.add(MatchTrendSample(
+          time: event.occurredAt,
+          points: points,
+          errors: errors,
+          opponentErrors: opponentErrors,
+          matchIndex: matchIndex,
+          playerOnCourt: playerIsOnCourt(),
+          playerInMatchRoster: playerInMatchRoster,
+          setNumber: setNumber,
+        ));
       }
     }
     samples.add(MatchTrendSample(
@@ -744,9 +820,10 @@ List<MatchTrendSample> matchPlayerTrendSamples(
       errors: errors,
       opponentErrors: opponentErrors,
       matchIndex: matchIndex,
-      playerOnCourt:
-          isCourtTracked ? onCourtPlayerIds.contains(sourcePlayer.id) : null,
+      playerOnCourt: playerIsOnCourt(),
+      playerInMatchRoster: playerInMatchRoster,
       setNumber: setNumber,
+      endsMatch: true,
     ));
   }
   return samples;
@@ -1026,7 +1103,8 @@ MatchEvent? lastMatchActionEvent(MatchGame match) {
           event.kind == 'substitution' ||
           event.kind == 'manual_rotation' ||
           event.kind == 'serving_side' ||
-          event.kind == 'lineup')
+          event.kind == 'lineup' ||
+          event.kind == 'match_end')
       .toList()
     ..sort((first, second) {
       final timeOrder = first.occurredAt.compareTo(second.occurredAt);
@@ -2355,6 +2433,41 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _replaceMatch(recordMatchEvent(match, events.last));
   }
 
+  Future<void> _endMatch(MatchGame match) async {
+    if (matchIsEnded(match)) return;
+    final shouldEnd = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Spiel beenden?'),
+        content: Text(
+          'Das Spiel${match.opponentTeam.isEmpty ? '' : ' gegen ${match.opponentTeam}'} wird im Verlauf als beendet markiert. Du kannst den Schritt über „Rückgängig“ zurücknehmen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Weiter spielen'),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-end-match'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Spiel beenden'),
+          ),
+        ],
+      ),
+    );
+    if (shouldEnd != true || !mounted) return;
+    final event = MatchEvent(
+      id: match.events.length + 1,
+      playerId: null,
+      playerName: 'Spiel beendet',
+      playerNumber: 0,
+      kind: 'match_end',
+      category: 'Manuell',
+      occurredAt: DateTime.now(),
+    );
+    _replaceMatch(recordMatchEvent(match, event));
+  }
+
   int? _servingPlayerId(MatchGame match) {
     final rotation = _rotationAfterEvents(match);
     if (rotation == null || rotation.servingSide != 0) return null;
@@ -3481,6 +3594,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Future<void> _configureMatchRotation(MatchGame match) async {
+    if (matchIsEnded(match)) return;
     final canSetNextLineup = _lastSetIsFinished(match);
     final initial = canSetNextLineup
         ? (_rotationAfterEvents(match) ?? _initialRotationForMatch(match))
@@ -3526,16 +3640,19 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Widget _buildRotationSetupButton(MatchGame match) {
     return OutlinedButton.icon(
       key: const ValueKey('match-rotation-setup-button'),
-      onPressed: _matchHasScoredPoints(match) && !_lastSetIsFinished(match)
+      onPressed: matchIsEnded(match) ||
+              (_matchHasScoredPoints(match) && !_lastSetIsFinished(match))
           ? null
           : () => _configureMatchRotation(match),
       icon: const Icon(Icons.rotate_right),
       label: Text(
-        _lastSetIsFinished(match)
-            ? 'Startaufstellung für nächsten Satz festlegen'
-            : match.rotationSetup == null
-                ? 'Startaufstellung und Rotation festlegen'
-                : 'Startaufstellung bearbeiten',
+        matchIsEnded(match)
+            ? 'Spiel beendet'
+            : _lastSetIsFinished(match)
+                ? 'Startaufstellung für nächsten Satz festlegen'
+                : match.rotationSetup == null
+                    ? 'Startaufstellung und Rotation festlegen'
+                    : 'Startaufstellung bearbeiten',
       ),
     );
   }
@@ -3546,6 +3663,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   Widget _buildMatchRotation(MatchGame match) {
     final rotation = _rotationAfterEvents(match)!;
+    final isMatchEnded = matchIsEnded(match);
     final sourceTeam = match.teamId == null
         ? null
         : _teams.cast<Team?>().firstWhere(
@@ -3559,15 +3677,21 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           ? const Color(0xFF1976D2)
           : Color(sourceTeam!.primaryColorValue!),
       showOnLeft: match.rotationIsOnLeft,
-      onSideChanged: (showOnLeft) => _replaceMatch(
-        match.copyWith(rotationIsOnLeft: showOnLeft),
-      ),
-      onSubstitute: (position) => _chooseSubstituteForPosition(match, position),
-      onEdit: _matchHasScoredPoints(match) && !_lastSetIsFinished(match)
+      onSideChanged: isMatchEnded
+          ? null
+          : (showOnLeft) => _replaceMatch(
+                match.copyWith(rotationIsOnLeft: showOnLeft),
+              ),
+      onSubstitute: isMatchEnded
+          ? null
+          : (position) => _chooseSubstituteForPosition(match, position),
+      onEdit: isMatchEnded ||
+              (_matchHasScoredPoints(match) && !_lastSetIsFinished(match))
           ? null
           : () => _configureMatchRotation(match),
-      onManualRotate: () => _rotateMatchManually(match),
-      onServingSideChanged: () => _changeServingSide(match),
+      onManualRotate: isMatchEnded ? null : () => _rotateMatchManually(match),
+      onServingSideChanged:
+          isMatchEnded ? null : () => _changeServingSide(match),
     );
   }
 
@@ -3575,6 +3699,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     MatchGame match,
     int position,
   ) async {
+    if (matchIsEnded(match)) return;
     final rotation = _rotationAfterEvents(match);
     if (rotation == null) return;
     final outgoingId = position < rotation.left.positions.length
@@ -3811,6 +3936,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   Widget _buildScoringView(MatchGame match) {
+    final isMatchEnded = matchIsEnded(match);
     final sets = _computeSets(match);
     final teamTimeouts = match.events
         .where(
@@ -3868,6 +3994,14 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             tooltip: 'Verlauf',
             onPressed: () => _openMatchHistory(match),
           ),
+          IconButton(
+            key: const ValueKey('end-match-button'),
+            tooltip: isMatchEnded ? 'Spiel ist beendet' : 'Spiel beenden',
+            onPressed: isMatchEnded ? null : () => _endMatch(match),
+            icon: Icon(
+              isMatchEnded ? Icons.flag : Icons.flag_outlined,
+            ),
+          ),
           PopupMenuButton<String>(
             key: const ValueKey('scoring-more-menu'),
             tooltip: 'Weitere Aktionen',
@@ -3893,6 +4027,17 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (isMatchEnded)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Card(
+                    child: ListTile(
+                      leading: Icon(Icons.flag),
+                      title: Text('Spiel beendet'),
+                      subtitle: Text('Mit „Rückgängig“ wieder fortsetzen.'),
+                    ),
+                  ),
+                ),
               Row(
                 children: [
                   Expanded(child: _ClockTile(clockText: _clockText)),
@@ -3913,7 +4058,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 height: 140,
                 child: FilledButton.icon(
                   key: const ValueKey('record-point-button'),
-                  onPressed: () => _startEventSelection(match, isPoint: true),
+                  onPressed: isMatchEnded
+                      ? null
+                      : () => _startEventSelection(match, isPoint: true),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFaed581),
                     foregroundColor: Colors.white,
@@ -3937,7 +4084,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 height: 140,
                 child: FilledButton.icon(
                   key: const ValueKey('record-error-button'),
-                  onPressed: () => _startEventSelection(match, isPoint: false),
+                  onPressed: isMatchEnded
+                      ? null
+                      : () => _startEventSelection(match, isPoint: false),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFe57373),
                     foregroundColor: Colors.white,
@@ -3961,8 +4110,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 height: 92,
                 child: FilledButton.icon(
                   key: const ValueKey('record-timeout-button'),
-                  onPressed:
-                      timeoutsAvailable ? () => _recordTimeout(match) : null,
+                  onPressed: !isMatchEnded && timeoutsAvailable
+                      ? () => _recordTimeout(match)
+                      : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFfff176),
                     foregroundColor: Colors.black,
@@ -3990,7 +4140,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   key: const ValueKey('finish-set-button'),
-                  onPressed: () => _endSetManually(match),
+                  onPressed: isMatchEnded ? null : () => _endSetManually(match),
                   icon: const Icon(Icons.flag_outlined),
                   label: const Text('Satz beenden'),
                 ),
@@ -4279,7 +4429,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             const SizedBox(height: 12),
             _TrendChartCard(
               title: 'Zeitverlauf gesamt',
-              samples: _trendSamples(match),
+              samples: _trendSamples(match, sourceMatches: sourceMatches),
               timeoutMarkers: _timeoutMarkers(match),
               matchRanges: matchRanges,
               height: 220,
@@ -4380,32 +4530,73 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       return const <MatchTrendSample>[];
     }
 
+    final matchEndTimes = sourceMatches == null
+        ? <DateTime>{events.last.occurredAt}
+        : <DateTime>{
+            for (final sourceMatch in sourceMatches)
+              if (sourceMatch.events.isNotEmpty)
+                (List<MatchEvent>.from(sourceMatch.events)
+                      ..sort((first, second) {
+                        final timeOrder =
+                            first.occurredAt.compareTo(second.occurredAt);
+                        return timeOrder != 0
+                            ? timeOrder
+                            : first.id.compareTo(second.id);
+                      }))
+                    .last
+                    .occurredAt,
+          };
+
     final samples = <MatchTrendSample>[
       MatchTrendSample(
         time: events.first.occurredAt,
         points: 0,
         errors: 0,
         opponentErrors: 0,
+        beginsMatch: true,
+        setNumber: 1,
       ),
     ];
     var points = 0;
     var errors = 0;
     var opponentErrors = 0;
+    var ourSetScore = 0;
+    var opponentSetScore = 0;
+    var setNumber = 1;
     for (final event in events) {
       if (event.kind == 'point') {
         points++;
+        ourSetScore++;
         if (event.category == _opponentErrorCategory) opponentErrors++;
       } else if (event.kind == 'error') {
         errors++;
+        opponentSetScore++;
       }
+      final setFinished = event.kind == _manualSetEndKind ||
+          (ourSetScore >= 25 && ourSetScore - opponentSetScore >= 2) ||
+          (opponentSetScore >= 25 && opponentSetScore - ourSetScore >= 2);
+      final matchFinished = matchEndTimes.contains(event.occurredAt);
       samples.add(
         MatchTrendSample(
           time: event.occurredAt,
           points: points,
           errors: errors,
           opponentErrors: opponentErrors,
+          setNumber: setNumber,
+          endsSet: setFinished,
+          endsMatch: matchFinished,
         ),
       );
+      if (setFinished) {
+        setNumber++;
+        ourSetScore = 0;
+        opponentSetScore = 0;
+      }
+      if (matchFinished) {
+        setNumber = 1;
+        ourSetScore = 0;
+        opponentSetScore = 0;
+      }
     }
     return samples;
   }
@@ -5055,15 +5246,15 @@ class _SelectedMatchesSummary extends StatelessWidget {
 double trendChartMaxTimeScale(int sampleCount) =>
     (sampleCount / 4).clamp(16.0, 64.0).toDouble();
 
-const List<Color> _courtSetColors = <Color>[
-  Color(0xFF66BB6A),
-  Color(0xFF26A69A),
-  Color(0xFFFFB74D),
-  Color(0xFF64B5F6),
-];
+const Color _onCourtBandColor = Color(0xFF43A047);
+const Color _benchBandColor = Color(0xFFF9A825);
+const Color _notPlayedBandColor = Color(0xFFE53935);
 
-Color _courtSetColor(int setNumber) =>
-    _courtSetColors[(setNumber - 1) % _courtSetColors.length];
+Color? _playerStatusBandColor(MatchTrendSample sample) {
+  if (sample.playerInMatchRoster == null) return null;
+  if (sample.playerOnCourt == true) return _onCourtBandColor;
+  return sample.playerInMatchRoster! ? _benchBandColor : _notPlayedBandColor;
+}
 
 class _TrendChartCard extends StatefulWidget {
   const _TrendChartCard({
@@ -5096,13 +5287,8 @@ class _TrendChartCardState extends State<_TrendChartCard> {
 
   @override
   Widget build(BuildContext context) {
-    final trackedSets = widget.samples
-        .where((sample) => sample.playerOnCourt == true)
-        .map((sample) => sample.setNumber)
-        .whereType<int>()
-        .toSet()
-        .toList()
-      ..sort();
+    final hasPlayerStatus =
+        widget.samples.any((sample) => sample.playerInMatchRoster != null);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -5157,11 +5343,28 @@ class _TrendChartCardState extends State<_TrendChartCard> {
                   color: Color(0xFFFFB74D),
                   label: 'Auszeit',
                 ),
-                for (final setNumber in trackedSets)
-                  _TrendLegendBand(
-                    color: _courtSetColor(setNumber),
-                    label: 'Satz $setNumber · auf dem Feld',
+                const _TrendLegendLine(
+                  color: Color(0xFF424242),
+                  label: 'Satzende',
+                ),
+                const _TrendLegendDoubleLine(
+                  color: Color(0xFF424242),
+                  label: 'Spielende',
+                ),
+                if (hasPlayerStatus) ...[
+                  const _TrendLegendBand(
+                    color: _onCourtBandColor,
+                    label: 'Auf dem Feld',
                   ),
+                  const _TrendLegendBand(
+                    color: _benchBandColor,
+                    label: 'Bank · gespielt',
+                  ),
+                  const _TrendLegendBand(
+                    color: _notPlayedBandColor,
+                    label: 'Nicht eingesetzt',
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -5289,6 +5492,25 @@ class _TrendLegendBand extends StatelessWidget {
       );
 }
 
+class _TrendLegendDoubleLine extends StatelessWidget {
+  const _TrendLegendDoubleLine({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 2, height: 12, color: color),
+          const SizedBox(width: 2),
+          Container(width: 2, height: 12, color: color),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      );
+}
+
 class _TrendChartPainter extends CustomPainter {
   _TrendChartPainter({
     required this.samples,
@@ -5330,39 +5552,13 @@ class _TrendChartPainter extends CustomPainter {
       return chartRect.left + chartRect.width * relative;
     }
 
-    if (matchRanges.length > 1) {
-      final bandColors = [
-        const Color(0xFF42A5F5).withValues(alpha: 0.1),
-        const Color(0xFFFFB74D).withValues(alpha: 0.1),
-      ];
-      var rangeOffset = 0.0;
-      for (var index = 0; index < matchRanges.length; index++) {
-        final range = matchRanges[index];
-        final left = chartRect.left +
-            (rangeOffset - firstPosition) / span * chartRect.width;
-        rangeOffset += range.durationMilliseconds;
-        final right = chartRect.left +
-            (rangeOffset - firstPosition) / span * chartRect.width;
-        if (right <= left) continue;
-        canvas.drawRect(
-          Rect.fromLTRB(
-            left.clamp(chartRect.left, chartRect.right),
-            chartRect.top,
-            right.clamp(chartRect.left, chartRect.right),
-            chartRect.bottom,
-          ),
-          Paint()..color = bandColors[index % bandColors.length],
-        );
-      }
-    }
-
     for (var index = 0; index < samples.length - 1; index++) {
       final sample = samples[index];
-      if (sample.playerOnCourt != true) continue;
+      final statusColor = _playerStatusBandColor(sample);
+      if (statusColor == null) continue;
       final left = xFor(sample.time);
       final right = xFor(samples[index + 1].time);
       if (right <= left) continue;
-      final color = _courtSetColor(sample.setNumber ?? 1);
       canvas.drawRect(
         Rect.fromLTRB(
           left.clamp(chartRect.left, chartRect.right),
@@ -5370,33 +5566,13 @@ class _TrendChartPainter extends CustomPainter {
           right.clamp(chartRect.left, chartRect.right),
           chartRect.bottom,
         ),
-        Paint()..color = color.withValues(alpha: 0.14),
+        Paint()..color = statusColor.withValues(alpha: 0.2),
       );
     }
 
-    final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..strokeWidth = 1;
     final axisPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.35)
       ..strokeWidth = 1.5;
-
-    for (var i = 1; i <= 3; i++) {
-      final y = chartRect.top + chartRect.height * i / 4;
-      canvas.drawLine(
-        Offset(chartRect.left, y),
-        Offset(chartRect.right, y),
-        gridPaint,
-      );
-    }
-    for (var i = 1; i <= 3; i++) {
-      final x = chartRect.left + chartRect.width * i / 4;
-      canvas.drawLine(
-        Offset(x, chartRect.top),
-        Offset(x, chartRect.bottom),
-        gridPaint,
-      );
-    }
 
     canvas.drawLine(chartRect.bottomLeft, chartRect.topLeft, axisPaint);
     canvas.drawLine(chartRect.bottomLeft, chartRect.bottomRight, axisPaint);
@@ -5470,6 +5646,32 @@ class _TrendChartPainter extends CustomPainter {
     paintSeries(pointSeries, Colors.greenAccent);
     paintSeries(errorSeries, const Color(0xFFe57373));
     paintSeries(opponentErrorSeries, const Color(0xFF64B5F6));
+
+    final boundaryPaint = Paint()
+      ..color = const Color(0xFF424242).withValues(alpha: 0.9)
+      ..strokeWidth = 3;
+    for (final sample in samples) {
+      if (sample.endsMatch) {
+        final x = xFor(sample.time);
+        canvas.drawLine(
+          Offset(x - 3, chartRect.top),
+          Offset(x - 3, chartRect.bottom),
+          boundaryPaint,
+        );
+        canvas.drawLine(
+          Offset(x + 3, chartRect.top),
+          Offset(x + 3, chartRect.bottom),
+          boundaryPaint,
+        );
+      } else if (sample.endsSet) {
+        final x = xFor(sample.time);
+        canvas.drawLine(
+          Offset(x, chartRect.top),
+          Offset(x, chartRect.bottom),
+          boundaryPaint,
+        );
+      }
+    }
 
     const labelStyle = TextStyle(
       color: Colors.white70,
@@ -5588,6 +5790,8 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
         return 'Aufschlag';
       case 'lineup':
         return 'Aufstellung';
+      case 'match_end':
+        return 'Spielende';
       default:
         return 'Sonstige';
     }
@@ -5790,6 +5994,7 @@ class _MatchHistoryTimeline extends StatelessWidget {
   }
 
   String _kindLabel(MatchEvent entry) {
+    if (entry.kind == 'match_end') return 'Spielende';
     if (entry.kind == _timeoutKind) return 'Auszeit';
     if (entry.kind == _manualSetEndKind) return 'Satzende';
     if (entry.kind == 'substitution') return 'Spielerwechsel';
@@ -6024,21 +6229,24 @@ class _HistoryTimelineRow extends StatelessWidget {
     final isPoint = event.kind == 'point';
     final isTimeout = event.kind == _timeoutKind;
     final isManualSetEnd = event.kind == _manualSetEndKind;
+    final isMatchEnd = event.kind == 'match_end';
     final isSubstitution = event.kind == 'substitution';
     final isRotationHistory = event.kind == 'lineup' ||
         event.kind == 'manual_rotation' ||
         event.kind == 'serving_side';
     final eventColor = isTimeout
         ? AppPalette.orange
-        : isManualSetEnd || isSubstitution || isRotationHistory
+        : isManualSetEnd || isMatchEnd || isSubstitution || isRotationHistory
             ? Theme.of(context).colorScheme.primary
             : isPoint
                 ? AppPalette.green
                 : AppPalette.red;
     final textTheme = Theme.of(context).textTheme;
-    final scoreText = isTimeout || isManualSetEnd
-        ? 'Satz ${entry.setNumber}'
-        : '${entry.ourScore} : ${entry.opponentScore}';
+    final scoreText = isMatchEnd
+        ? 'Spiel beendet'
+        : isTimeout || isManualSetEnd
+            ? 'Satz ${entry.setNumber}'
+            : '${entry.ourScore} : ${entry.opponentScore}';
 
     return Column(
       children: [
@@ -6129,13 +6337,15 @@ class _HistoryTimelineRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        isTimeout
-                            ? 'Team-Auszeit'
-                            : isSubstitution
-                                ? '${event.replacedPlayerName ?? 'Unbekannt'}${event.replacedPlayerNumber == null ? '' : ' · ${event.replacedPlayerNumber}'} → ${event.playerName} · Position ${(event.rotationPosition ?? 0) + 1}'
-                                : isRotationHistory
-                                    ? rotationHistoryDescription(event)
-                                    : '${event.playerName}  •  ${event.category}',
+                        isMatchEnd
+                            ? 'Spiel manuell beendet'
+                            : isTimeout
+                                ? 'Team-Auszeit'
+                                : isSubstitution
+                                    ? '${event.replacedPlayerName ?? 'Unbekannt'}${event.replacedPlayerNumber == null ? '' : ' · ${event.replacedPlayerNumber}'} → ${event.playerName} · Position ${(event.rotationPosition ?? 0) + 1}'
+                                    : isRotationHistory
+                                        ? rotationHistoryDescription(event)
+                                        : '${event.playerName}  •  ${event.category}',
                         style: textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),

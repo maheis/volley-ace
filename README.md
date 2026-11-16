@@ -375,19 +375,25 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] filter für punkterwertung übersicht, nach z.b. gegner, spielort, spieler etc.
 - [x] statistik meherer spiele soll wie beim export die spiel infos darstellen
 - [x] im diagramm soll farblich dargestellt werden, in welchen sätzen bzw. zeiten der spieler auf dem feld war
-- [ ] satzfarbe wenn ein spieler auf dem feld ist einheitlich darstellen, oder sätze anderes darstellen
 - [x] filter als freitext-filter (einzelnes textfeld) umsetzten
 - [x] punktewertung die startspieler in die hostorie schreiben
 - [x] rotation in die hostorie schreiben (wichitg ist manuelle rotation und aufschlaganpassung historiesieren)
 - [x] satzbeenden muss punkte 0en
 - [x] kompletter export, und import mit "merge" Funktion
+- [x] Export mit fortlaufendem A4-Kacheldruck und hartem Zuschnitt zum Zusammenkleben
+- [x] Spielerstatus im Satzdiagramm einheitlich: grün auf dem Feld, gelb bei Kader/Bank, rot nur wenn nicht im Matchkader
+- [x] Raster entfernen; Satzende mit kräftigem Strich, Spielende mit Doppelstrich; auch im PDF-Export
+- [x] Statistik- und Exportdiagramme für Statusfarben und Markierungen angleichen
+- [x] spiel als beendet markiern
+- [ ] 
 
 ## PDF-Export und Dateinamen
 
-Statistik, Gesamtexport und Spielverlauf bieten beim PDF-Export zwei Layouts:
+Statistik, Gesamtexport und Spielverlauf bieten beim PDF-Export drei Layouts:
 
 - **Endlos (Bildschirm):** eine lange Seite ohne Seitenwechsel. Die Seitenhoehe richtet sich nach dem Inhalt; es wird kein pauschaler leerer Anhang angehaengt.
 - **DIN A4 hoch (Druck):** Seite 1 mit Spielinfos sowie gruppiertem Punkte-/Fehler-Diagramm und Tabelle nach Hauptkategorie. Danach folgen Gesamt-Zeitverlauf, Spieluebersicht und Spieleruebersicht. Die Spieler-Zeitverlaeufe stehen auf eigenen Seiten mit maximal drei Spielern pro Seite; bei weniger Spielern wird die verfuegbare Hoehe auf deren Diagramme verteilt.
+- **DIN A4 Kachel (zum Kleben):** Der fortlaufende Statistikbericht wird ohne Umbruch neu zu layouten in feste A4-Fenster aufgeteilt und an den Blattgrenzen hart abgeschnitten. Oben gibt es keinen Rand, seitlich und unten jeweils 0,5 cm; der untere Rand dient als Schnitt-/Klebekante.
 
 Unterkategorien bleiben als separate Detailtabelle erhalten. Beide Layouts enthalten ausserdem Fehler pro Spieler nach Fehlerart mit Anzahl und Gesamtsumme; Spieler ohne Fehler werden mit 0 ausgewiesen. An den Spieler-Zeitverlaeufen stehen Punkte und Fehler zusaetzlich als Zahlen. Sehr grosse Kategorie- oder Uebersichtstabellen werden auf Folgeseiten fortgesetzt. Bei mehreren Partien folgen die Einzelberichte nach demselben Aufbau; Spielbericht und Verlauf bleiben im Gesamtexport enthalten.
 
