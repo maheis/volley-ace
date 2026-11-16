@@ -1,0 +1,104 @@
+# todo_archive
+
+- [x] Toast ist weiß!
+- [x] Landscape Modus Punktetafel soll automatisch Zoom machen (Pinch to Zoom entfernen)
+- [x] Icon (z.B. taskbar)
+- [x] Settings auf deutsch
+- [-] Sportschrift
+- [x] Appname aktuell mit unterstich
+- [x] Farbe rosa in die App übernehmen?
+      -> Nehme doch das hellblau/mint
+- [x] Verlaufdarstellung wie einen Versionsgraphen
+- [x] Zurück Geste soll nur eine Seite zurück gehen
+- [x] Weitere Trainer in der Punktewertung optional hinzufügen
+- [x] Button für Spieler hinzufügen in der Punktewertung ist vollflächig Rot.
+- [x] Sicherheitsabfrage vor löschen
+- [x] 2.Highlight-Color für Buttons Auswählbar, per default alles Orange
+- [x] Punktewertung soll "Punktewertung" und nicht "match" als Namenhint
+- [x] Taktiktafel
+  - [x] Touch Button
+  - [x] Optional Nummern auf den Punkten
+  - [x] Button-Liste 2 Zeilig wenn der Platz nicht reicht und Überschrift entfernen
+- [x] Punktetafel Verlauf wird nicht korrekt geteilt (nach Import hab ich nur 1 Satz!)
+      -> Nein, Sätze werden im Verlauf nicht korrekt gespeichert/angezeigt!
+- [x] Teams-Kachel vorne das Teams Icon in den Farben des Teams
+- [x] Training-Kachel vorne das Trainings Icon
+- [x] Trainingsplan-Kachel vorne das Trainingsplan Icon
+- [x] Punktewertung-Kachel vorne das Punktewertung Icon
+- [x] Taktiktafel mit Trainingsübungen Verknüpfen
+- [x] Aktives bzw. nächstes Training / Punktewertung auf Startseite anzeigen
+- [x] Im Training mehrere Mannschaften hinzufügen (wenn U13 und U15 z.B. zusammen trainieren)
+- [x] Buttons in Burgermenü
+- [x] Training sortieren nach Datum desc
+- [x] Spieler/Trainer als "Objekt" anlegen, so dass sie zwischen Mannschaften verschieben und mehrfach zuordnen kann
+- [x] Trainingsplan im Training individuell anpassen (Übungen überspringen, Dauer ändern, Reihenfolge ändern, Weitere Übungen hinzufügen (manuell und aus dem Katalog))
+- [x] Wählt man in der Punktewertung Punkt/Fehler aus, kann man nicht abbrechen. Zurück geht einfach Weiter!
+- [x] Manuelles Satz beenden in der Punktewertung, wenn man z.B. nur bis 13 spielt!
+- [x] Tooltipps oder Spielerseite in der ersichtlich ist wo der User alles verlinkt ist.
+- [x] Spielernummern mit anzeigen
+- [x] Bänke benennen (Team)
+- [x] Wird ein Team mit gesetztem Spielbetrieb ausgewählt, soll der Spieltyp oben angepasst werden.
+- [x] Punkte weiter nach hinten und kleiner
+- [x] Mannschaftsauswahl und Spielklasse in eiegene Seite packe, so das Spielfeld nach eingabe oben
+- [x] Button zum Aufruf oben Mittig!
+- [x] Speichern/Abbrechen Button nach oben in die Leiste
+- [x] Zurücksetzen soll auch Spieler zurücksetzen
+- [x] Tests dauern ewig?!
+- [x] Button muss etwas höher und sollte nicht doppelt sein (wird in Leiste oben angezeigt und unten)
+- [x] Spielinfos (Mannschaft, Spielklasse) soll als zweite Seite aufrufbar sein, primäre Seite soll das Spielfeld sein!
+- [x] Spieler nicht per D&D rein ziehen, sondern auf die Position auf dem Spielfeld tippen und dann eine Auswahl bekommen
+- [x] Spielernummern müssen auch bei Mannschaften noch änderbar/eintragbar sein (Spielernummern können ggf. nicht fix sein!)
+- [x] tagesstatistik / multistatistik
+- [x] sortierung der punktewertungen nach eingetragener spiel uhrzeit!
+- [x] satz beenden geht nicht
+- [x] editieren, auswechseln von spielern geht nicht (button zum editieren verschindet?!)
+- [x] spieler im feld beim buchen anbieten, bank nicht zur auswahl anbieten
+- [x] undefiniert und mannschaft als spieler zum buchen auswählen (wenn man es nicht eindeutig ist)
+- [x] rückgängig machen von der letzten wertung (wertung um wertung) inkl. rotation!
+- [x] zweite aufstellung (sitenwechsel rechts/links) fehler in der platz nummerierung bzw. plätze, platz 1 ist immer hinten rechts! d.h. auf der rechten seite muss platz 1 hinten rechts oben sein.
+- [x] wird rechts als spielfeld in der punktewertung ausgewählt, wird das nicht gespeichert! soll aber gespeichert werden!
+- [x] spielernummern werden nicht gespeichert
+- [x] spielernummern aus mannschaft übernehmen (nachträglich!)
+- [x] neuer baum zum buchen von spielpunkten (siehe oben)
+  - [x] Annahmefehler
+  - [x] aufschlagpunkt
+- [x] automatisches buchen wenn kein spieler oder weitere option ausgewählt wird.
+- [x] gegnerfehler im diagramm (dritte linie)
+- [x] multistatistik
+  - [x] Aufslistun ausgewählten partien
+  - [x] im diagramm die partien im wechsel farblich hinterlegen
+- [x] diagramme zoomen und scrollen können
+- [x] multiexport und import!
+- [x] gegnerfehler nur in der gesamtstatistik der mannschaft anzeigen, nicht bei den einzelspielern.
+- [x] nachträgliches editieren von statistiken (punkte zuordnung z.B.)
+- [x] diagramme zoom nur von der zeitachse und scrollen in der horiziontal achse
+- [x] pdf export optional hoch- und querformat
+- [x] diagram "punkte und fehler nach art" balkenbreiter
+- [x] multiexport der statistik soll auch jede einzelstatistik pro punkterwertung in den export hinten dran hängen
+- [x] automatisches buchen nach zeit klappt noch nicht, wird hauptkategorie gewählt, aber dann nicht weiter, soll auf unbekannt gebucht werden. wird spieler aber nicht spezifiziert, soll nur hauptkategorie gebucht werden. timeout auf 7 sekunden setzten.
+- [x] rückgängig ist umgesetzt, ich brauche aber noch wiederholen (strg+z bzw. strg+y)
+- [x] diagramm zoom soll nicht einfach zoom sein! sondern die zeitachse sich nach rechts ausdehnen! also länger nach rechts werden
+- [x] sonstiges, auswahl der letzten eingabe wird nicht angeboten
+- [x] annahmefehler das "fehler" rausnehmen
+- [x] pdf export verbessern (z.B. Layout, Formatierung) (fortlaufend ohne erzwungene seitenumbrüche zwischen partien)
+- [x] bei der punktewertung erst hauptkategorie auswählen, dann spieler buchen und dann spezifizieren?! (wegen timeout)
+- [x] diagramm bei multiselect zusammen dampfen, die zeiträume, in der kein spiel war, ausschneiden
+- [x] Teilen aus 3 Punkte entfernen, wie löschen als Menüpunkt
+- [x] pdf ohne seitenumbrüche
+- [x] balkenbreite bei "punkte und fehler nach art" (viel) breiter!!
+- [x] "punkte und fehler nach art" auch als tabelle (zusätlich!) als tabelle exportieren
+- [x] seitenwechsel in punktewertung ist nicht korrekt umgesetzt
+- [x] balken zugeschaut und aufschlag fehlen bzw. sind außerhalb des diagrams beim pdf export
+- [x] in der tabelle bei multiexport sollen die spielergebnise mit aufgeführt werden (sätze, ergebnisse pro satz)
+- [x] gesamt statistik (multiexport) , hat ein spieler nicht gespielt, soll das spiel trotzdem in seinem diagram sein, dann aber die linie darüber hinaus laufen und sich nicht verändern.
+- [x] verlauf exportieren als pdf
+- [x] spielerwechsel verlauf aufzeichnen welcher spieler gegen welchen ausgewechselt wurde
+- [x] timer in der punktewertung anzeigen bis automatisch gebuacht wird, unten einen kleinen balken der langsam abläuft
+- [x] letzte buchung bearbeiten
+- [x] pdf export endless aber druckbar! (Layoutwahl: Endlos oder DIN A4 hoch)
+- [x] pdf export namen
+- [x] satz beenden soll optisch werte zurücksetzen
+- [x] auszeiten setzen sich mit satz beenden zurück
+- [x] zuspieler dingens oder zweiterball
+- [x] sonstiges überall als option
+- [x] satz beenden soll timer anhalten und erster punkt soll timer starten (falls er noch nicht läuft)
