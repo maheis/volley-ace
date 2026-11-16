@@ -1643,7 +1643,25 @@ void main() {
     await tester.tap(find.text('Punktewertung'));
     await _pumpUi(tester);
 
-    await tester.tap(find.byKey(const ValueKey('record-point-button')));
+    final rotationSetupButton =
+        find.byKey(const ValueKey('match-rotation-setup-button'));
+    await tester.ensureVisible(rotationSetupButton);
+    await tester.tap(rotationSetupButton);
+    await _pumpUi(tester);
+    await tester.tap(find.byKey(const ValueKey('save-rotation-setup')));
+    await tester.pumpAndSettle();
+    expect(find.byType(RotationSetupPage), findsNothing);
+    expect(find.byKey(const ValueKey('record-point-button')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('match-history-appbar-button')));
+    await _pumpUi(tester);
+    expect(find.text('Startaufstellung'), findsOneWidget);
+    expect(find.textContaining('Pos. 1: Ada Neu · 9'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    final recordPoint = find.byKey(const ValueKey('record-point-button'));
+    await tester.ensureVisible(recordPoint);
+    await tester.tap(recordPoint);
     await _pumpUi(tester);
     await tester.tap(
       find.byKey(const ValueKey('select-category-Aufschlag')),
@@ -1814,7 +1832,7 @@ void main() {
     expect(find.text('Ada Neu  •  Annahme'), findsOneWidget);
     expect(find.text('1 abgeschlossene Sätze'), findsOneWidget);
     expect(find.text('Satzende'), findsOneWidget);
-    final editPoint = find.byKey(const ValueKey('edit-match-event-1'));
+    final editPoint = find.byKey(const ValueKey('edit-match-event-2'));
     await tester.ensureVisible(editPoint);
     await tester.tap(editPoint);
     await _pumpUi(tester);
@@ -1849,22 +1867,21 @@ void main() {
         find.text('Mannschaft  •  Letzte Buchung angepasst'), findsOneWidget);
     expect(find.text('Notiz  •  Satzbeginn'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('history-player-filter')));
-    await _pumpUi(tester);
-    await tester.tap(find.text('Ada Neu · 9').last);
+    final historyFilter = find.byKey(const ValueKey('history-filter'));
+    await tester.enterText(historyFilter, 'ada neu');
     await _pumpUi(tester);
     expect(find.text('Ada Neu  •  Annahme'), findsOneWidget);
+    expect(find.text('Notiz  •  Satzbeginn'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('history-player-filter')));
-    await _pumpUi(tester);
-    await tester.tap(find.text('Alle Spieler').last);
-    await _pumpUi(tester);
-    await tester.tap(find.byKey(const ValueKey('history-kind-filter')));
-    await _pumpUi(tester);
-    await tester.tap(find.text('Notizen').last);
+    await tester.enterText(historyFilter, 'notizen');
     await _pumpUi(tester);
     expect(find.text('Notiz  •  Satzbeginn'), findsOneWidget);
     expect(find.text('Mannschaft  •  Letzte Buchung angepasst'), findsNothing);
+    await tester.tap(find.byTooltip('Filter löschen'));
+    await _pumpUi(tester);
+    expect(tester.widget<TextField>(historyFilter).controller?.text, '');
+    expect(
+        find.text('Mannschaft  •  Letzte Buchung angepasst'), findsOneWidget);
   });
 
   testWidgets('statistics export button is named Export', (
@@ -2139,6 +2156,13 @@ void main() {
       sets.where((set) => set.isFinished && set.opponent > set.us).length,
       1,
     );
+    final displaySets = matchScoringDisplaySets(
+      sets.where((set) => set.isFinished).toList(),
+    );
+    expect(displaySets.last.us, 0);
+    expect(displaySets.last.opponent, 0);
+    expect(displaySets.last.isFinished, isFalse);
+    expect(matchScoringDisplaySets(const []).single.us, 0);
   });
 
   test('recent Other details are deduplicated and newest first', () {
@@ -2311,6 +2335,7 @@ void main() {
           kind: 'manual_rotation',
           category: 'Manuelle Rotation',
           occurredAt: start,
+          rotationState: initialRotation.rotate(0),
         ),
         MatchEvent(
           id: 2,
@@ -2320,6 +2345,10 @@ void main() {
           kind: 'serving_side',
           category: 'Eigenes Team',
           occurredAt: start.add(const Duration(seconds: 1)),
+          rotationState: initialRotation.rotate(0).copyWith(
+                servingSide: 0,
+                consecutiveServePoints: 0,
+              ),
         ),
         MatchEvent(
           id: 3,
@@ -2340,6 +2369,19 @@ void main() {
 
     expect(current?.left.positions, ['match-3', 'match-1', 'match-2']);
     expect(current?.servingSide, 0);
+    expect(
+      rotationHistoryDescription(restored.events[0]),
+      contains('Manuelle Rotation · Eigenes Team: Pos. 1: Berta'),
+    );
+    expect(
+      rotationHistoryDescription(restored.events[1]),
+      contains('Aufschlag korrigiert'),
+    );
+    final lineupHistory = restored.events.last;
+    expect(
+      rotationHistoryDescription(lineupHistory),
+      contains('Pos. 1: Mara'),
+    );
     expect(
       rotationAfterMatchEvents(undoLastMatchAction(restored))?.left.positions,
       ['match-2', 'match-3', 'match-1'],
@@ -3192,7 +3234,9 @@ void main() {
     expect(compareMatchesByGameTime(laterCreated, newerGame), greaterThan(0));
   });
 
-  test('match overview filters by opponent, location, and player', () {
+  test(
+      'match overview free-text filter searches opponent, location, and player',
+      () {
     final start = DateTime(2026, 10, 1, 18);
     MatchGame match({
       required int id,
@@ -3239,6 +3283,16 @@ void main() {
     expect(
       filterMatchesForOverview(matches, player: 'ada').map((match) => match.id),
       [1],
+    );
+    expect(
+      filterMatchesForOverview(matches, query: 'Halle Nord')
+          .map((match) => match.id),
+      [1],
+    );
+    expect(
+      filterMatchesForOverview(matches, query: 'Berta')
+          .map((match) => match.id),
+      [2],
     );
   });
 
@@ -3378,40 +3432,23 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('match-date-group-2026-10-5')),
         findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('match-opponent-filter')),
-      'rot',
-    );
+    final matchFilter = find.byKey(const ValueKey('match-filter'));
+    await tester.enterText(matchFilter, 'rot');
     await _pumpUi(tester);
     expect(find.byKey(const ValueKey('match-row-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('match-row-2')), findsNothing);
-    await tester.enterText(
-      find.byKey(const ValueKey('match-opponent-filter')),
-      '',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('match-location-filter')),
-      'süd',
-    );
+    await tester.enterText(matchFilter, 'süd');
     await _pumpUi(tester);
     expect(find.byKey(const ValueKey('match-row-1')), findsNothing);
     expect(find.byKey(const ValueKey('match-row-2')), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('match-location-filter')),
-      '',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('match-player-filter')),
-      'ada',
-    );
+    await tester.enterText(matchFilter, 'ada');
     await _pumpUi(tester);
     expect(find.byKey(const ValueKey('match-row-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('match-row-2')), findsNothing);
-    await tester.enterText(
-      find.byKey(const ValueKey('match-player-filter')),
-      '',
-    );
+    await tester.tap(find.byTooltip('Filter löschen'));
     await _pumpUi(tester);
+    expect(tester.widget<TextField>(matchFilter).controller?.text, '');
+    expect(find.byKey(const ValueKey('match-row-2')), findsOneWidget);
 
     final firstRow = find.byKey(const ValueKey('match-row-1'));
     await tester.ensureVisible(firstRow);

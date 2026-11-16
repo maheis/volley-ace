@@ -370,12 +370,17 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] aufschlagspieler bzw. rotation muss manuell geändert werden können, wenn das schiedgericht ggf. vorher / mitten drin mist gemacht
 - [x] buttons um notizen in die zeitleiste einzufügen während der punktewertung
 - [?] start aufaufstellung satz muss noch mal aufrufbar sein
-- [x] verlauf soll filterbar sein (z.b. nach spieler, nach punktart, nach spielerwechsel)
+- [x] verlauf soll per Freitext nach Spieler, Punktart und Spielerwechsel filterbar sein
 - [x] punktewertung übersicht als "graph" nach datum
 - [x] filter für punkterwertung übersicht, nach z.b. gegner, spielort, spieler etc.
 - [x] statistik meherer spiele soll wie beim export die spiel infos darstellen
-- [?] im diagramm soll farblich dargestellt werden, in welchen sätzen bzw. zeiten der spieler auf dem feld war
-- [ ] freitext-filter?
+- [x] im diagramm soll farblich dargestellt werden, in welchen sätzen bzw. zeiten der spieler auf dem feld war
+- [ ] satzfarbe wenn ein spieler auf dem feld ist einheitlich darstellen, oder sätze anderes darstellen
+- [x] filter als freitext-filter (einzelnes textfeld) umsetzten
+- [x] punktewertung die startspieler in die hostorie schreiben
+- [x] rotation in die hostorie schreiben (wichitg ist manuelle rotation und aufschlaganpassung historiesieren)
+- [x] satzbeenden muss punkte 0en
+- [ ] kompletter export, und import mit "merge" Funktion
 
 ## PDF-Export und Dateinamen
 

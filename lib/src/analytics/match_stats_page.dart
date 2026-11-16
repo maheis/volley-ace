@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -415,14 +416,36 @@ int compareMatchesByGameTime(MatchGame first, MatchGame second) {
 
 List<MatchGame> filterMatchesForOverview(
   List<MatchGame> matches, {
+  String query = '',
   String opponent = '',
   String location = '',
   String player = '',
 }) {
+  final queryText = query.trim().toLowerCase();
   final opponentQuery = opponent.trim().toLowerCase();
   final locationQuery = location.trim().toLowerCase();
   final playerQuery = player.trim().toLowerCase();
   return matches.where((match) {
+    if (queryText.isNotEmpty) {
+      final searchableText = <String>[
+        match.opponentTeam,
+        match.location,
+        match.matchTag,
+        match.matchType,
+        match.league,
+        match.matchDateTime.toIso8601String(),
+        match.rotationSetup?.left.name ?? '',
+        match.rotationSetup?.right.name ?? '',
+        ...match.coaches.map((entry) => entry.name),
+        ...match.players.map((entry) => '${entry.name} ${entry.number}'),
+        ...match.events.expand((event) => <String>[
+              event.playerName,
+              event.category,
+              if (event.replacedPlayerName != null) event.replacedPlayerName!,
+            ]),
+      ].join(' ').toLowerCase();
+      if (!searchableText.contains(queryText)) return false;
+    }
     if (opponentQuery.isNotEmpty &&
         !match.opponentTeam.toLowerCase().contains(opponentQuery)) {
       return false;
@@ -523,6 +546,16 @@ List<MatchSetResult> computeMatchSetResults(MatchGame match) {
   }
   if (us > 0 || opponent > 0) {
     sets.add(MatchSetResult(us: us, opponent: opponent, isFinished: false));
+  }
+  return sets;
+}
+
+List<MatchSetResult> matchScoringDisplaySets(List<MatchSetResult> sets) {
+  if (sets.isEmpty || sets.last.isFinished) {
+    return <MatchSetResult>[
+      ...sets,
+      const MatchSetResult(us: 0, opponent: 0, isFinished: false),
+    ];
   }
   return sets;
 }
@@ -883,14 +916,15 @@ ScoreboardRotationState? rotationAfterMatchEvents(MatchGame match) {
       continue;
     }
     if (event.kind == 'manual_rotation') {
-      rotation = rotation.rotate(0);
+      rotation = event.rotationState ?? rotation.rotate(0);
       continue;
     }
     if (event.kind == 'serving_side') {
-      rotation = rotation.copyWith(
-        servingSide: event.category == 'Eigenes Team' ? 0 : 1,
-        consecutiveServePoints: 0,
-      );
+      rotation = event.rotationState ??
+          rotation.copyWith(
+            servingSide: event.category == 'Eigenes Team' ? 0 : 1,
+            consecutiveServePoints: 0,
+          );
       continue;
     }
     if (event.kind == 'manual_set_end') {
@@ -1549,9 +1583,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   String? _pendingScorerName;
   int _pendingScorerNumber = 0;
   final Set<int> _selectedMatchIds = <int>{};
-  String _matchOpponentFilter = '';
-  String _matchLocationFilter = '';
-  String _matchPlayerFilter = '';
+  String _matchFilter = '';
   bool _isLoaded = false;
   int _nextMatchId = 1;
 
@@ -1561,6 +1593,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _opponentController = TextEditingController();
   final TextEditingController _matchTagController = TextEditingController();
+  final TextEditingController _matchFilterController = TextEditingController();
   final TextEditingController _matchReportController = TextEditingController();
   final Map<String, TextEditingController> _teamNumberControllers =
       <String, TextEditingController>{};
@@ -2330,7 +2363,9 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   }
 
   void _rotateMatchManually(MatchGame match) {
-    if (_rotationAfterEvents(match) == null) return;
+    final rotation = _rotationAfterEvents(match);
+    if (rotation == null) return;
+    final updatedRotation = rotation.rotate(0);
     final events = List<MatchEvent>.from(match.events)
       ..add(
         MatchEvent(
@@ -2341,6 +2376,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           kind: 'manual_rotation',
           category: 'Manuelle Rotation',
           occurredAt: DateTime.now(),
+          rotationState: updatedRotation,
         ),
       );
     _replaceMatch(match.copyWith(events: events));
@@ -2350,6 +2386,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     final rotation = _rotationAfterEvents(match);
     if (rotation == null) return;
     final nextSide = rotation.servingSide == 0 ? 1 : 0;
+    final updatedRotation = rotation.copyWith(
+      servingSide: nextSide,
+      consecutiveServePoints: 0,
+    );
     final events = List<MatchEvent>.from(match.events)
       ..add(
         MatchEvent(
@@ -2360,6 +2400,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
           kind: 'serving_side',
           category: nextSide == 0 ? 'Eigenes Team' : 'Gegner',
           occurredAt: DateTime.now(),
+          rotationState: updatedRotation,
         ),
       );
     _replaceMatch(match.copyWith(events: events));
@@ -2848,9 +2889,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   Widget _buildMatchListView() {
     final matches = filterMatchesForOverview(
       _matches,
-      opponent: _matchOpponentFilter,
-      location: _matchLocationFilter,
-      player: _matchPlayerFilter,
+      query: _matchFilter,
     )..sort(compareMatchesByGameTime);
     final matchesByDate = <DateTime, List<MatchGame>>{};
     for (final match in matches) {
@@ -2914,53 +2953,27 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               ),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    key: const ValueKey('match-opponent-filter'),
-                    decoration: const InputDecoration(
-                      labelText: 'Gegner filtern',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (value) =>
-                        setState(() => _matchOpponentFilter = value),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    key: const ValueKey('match-location-filter'),
-                    decoration: const InputDecoration(
-                      labelText: 'Spielort filtern',
-                      prefixIcon: Icon(Icons.place_outlined),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (value) =>
-                        setState(() => _matchLocationFilter = value),
-                  ),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    key: const ValueKey('match-player-filter'),
-                    decoration: const InputDecoration(
-                      labelText: 'Spieler filtern',
-                      prefixIcon: Icon(Icons.person_search_outlined),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (value) =>
-                        setState(() => _matchPlayerFilter = value),
-                  ),
-                ),
-              ],
+            TextField(
+              key: const ValueKey('match-filter'),
+              controller: _matchFilterController,
+              decoration: InputDecoration(
+                labelText: 'Spiele filtern',
+                hintText: 'Gegner, Ort, Spieler, Stichwort ...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _matchFilter.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Filter löschen',
+                        onPressed: () {
+                          _matchFilterController.clear();
+                          setState(() => _matchFilter = '');
+                        },
+                        icon: const Icon(Icons.clear),
+                      ),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (value) => setState(() => _matchFilter = value),
             ),
             const SizedBox(height: 12),
             if (matches.isEmpty && _matches.isEmpty)
@@ -3481,24 +3494,26 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
       ),
     );
     if (updated == null || !mounted) return;
-    if (_matchHasScoredPoints(match)) {
-      final events = List<MatchEvent>.from(match.events)
-        ..add(
-          MatchEvent(
-            id: match.events.length + 1,
-            playerId: null,
-            playerName: 'Aufstellung',
-            playerNumber: 0,
-            kind: 'lineup',
-            category: 'Startaufstellung',
-            occurredAt: DateTime.now(),
-            rotationState: updated,
-          ),
-        );
-      _replaceMatch(match.copyWith(events: events));
-    } else {
-      _replaceMatch(match.copyWith(rotationSetup: updated));
+    if (jsonEncode(match.rotationSetup?.toJson()) ==
+        jsonEncode(updated.toJson())) {
+      return;
     }
+    final event = MatchEvent(
+      id: match.events.length + 1,
+      playerId: null,
+      playerName: 'Aufstellung',
+      playerNumber: 0,
+      kind: 'lineup',
+      category: 'Startaufstellung',
+      occurredAt: DateTime.now(),
+      rotationState: updated,
+    );
+    _replaceMatch(
+      match.copyWith(
+        rotationSetup: match.rotationSetup ?? updated,
+        events: <MatchEvent>[...match.events, event],
+      ),
+    );
   }
 
   bool _matchHasScoredPoints(MatchGame match) => match.events.any(
@@ -3806,11 +3821,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
             (event) => event.kind == _timeoutKind && event.category == 'Gegner')
         .length;
     final timeoutsAvailable = teamTimeouts < 2 || opponentTimeouts < 2;
-    final scoreSets = sets.isEmpty
-        ? const <_SetScore>[
-            _SetScore(us: 0, opponent: 0, isFinished: false),
-          ]
-        : sets;
+    final scoreSets = matchScoringDisplaySets(sets);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Punktewertung'),
@@ -4492,6 +4503,7 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _locationController.dispose();
     _opponentController.dispose();
     _matchTagController.dispose();
+    _matchFilterController.dispose();
     _matchReportController.dispose();
     for (final controller in _teamNumberControllers.values) {
       controller.dispose();
@@ -5553,9 +5565,8 @@ class _MatchHistoryPage extends StatefulWidget {
 
 class _MatchHistoryPageState extends State<_MatchHistoryPage> {
   late MatchGame _match = widget.match;
-  String _selectedKind = 'Alle';
-  String _selectedPlayer = 'Alle';
-  String _selectedCategory = 'Alle';
+  final TextEditingController _filterController = TextEditingController();
+  String _filter = '';
 
   String _kindGroup(MatchEvent event) {
     switch (event.kind) {
@@ -5583,25 +5594,22 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
   }
 
   List<_HistoryEntry> _filterEntries(List<_HistoryEntry> entries) {
+    final query = _filter.trim().toLowerCase();
+    if (query.isEmpty) return entries;
     return entries.where((entry) {
       final event = entry.event;
-      if (_selectedKind != 'Alle' && _kindGroup(event) != _selectedKind) {
-        return false;
-      }
-      if (_selectedCategory != 'Alle' && event.category != _selectedCategory) {
-        return false;
-      }
-      if (_selectedPlayer != 'Alle') {
-        final playerId = int.tryParse(_selectedPlayer);
-        final involvedPlayerIds = <int>{
-          ...event.scorerIds,
-          if (event.replacedPlayerId != null) event.replacedPlayerId!,
-        };
-        if (playerId == null || !involvedPlayerIds.contains(playerId)) {
-          return false;
-        }
-      }
-      return true;
+      final searchableText = <String>[
+        _kindGroup(event),
+        event.kind,
+        event.category,
+        event.playerName,
+        if (event.replacedPlayerName != null) event.replacedPlayerName!,
+        if (event.playerNumber > 0) '${event.playerNumber}',
+        if (event.replacedPlayerNumber != null) '${event.replacedPlayerNumber}',
+        'Satz ${entry.setNumber}',
+        '${entry.ourScore}:${entry.opponentScore}',
+      ].join(' ').toLowerCase();
+      return searchableText.contains(query);
     }).toList();
   }
 
@@ -5675,13 +5683,15 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
   }
 
   @override
+  void dispose() {
+    _filterController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final entries = _historyEntries();
     final visibleEntries = _filterEntries(entries);
-    final categories = <String>{
-      for (final event in _match.events) event.category,
-    }.toList()
-      ..sort();
     final finishedSets = entries.where((entry) {
       if (entry.event.kind == _manualSetEndKind) return true;
       final scoreDifference = entry.ourScore - entry.opponentScore;
@@ -5720,102 +5730,27 @@ class _MatchHistoryPageState extends State<_MatchHistoryPage> {
                         ),
                   ),
                   const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      SizedBox(
-                        width: 190,
-                        child: DropdownButtonFormField<String>(
-                          key: const ValueKey('history-kind-filter'),
-                          initialValue: _selectedKind,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Aktion',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            'Alle',
-                            'Punkte',
-                            'Fehler',
-                            'Spielerwechsel',
-                            'Notizen',
-                            'Auszeiten',
-                            'Satzende',
-                            'Rotation',
-                            'Aufschlag',
-                            'Aufstellung',
-                            'Sonstige',
-                          ]
-                              .map((value) => DropdownMenuItem(
-                                    value: value,
-                                    child: Text(value),
-                                  ))
-                              .toList(),
-                          onChanged: (value) => setState(
-                            () => _selectedKind = value ?? 'Alle',
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 220,
-                        child: DropdownButtonFormField<String>(
-                          key: const ValueKey('history-player-filter'),
-                          initialValue: _selectedPlayer,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Spieler',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: 'Alle',
-                              child: Text('Alle Spieler'),
+                  TextField(
+                    key: const ValueKey('history-filter'),
+                    controller: _filterController,
+                    decoration: InputDecoration(
+                      labelText: 'Verlauf filtern',
+                      hintText: 'Spieler, Punktart, Spielerwechsel ...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _filter.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Filter löschen',
+                              onPressed: () {
+                                _filterController.clear();
+                                setState(() => _filter = '');
+                              },
+                              icon: const Icon(Icons.clear),
                             ),
-                            for (final player in _match.players)
-                              DropdownMenuItem(
-                                value: '${player.id}',
-                                child: Text(
-                                  '${player.name} · ${player.number}',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) => setState(
-                            () => _selectedPlayer = value ?? 'Alle',
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 240,
-                        child: DropdownButtonFormField<String>(
-                          key: const ValueKey('history-category-filter'),
-                          initialValue: _selectedCategory,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Punktart / Ereignis',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: 'Alle',
-                              child: Text('Alle Kategorien'),
-                            ),
-                            for (final category in categories)
-                              DropdownMenuItem(
-                                value: category,
-                                child: Text(
-                                  category,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) => setState(
-                            () => _selectedCategory = value ?? 'Alle',
-                          ),
-                        ),
-                      ),
-                    ],
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) => setState(() => _filter = value),
                   ),
                   const SizedBox(height: 16),
                   if (visibleEntries.isEmpty)
@@ -6034,6 +5969,38 @@ class _EditMatchEventDialogState extends State<_EditMatchEventDialog> {
   }
 }
 
+String rotationHistoryDescription(MatchEvent event) {
+  final rotation = event.rotationState;
+  if (rotation == null) return event.category;
+
+  String describeTeam(String side, RotationTeamState team) {
+    final playerCount = rotationPlayerCount(rotation.league);
+    final positions = List<String>.generate(playerCount, (index) {
+      final playerId =
+          index < team.positions.length ? team.positions[index] : null;
+      final player =
+          team.players.where((entry) => entry.id == playerId).firstOrNull;
+      if (player == null) return 'Pos. ${index + 1}: offen';
+      final number = player.number == null ? '' : ' · ${player.number}';
+      return 'Pos. ${index + 1}: ${player.name}$number';
+    });
+    final name = team.name.isEmpty ? side : team.name;
+    return '$name: ${positions.join(', ')}';
+  }
+
+  final servingSide = rotation.servingSide == 0
+      ? (rotation.left.name.isEmpty ? 'Eigenes Team' : rotation.left.name)
+      : (rotation.right.name.isEmpty ? 'Gegner' : rotation.right.name);
+  final action = switch (event.kind) {
+    'lineup' => 'Startaufstellung',
+    'manual_rotation' => 'Manuelle Rotation',
+    'serving_side' => 'Aufschlag korrigiert',
+    _ => event.category,
+  };
+  return '$action · ${describeTeam('Eigenes Team', rotation.left)} · '
+      '${describeTeam('Gegner', rotation.right)} · Aufschlag: $servingSide';
+}
+
 class _HistoryTimelineRow extends StatelessWidget {
   const _HistoryTimelineRow({
     required this.entry,
@@ -6058,9 +6025,12 @@ class _HistoryTimelineRow extends StatelessWidget {
     final isTimeout = event.kind == _timeoutKind;
     final isManualSetEnd = event.kind == _manualSetEndKind;
     final isSubstitution = event.kind == 'substitution';
+    final isRotationHistory = event.kind == 'lineup' ||
+        event.kind == 'manual_rotation' ||
+        event.kind == 'serving_side';
     final eventColor = isTimeout
         ? AppPalette.orange
-        : isManualSetEnd || isSubstitution
+        : isManualSetEnd || isSubstitution || isRotationHistory
             ? Theme.of(context).colorScheme.primary
             : isPoint
                 ? AppPalette.green
@@ -6163,7 +6133,9 @@ class _HistoryTimelineRow extends StatelessWidget {
                             ? 'Team-Auszeit'
                             : isSubstitution
                                 ? '${event.replacedPlayerName ?? 'Unbekannt'}${event.replacedPlayerNumber == null ? '' : ' · ${event.replacedPlayerNumber}'} → ${event.playerName} · Position ${(event.rotationPosition ?? 0) + 1}'
-                                : '${event.playerName}  •  ${event.category}',
+                                : isRotationHistory
+                                    ? rotationHistoryDescription(event)
+                                    : '${event.playerName}  •  ${event.category}',
                         style: textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
