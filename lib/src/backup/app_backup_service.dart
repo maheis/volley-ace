@@ -30,6 +30,12 @@ class AppBackupService {
       StoreRef<String, Map<String, dynamic>>('scoreboard');
   static final StoreRef<String, Map<String, dynamic>> _tacticsStore =
       StoreRef<String, Map<String, dynamic>>('tactics');
+  static final StoreRef<String, Map<String, dynamic>> _settingsStore =
+      StoreRef<String, Map<String, dynamic>>('settings');
+  static final StoreRef<String, Map<String, dynamic>> _homeStore =
+      StoreRef<String, Map<String, dynamic>>('home');
+  static final StoreRef<String, Map<String, dynamic>> _arcadeStore =
+      StoreRef<String, Map<String, dynamic>>('arcade');
 
   static Future<Map<String, dynamic>> _readBackup(Database database) async {
     final teamsRepository = TeamsRepository(database);
@@ -56,8 +62,12 @@ class AppBackupService {
     final scoreboardSnapshots =
         await _scoreboardStore.record('snapshots').get(database);
     final tactics = await _tacticsStore.record('board').get(database);
+    final settings = await _settingsStore.record('app').get(database);
+    final home = await _homeStore.record('state').get(database);
+    final arcade = await _arcadeStore.record('state').get(database);
 
     return <String, dynamic>{
+      'type': 'full',
       'formatVersion': _formatVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'teams': teams.map((team) => team.toJson()).toList(),
@@ -72,8 +82,14 @@ class AppBackupService {
           if (scoreboardSnapshots != null) 'snapshots': scoreboardSnapshots,
         },
       if (tactics != null) 'tactics': tactics,
+      if (settings != null) 'settings': settings,
+      if (home != null) 'home': home,
+      if (arcade != null) 'arcade': arcade,
     };
   }
+
+  static Future<Map<String, dynamic>> buildFullBackup(Database database) =>
+      _readBackup(database);
 
   static Future<Map<String, dynamic>> buildTeamBundle(
     Database database,
@@ -1875,7 +1891,7 @@ class AppBackupService {
 
   static Future<void> exportBackup(
       BuildContext context, Database database) async {
-    final payload = await _readBackup(database);
+    final payload = await buildFullBackup(database);
     final jsonText = encodeBackup(payload);
     final suggestedName =
         'volleyace-backup-${DateTime.now().toIso8601String().replaceAll(':', '-')}.vace';
@@ -1892,7 +1908,7 @@ class AppBackupService {
     BuildContext context,
     Database database,
   ) async {
-    final payload = await _readBackup(database);
+    final payload = await buildFullBackup(database);
     final jsonText = encodeBackup(payload);
     final suggestedName =
         'volleyace-gesamt-${DateTime.now().millisecondsSinceEpoch}.json';
@@ -1900,8 +1916,8 @@ class AppBackupService {
       context,
       suggestedName: suggestedName,
       jsonText: jsonText,
-      subject: 'VolleyAce Teams und Daten',
-      dialogTitle: 'Alle Teams und Daten teilen',
+      subject: 'VolleyAce Komplettbackup',
+      dialogTitle: 'Komplettbackup teilen',
       vace: true,
     );
   }
@@ -2336,6 +2352,74 @@ class AppBackupService {
         : current;
   }
 
+  static Map<String, dynamic> _mergeHomeState(
+    Map<String, dynamic> current,
+    Map<String, dynamic> incoming,
+  ) {
+    final hiddenMatchIds = <int>{
+      if (current['hiddenMatchIds'] is List)
+        ...(current['hiddenMatchIds'] as List)
+            .whereType<num>()
+            .map((id) => id.toInt()),
+      if (incoming['hiddenMatchIds'] is List)
+        ...(incoming['hiddenMatchIds'] as List)
+            .whereType<num>()
+            .map((id) => id.toInt()),
+    };
+    return <String, dynamic>{
+      ...current,
+      ...incoming,
+      if (hiddenMatchIds.isNotEmpty)
+        'hiddenMatchIds': hiddenMatchIds.toList()..sort(),
+    };
+  }
+
+  static Map<String, dynamic> _mergeArcadeState(
+    Map<String, dynamic> current,
+    Map<String, dynamic> incoming,
+  ) {
+    final highScoresByContent = <String, Map<String, dynamic>>{};
+    for (final raw in [current['highscores'], incoming['highscores']]) {
+      if (raw is! List) continue;
+      for (final entry in raw.whereType<Map>()) {
+        final score = Map<String, dynamic>.from(entry);
+        highScoresByContent.putIfAbsent(_canonicalJson(score), () => score);
+      }
+    }
+    final highScores = highScoresByContent.values.toList()
+      ..sort((first, second) {
+        int value(Map<String, dynamic> record, String key) =>
+            record[key] is num ? (record[key] as num).toInt() : 0;
+        final setsFor = value(second, 'setsFor').compareTo(
+          value(first, 'setsFor'),
+        );
+        if (setsFor != 0) return setsFor;
+        final setDifference =
+            (value(second, 'setsFor') - value(second, 'setsAgainst')).compareTo(
+          value(first, 'setsFor') - value(first, 'setsAgainst'),
+        );
+        if (setDifference != 0) return setDifference;
+        final pointsFor = value(second, 'pointsFor').compareTo(
+          value(first, 'pointsFor'),
+        );
+        if (pointsFor != 0) return pointsFor;
+        return (value(second, 'pointsFor') - value(second, 'pointsAgainst'))
+            .compareTo(
+          value(first, 'pointsFor') - value(first, 'pointsAgainst'),
+        );
+      });
+    final currentName = current['lastPlayerName'];
+    final importedName = incoming['lastPlayerName'];
+    return <String, dynamic>{
+      ...current,
+      ...incoming,
+      'lastPlayerName': currentName is String && currentName.trim().isNotEmpty
+          ? currentName
+          : importedName,
+      'highscores': highScores.take(7).toList(),
+    };
+  }
+
   static Future<void> _mergeApplicationData(
     BuildContext context,
     Database database,
@@ -2492,6 +2576,44 @@ class AppBackupService {
         });
       }
     }
+
+    final incomingSettings = data['settings'];
+    if (incomingSettings is Map) {
+      final currentSettings = await _settingsStore.record('app').get(database);
+      final mergedSettings = currentSettings == null
+          ? Map<String, dynamic>.from(incomingSettings)
+          : await _mergeSingleton(
+              context,
+              'Einstellungen',
+              currentSettings,
+              Map<String, dynamic>.from(incomingSettings),
+            );
+      await _settingsStore.record('app').put(database, mergedSettings);
+    }
+
+    final incomingHome = data['home'];
+    if (incomingHome is Map) {
+      final currentHome = await _homeStore.record('state').get(database);
+      final mergedHome = currentHome == null
+          ? Map<String, dynamic>.from(incomingHome)
+          : _mergeHomeState(
+              currentHome,
+              Map<String, dynamic>.from(incomingHome),
+            );
+      await _homeStore.record('state').put(database, mergedHome);
+    }
+
+    final incomingArcade = data['arcade'];
+    if (incomingArcade is Map) {
+      final currentArcade = await _arcadeStore.record('state').get(database);
+      final mergedArcade = currentArcade == null
+          ? Map<String, dynamic>.from(incomingArcade)
+          : _mergeArcadeState(
+              currentArcade,
+              Map<String, dynamic>.from(incomingArcade),
+            );
+      await _arcadeStore.record('state').put(database, mergedArcade);
+    }
   }
 
   static Future<bool> _importFullBackupData(
@@ -2542,7 +2664,7 @@ class AppBackupService {
     BuildContext context,
     Database database,
   ) async {
-    final data = await _pickJsonMap('Team importieren');
+    final data = await _pickJsonMap('Team- oder Komplettbackup importieren');
     if (data == null) return false;
 
     if (data['teams'] is List && data['matchStats'] is Map) {

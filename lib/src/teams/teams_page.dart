@@ -911,7 +911,7 @@ class _TeamsPageState extends State<TeamsPage> {
           actions: [
             IconButton(
               key: const ValueKey('export-all-team-data'),
-              tooltip: 'Alle Teams exportieren',
+              tooltip: 'Komplettbackup exportieren',
               icon: const Icon(Icons.share_outlined),
               onPressed: () => AppBackupService.shareFullBackup(
                 context,

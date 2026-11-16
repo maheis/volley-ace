@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -762,6 +763,95 @@ void main() {
     await tester.tap(find.text('Import übernehmen'));
     await tester.pumpAndSettle();
     expect((await unresolved).single['name'], 'Import');
+  });
+
+  testWidgets('complete backup exports and merges all persistent app stores', (
+    WidgetTester tester,
+  ) async {
+    final source =
+        await databaseFactoryMemory.openDatabase('full-backup-source.db');
+    final destination =
+        await databaseFactoryMemory.openDatabase('full-backup-destination.db');
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: Text('backup-ready'))),
+    );
+    final context = tester.element(find.text('backup-ready'));
+    final settingsStore = StoreRef<String, Map<String, dynamic>>('settings');
+    final homeStore = StoreRef<String, Map<String, dynamic>>('home');
+    final arcadeStore = StoreRef<String, Map<String, dynamic>>('arcade');
+    await tester.runAsync(() async {
+      await settingsStore.record('app').put(source, {
+        'fontFamily': 'Ubuntu',
+        'highlightColorValue': 0xFF31A987,
+      });
+      await homeStore.record('state').put(source, {
+        'hiddenMatchIds': [11],
+      });
+      await arcadeStore.record('state').put(source, {
+        'lastPlayerName': 'IMPORT',
+        'highscores': [
+          {
+            'name': 'IMPORT',
+            'setsFor': 3,
+            'setsAgainst': 1,
+            'pointsFor': 50,
+            'pointsAgainst': 40,
+          },
+        ],
+      });
+      await homeStore.record('state').put(destination, {
+        'hiddenMatchIds': [22],
+      });
+      await arcadeStore.record('state').put(destination, {
+        'lastPlayerName': 'LOCAL',
+        'highscores': [
+          {
+            'name': 'LOCAL',
+            'setsFor': 2,
+            'setsAgainst': 1,
+            'pointsFor': 45,
+            'pointsAgainst': 38,
+          },
+        ],
+      });
+    });
+
+    final backup = await tester.runAsync(
+      () => AppBackupService.buildFullBackup(source),
+    );
+    expect(backup, isNotNull);
+    expect(backup!['type'], 'full');
+    expect(backup.containsKey('teams'), isTrue);
+    expect(backup.containsKey('matchStats'), isTrue);
+    expect(backup.containsKey('settings'), isTrue);
+    expect(backup.containsKey('home'), isTrue);
+    expect(backup.containsKey('arcade'), isTrue);
+
+    final imported = await tester.runAsync(
+      () => AppBackupService.importVaceBytes(
+        context,
+        destination,
+        Uint8List.fromList(
+          utf8.encode(AppBackupService.encodeBackup(backup)),
+        ),
+      ),
+    );
+    expect(imported, isTrue);
+    final mergedState = await tester.runAsync(() async {
+      return (
+        settings: await settingsStore.record('app').get(destination),
+        home: await homeStore.record('state').get(destination),
+        arcade: await arcadeStore.record('state').get(destination),
+      );
+    });
+    expect(mergedState?.settings?['fontFamily'], 'Ubuntu');
+    expect(mergedState?.home?['hiddenMatchIds'], [11, 22]);
+    final highScores = mergedState?.arcade?['highscores'] as List;
+    expect(highScores.map((entry) => (entry as Map)['name']), [
+      'IMPORT',
+      'LOCAL',
+    ]);
+    expect(mergedState?.arcade?['lastPlayerName'], 'LOCAL');
   });
 
   test('Match export payload contains one match', () {

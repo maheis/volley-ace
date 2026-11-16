@@ -380,7 +380,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] punktewertung die startspieler in die hostorie schreiben
 - [x] rotation in die hostorie schreiben (wichitg ist manuelle rotation und aufschlaganpassung historiesieren)
 - [x] satzbeenden muss punkte 0en
-- [ ] kompletter export, und import mit "merge" Funktion
+- [x] kompletter export, und import mit "merge" Funktion
 
 ## PDF-Export und Dateinamen
 
