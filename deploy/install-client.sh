@@ -2,15 +2,28 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="${1:-$SCRIPT_DIR}"
+DEFAULT_SRC_DIR="$SCRIPT_DIR"
+if [[ ! -x "$DEFAULT_SRC_DIR/volley_ace" ]]; then
+  DEFAULT_SRC_DIR="$SCRIPT_DIR/../build/linux/x64/release/bundle"
+fi
+SRC_DIR="${1:-$DEFAULT_SRC_DIR}"
 TARGET_DIR="$HOME/.local/share/volleyace"
-DATA_DIR="$HOME/Documents/volleyace"
 
 echo "Source: $SRC_DIR"
 echo "Target: $TARGET_DIR"
 
-if [ ! -d "$SRC_DIR" ]; then
-  echo "Source directory not found: $SRC_DIR" >&2
+if [[ ! -x "$SRC_DIR/volley_ace" || ! -d "$SRC_DIR/lib" || ! -d "$SRC_DIR/data" ]]; then
+  echo "Linux bundle not found or incomplete: $SRC_DIR" >&2
+  echo "Build it with: flutter build linux --release" >&2
+  exit 1
+fi
+if ! command -v rsync >/dev/null 2>&1; then
+  echo "Required command not found: rsync" >&2
+  exit 1
+fi
+SRC_DIR="$(cd "$SRC_DIR" && pwd -P)"
+if [[ "$SRC_DIR" == "$TARGET_DIR" || "$SRC_DIR" == "$TARGET_DIR/"* ]]; then
+  echo "Source must not be inside the installation directory." >&2
   exit 1
 fi
 
@@ -18,9 +31,9 @@ if [ -d "$TARGET_DIR" ]; then
   read -r -p "Existing installation at $TARGET_DIR found. Update (remove and install)? [y/N] " resp
   if [[ "$resp" =~ ^[Yy] ]]; then
     ts=$(date -u +%Y%m%dT%H%M%SZ)
-    backup="${TARGET_DIR}.bak.$ts"
+    backup="$(mktemp -d "${TARGET_DIR}.bak.${ts}.XXXXXX")"
     echo "Backing up existing installation to $backup"
-    mv "$TARGET_DIR" "$backup"
+    mv -T -- "$TARGET_DIR" "$backup"
   else
     echo "Aborting installation."; exit 0
   fi
@@ -34,20 +47,10 @@ rsync -a --delete --exclude='.git' --exclude='build' "$SRC_DIR/" "$TARGET_DIR/"
 
 echo "Creating launcher script..."
 LAUNCHER="$TARGET_DIR/launch-volleyace.sh"
-cat > "$LAUNCHER" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-cd "${TARGET_DIR}"
-if [ -x "./volleyace" ]; then
-  exec "./volleyace" "${@-}"
-fi
-if command -v flutter >/dev/null 2>&1; then
-  echo "No native binary found; attempting to run with flutter (requires SDK)."
-  exec flutter run -d linux --release --target=lib/main.dart
-fi
-echo "No runnable binary found in ${TARGET_DIR}. Build a Linux binary and place it there or run the app via 'flutter run' from the source." >&2
-exit 2
-EOF
+{
+  printf '#!/usr/bin/env bash\nset -euo pipefail\ncd -- %q\n' "$TARGET_DIR"
+  printf 'exec ./volley_ace "$@"\n'
+} > "$LAUNCHER"
 chmod 0755 "$LAUNCHER"
 
 read -r -p "Create start-menu entry? [Y/n] " resp
@@ -73,7 +76,7 @@ for candidate in "$TARGET_DIR/data/flutter_assets/assets/icons/color_transparent
   fi
 done
 
-ICON_NAME="simple_present"
+ICON_NAME="com.example.volley_ace"
 if [ -n "$ICON_SRC" ]; then
   ICON_DEST_DIR_128="$HOME/.local/share/icons/hicolor/128x128/apps"
   ICON_DEST_DIR_SCALABLE="$HOME/.local/share/icons/hicolor/scalable/apps"
@@ -88,15 +91,16 @@ else
   DESKTOP_ICON_VALUE=""
 fi
 
-APP_ID="be.heister.volleyace"
+APP_ID="com.example.volley_ace"
 DESKTOP_ENTRY_NAME="$APP_ID.desktop"
-DESKTOP_CONTENT="[Desktop Entry]\nName=volleyace\nComment=volleyace client\nExec=$LAUNCHER\nIcon=$DESKTOP_ICON_VALUE\nTerminal=false\nType=Application\nCategories=Utility;\nStartupNotify=true\nStartupWMClass=volleyace\nX-GNOME-WMClass=volleyace"
+DESKTOP_CONTENT="[Desktop Entry]\nName=Volley Ace\nComment=Volleyball Assistenz-App\nExec=\"$LAUNCHER\" %U\nPath=$TARGET_DIR\nIcon=$DESKTOP_ICON_VALUE\nTerminal=false\nType=Application\nCategories=Game;SportsGame;\nStartupNotify=true\nStartupWMClass=$APP_ID"
 
 if [ "$CREATE_MENU" -eq 1 ]; then
   APPS_DIR="$HOME/.local/share/applications"
   mkdir -p "$APPS_DIR"
   # Remove legacy desktop filename to avoid duplicate launcher entries.
   rm -f "$APPS_DIR/volleyace.desktop"
+  rm -f "$APPS_DIR/be.heister.volleyace.desktop"
   printf "%b" "$DESKTOP_CONTENT" > "$APPS_DIR/$DESKTOP_ENTRY_NAME"
   chmod 0644 "$APPS_DIR/$DESKTOP_ENTRY_NAME"
   echo "Installed menu entry: $APPS_DIR/$DESKTOP_ENTRY_NAME"
@@ -104,13 +108,17 @@ fi
 
 if [ "$CREATE_DESKTOP" -eq 1 ]; then
   DESKTOP_DIR="$HOME/Desktop"
+  if command -v xdg-user-dir >/dev/null 2>&1; then
+    DESKTOP_DIR="$(xdg-user-dir DESKTOP)"
+  fi
   mkdir -p "$DESKTOP_DIR"
+  rm -f "$DESKTOP_DIR/volleyace.desktop" "$DESKTOP_DIR/be.heister.volleyace.desktop"
   printf "%b" "$DESKTOP_CONTENT" > "$DESKTOP_DIR/$DESKTOP_ENTRY_NAME"
   chmod 0644 "$DESKTOP_DIR/$DESKTOP_ENTRY_NAME"
   echo "Installed desktop icon: $DESKTOP_DIR/$DESKTOP_ENTRY_NAME"
 fi
 
 echo "Install complete. Launch with: $LAUNCHER"
-echo "If you installed the menu entry, you can search for 'volleyace' in your application launcher."
+echo "If you installed the menu entry, you can search for 'Volley Ace' in your application launcher."
 
 exit 0

@@ -9,7 +9,9 @@ applications_dir="${HOME}/.local/share/applications"
 icons_dir="${HOME}/.local/share/icons/hicolor/128x128/apps"
 desktop_file="${applications_dir}/com.example.volley_ace.desktop"
 
-if [[ ! -x "${bundle_dir}/volley_ace" ]]; then
+if [[ ! -x "${bundle_dir}/volley_ace" ||
+  ! -d "${bundle_dir}/lib" ||
+  ! -f "${bundle_dir}/data/flutter_assets/assets/icons/color_transparent_icon.png" ]]; then
   printf 'Linux bundle nicht gefunden: %s\n' "${bundle_dir}" >&2
   printf 'Zuerst ausfuehren: flutter build linux --release\n' >&2
   exit 1
@@ -27,11 +29,11 @@ Version=1.0
 Type=Application
 Name=Volley Ace
 Comment=Volleyball Assistenz-App
-Exec=${install_dir}/volley_ace %U
+Exec="${install_dir}/volley_ace" %U
 Path=${install_dir}
 Icon=com.example.volley_ace
 Terminal=false
-Categories=Office;SportsGame;
+Categories=Game;SportsGame;
 StartupNotify=true
 StartupWMClass=com.example.volley_ace
 EOF

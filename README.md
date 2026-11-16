@@ -364,7 +364,7 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [ ] Spieler/Trainer Statistik muss über alle Mannschaften hinweg möglich sein und angezeigt werden.
 - [ ] satzende soll automatisch erkannt werden?!
 - [ ] html export
-- [ ] linux installationsskript prüfen und ggf. anpassen.
+- [x] linux installationsskript prüfen und ggf. anpassen.
 - [x] gleichartige punkte highlighten, schlüsselwörter fett (siehe oben bei der punktewertungdefinition)
 - [x] aufschlagspieler bei aufschlagpunkt direkt als markiert auswählen / highlighten
 - [x] aufschlagspieler bzw. rotation muss manuell geändert werden können, wenn das schiedgericht ggf. vorher / mitten drin mist gemacht
@@ -387,6 +387,33 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] spiel als beendet markiern
 - [x] statistik diagramme mehrere spiele sollen einmal ein diagram über alle selektierten spiele darstellen, also fortlaufend aggregiert und darunter soll ein diagram sein das pro spiel wieder bei 0 startet und rauf zählt, so dass man alle spiele direkt nebeneinander vergleichen kann. soll sowohl für den export, als auch für die statistik in app dargestellt werden.
 - [ ]
+
+## Linux-Installation
+
+Das Linux-Release entpacken und im entpackten Verzeichnis ausfuehren:
+
+```bash
+bash ./install-client.sh
+```
+
+Der Installer benoetigt Bash und `rsync`, aber weder Root-Rechte noch ein Flutter-SDK. Er installiert das fertige Bundle nach `~/.local/share/volleyace` und bietet Startmenue- und Desktop-Verknuepfungen an. Der Desktop-Ordner wird ueber `xdg-user-dir` ermittelt, falls verfuegbar. Bei Updates wird nach Bestaetigung die bisherige Installation unter einem eindeutigen `.bak.*`-Namen gesichert. Nutzerdaten bleiben unveraendert.
+
+Aus dem Quellcode zuerst das Linux-Bundle bauen und dann installieren:
+
+```bash
+flutter build linux --release
+bash deploy/install-client.sh
+```
+
+Ein anderes Bundle kann als erstes Argument uebergeben werden. Alternativ installiert `bash deploy/install-linux-desktop.sh` das gebaute Bundle ohne Rueckfragen nach `~/.local/opt/volleyace` und legt einen Startmenue-Eintrag an.
+
+Zur Deinstallation im entpackten Release `bash ./uninstall-client.sh` ausfuehren; im Repository lautet der Aufruf `bash deploy/uninstall-client.sh`. Nach Bestaetigung werden Programmdateien, VolleyAce-Verknuepfungen und das App-Icon entfernt. Datenbank, Exporte und Update-Sicherungen bleiben erhalten.
+
+Der isolierte Installationstest verwendet ein temporaeres HOME und ein Test-Bundle; er veraendert keine echte Installation:
+
+```bash
+bash test/linux_installation_test.sh
+```
 
 ## PDF-Export und Dateinamen
 
