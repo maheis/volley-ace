@@ -85,9 +85,68 @@ void main() {
     expect(ace.pointsByPlayer[2], 1);
     expect(other.children.single.label, 'Ball verloren');
     expect(other.children.single.depth, 2);
+
+    final pointsTree = categoryStatisticsTree(events, players, kind: 'point');
+    expect(
+      pointsTree.single.children.map((node) => node.label),
+      ['Aufschlag', 'Angriff'],
+    );
+    expect(
+      pointsTree.single.children.first.children.map((node) => node.label),
+      ['Ass'],
+    );
+    final errorsTree = categoryStatisticsTree(events, players, kind: 'error');
+    expect(
+      errorsTree.single.children.map((node) => node.label),
+      ['Aufschlag', 'Sonstiges'],
+    );
   });
 
-  testWidgets('statistics show category tree with players as columns',
+  test('custom Sonstiges details remain under their selected parent', () {
+    final customEvents = [
+      ...events,
+      MatchEvent(
+        id: 6,
+        playerId: 1,
+        playerName: 'Ada',
+        playerNumber: 7,
+        kind: 'point',
+        category: 'Aufschlag · Sonstiges: Netzroller',
+        occurredAt: start.add(const Duration(minutes: 5)),
+      ),
+      MatchEvent(
+        id: 7,
+        playerId: 2,
+        playerName: 'Berta',
+        playerNumber: 8,
+        kind: 'point',
+        category: 'Angriff · Sonstiges: Glück',
+        occurredAt: start.add(const Duration(minutes: 6)),
+      ),
+    ];
+    final tree = categoryStatisticsTree(customEvents, players, kind: 'point');
+    final roots = tree.single.children;
+    final serve = roots.firstWhere((node) => node.label == 'Aufschlag');
+    final attack = roots.firstWhere((node) => node.label == 'Angriff');
+    expect(
+      serve.children
+          .singleWhere((node) => node.label == 'Sonstiges')
+          .children
+          .single
+          .label,
+      'Netzroller',
+    );
+    expect(
+      attack.children
+          .singleWhere((node) => node.label == 'Sonstiges')
+          .children
+          .single
+          .label,
+      'Glück',
+    );
+  });
+
+  testWidgets('statistics show separate overall and player category tables',
       (tester) async {
     final database =
         await databaseFactoryMemory.openDatabase('category-tree-ui');
@@ -114,41 +173,76 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    final tableFinder = find.descendant(
-      of: find.byKey(const ValueKey('category-tree-stats-table')),
+    final totalPointsCard =
+        find.byKey(const ValueKey('category-tree-stats-point-Punkte gesamt'));
+    final totalErrorsCard =
+        find.byKey(const ValueKey('category-tree-stats-error-Fehler gesamt'));
+    expect(totalPointsCard, findsOneWidget);
+    expect(totalErrorsCard, findsOneWidget);
+    expect(find.text('Punkte gesamt'), findsOneWidget);
+    expect(find.text('Fehler gesamt'), findsOneWidget);
+    expect(find.text('Punkte und Fehler nach Art'), findsNothing);
+
+    final totalPointsTable = tester.widget<DataTable>(find.descendant(
+      of: totalPointsCard,
       matching: find.byType(DataTable),
+    ));
+    final totalPointRows = totalPointsTable.rows
+        .map((row) => (row.cells.first.child as SizedBox).child as Padding)
+        .map((padding) => (padding.child as Text).data)
+        .toList();
+    expect(totalPointRows, contains('Gesamt · Punkte'));
+    expect(totalPointRows, contains('Aufschlag · Punkte'));
+    expect(totalPointRows, isNot(contains('Fehler')));
+
+    final playerPointsCard = find.byKey(
+      const ValueKey('category-tree-stats-point-Punkte pro Spieler'),
     );
-    final table = tester.widget<DataTable>(tableFinder);
-    expect(table.columns.map((column) => column.label).toList(), hasLength(5));
-    expect(
-      table.rows[0].cells.skip(1).map((cell) => cell.child as Text).map(
-            (text) => text.data,
-          ),
-      ['2', '1', '1', '0'],
+    await tester.scrollUntilVisible(
+      playerPointsCard,
+      350,
+      scrollable: find.byType(Scrollable).first,
     );
-    expect(
-      table.rows[1].cells.skip(1).map((cell) => cell.child as Text).map(
-            (text) => text.data,
-          ),
-      ['0', '1', '0', '1'],
-    );
-    expect(
-      table.rows[4].cells.skip(1).map((cell) => cell.child as Text).map(
-            (text) => text.data,
-          ),
-      ['2', '1', '0', '0'],
-    );
-    expect(find.text('Gesamt · Punkte'), findsOneWidget);
-    expect(find.text('Aufschlag · Punkte'), findsOneWidget);
-    expect(find.text('Ass · Punkte'), findsOneWidget);
-    expect(find.text('Sonstiges · Fehler'), findsOneWidget);
+    final playerPointsTable = tester.widget<DataTable>(find.descendant(
+      of: playerPointsCard,
+      matching: find.byType(DataTable),
+    ));
+    final pointRowLabels = playerPointsTable.rows
+        .map((row) => (row.cells.first.child as SizedBox).child as Padding)
+        .map((padding) => (padding.child as Text).data)
+        .toList();
+    expect(pointRowLabels, contains('Gesamt · Punkte'));
+    expect(pointRowLabels, contains('Aufschlag · Punkte'));
+    expect(pointRowLabels, contains('Ass · Punkte'));
+    expect(pointRowLabels, isNot(contains('Fehler')));
     expect(find.text('Ada · 7'), findsOneWidget);
     expect(find.text('Berta · 8'), findsOneWidget);
     expect(find.text('Mannschaft'), findsWidgets);
+
+    final playerErrorsCard = find.byKey(
+      const ValueKey('category-tree-stats-error-Fehler pro Spieler'),
+    );
+    await tester.scrollUntilVisible(
+      playerErrorsCard,
+      350,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final playerErrorsTable = tester.widget<DataTable>(find.descendant(
+      of: playerErrorsCard,
+      matching: find.byType(DataTable),
+    ));
+    final errorRowLabels = playerErrorsTable.rows
+        .map((row) => (row.cells.first.child as SizedBox).child as Padding)
+        .map((padding) => (padding.child as Text).data)
+        .toList();
+    expect(errorRowLabels, contains('Gesamt · Fehler'));
+    expect(errorRowLabels, contains('Aufschlag · Fehler'));
+    expect(errorRowLabels, contains('Ball ins Netz · Fehler'));
+    expect(errorRowLabels, isNot(contains('Punkte')));
     expect(tester.takeException(), isNull);
   });
 
-  test('complete PDF renders the category tree in every layout', () async {
+  test('complete PDF renders category tables in every layout', () async {
     final match = MatchGame(
       id: 1,
       createdAt: start,

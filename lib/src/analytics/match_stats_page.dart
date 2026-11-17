@@ -425,6 +425,11 @@ class CategoryStatisticNode {
   final Map<int?, int> pointsByPlayer;
   final Map<int?, int> errorsByPlayer;
   final List<CategoryStatisticNode> children;
+
+  bool get hasData =>
+      pointsCount > 0 ||
+      errorsCount > 0 ||
+      children.any((child) => child.hasData);
 }
 
 class _MutableCategoryStatisticNode {
@@ -439,9 +444,12 @@ class _MutableCategoryStatisticNode {
   final Map<String, _MutableCategoryStatisticNode> children =
       <String, _MutableCategoryStatisticNode>{};
 
+  bool get hasCounts =>
+      pointsCount > 0 ||
+      errorsCount > 0 ||
+      children.values.any((child) => child.hasCounts);
+
   CategoryStatisticNode freeze() {
-    final sortedChildren = children.values.toList()
-      ..sort((first, second) => first.label.compareTo(second.label));
     return CategoryStatisticNode(
       label: label,
       depth: depth,
@@ -449,19 +457,38 @@ class _MutableCategoryStatisticNode {
       errorsCount: errorsCount,
       pointsByPlayer: Map<int?, int>.unmodifiable(pointsByPlayer),
       errorsByPlayer: Map<int?, int>.unmodifiable(errorsByPlayer),
-      children: sortedChildren.map((child) => child.freeze()).toList(),
+      children: children.values
+          .where((child) => child.hasCounts)
+          .map((child) => child.freeze())
+          .toList(),
     );
   }
 }
 
 List<CategoryStatisticNode> categoryStatisticsTree(
-  List<MatchEvent> events,
-  List<MatchPlayer> players,
-) {
+    List<MatchEvent> events, List<MatchPlayer> players,
+    {String? kind}) {
   final knownPlayerIds = players.map((player) => player.id).toSet();
   final root = _MutableCategoryStatisticNode('Gesamt', 0);
+
+  void seedSchema(
+    _MutableCategoryStatisticNode parent,
+    List<_ScoringCategory> categories,
+  ) {
+    for (final category in categories) {
+      final child = parent.children.putIfAbsent(
+        category.label,
+        () => _MutableCategoryStatisticNode(category.label, parent.depth + 1),
+      );
+      seedSchema(child, category.children);
+    }
+  }
+
+  if (kind == null || kind == 'point') seedSchema(root, _pointCategorySchema);
+  if (kind == null || kind == 'error') seedSchema(root, _errorCategorySchema);
   for (final event in events) {
     if (event.kind != 'point' && event.kind != 'error') continue;
+    if (kind != null && event.kind != kind) continue;
     final scorerIds = event.scorerIds.where(knownPlayerIds.contains).toSet();
     final buckets = scorerIds.isEmpty ? <int?>[null] : scorerIds.cast<int?>();
     final segments = <String>[];
@@ -1357,6 +1384,67 @@ class _ScoringCategory {
   final bool requiresText;
 }
 
+const List<_ScoringCategory> _pointCategorySchema = <_ScoringCategory>[
+  _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
+    _ScoringCategory('Ass'),
+    _ScoringCategory('Netzroller'),
+    _ScoringCategory('Scharf'),
+    _ScoringCategory('Gegenfehler'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Angriff', children: <_ScoringCategory>[
+    _ScoringCategory('Auge / Lücke'),
+    _ScoringCategory('Angriffsschlag'),
+    _ScoringCategory('Gegner Annahmefehler'),
+    _ScoringCategory('Zuspieler-Finte'),
+    _ScoringCategory('Netzroller'),
+    _ScoringCategory('Glück'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Block'),
+  _ScoringCategory('Gegnerfehler'),
+  _ScoringCategory('Sonstiges', requiresText: true),
+];
+
+const List<_ScoringCategory> _errorCategorySchema = <_ScoringCategory>[
+  _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
+    _ScoringCategory('Ball ins seitliche Aus'),
+    _ScoringCategory('Ball ins hintere Aus'),
+    _ScoringCategory('Ball ins Netz'),
+    _ScoringCategory('Ball zu Kurz'),
+    _ScoringCategory('Übertritt'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Annahme', children: <_ScoringCategory>[
+    _ScoringCategory('Zugeschaut'),
+    _ScoringCategory('Absprache'),
+    _ScoringCategory('Tusch'),
+    _ScoringCategory('Untere Annahme'),
+    _ScoringCategory('Obere Annahme'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Angriff', children: <_ScoringCategory>[
+    _ScoringCategory('Ball ins seitliche Aus'),
+    _ScoringCategory('Ball ins hintere Aus'),
+    _ScoringCategory('Ball ins Netz'),
+    _ScoringCategory('Ball nicht rüber'),
+    _ScoringCategory('Hinterfeldangriff'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Zuspiel', children: <_ScoringCategory>[
+    _ScoringCategory('Absprache'),
+    _ScoringCategory('Unteres Zuspiel'),
+    _ScoringCategory('Oberes Zuspiel'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Netz', children: <_ScoringCategory>[
+    _ScoringCategory('Berührung'),
+    _ScoringCategory('Übertritt'),
+    _ScoringCategory('Sonstiges', requiresText: true),
+  ]),
+  _ScoringCategory('Sonstiges', requiresText: true),
+];
+
 TextSpan scoringCategoryLabelSpan(
   String label, {
   required Color highlightColor,
@@ -1764,65 +1852,8 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
 
   static const String _opponentErrorCategory = 'Gegnerfehler';
   static const String _timeoutKind = 'timeout';
-  static const List<_ScoringCategory> _pointCategories = <_ScoringCategory>[
-    _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
-      _ScoringCategory('Ass'),
-      _ScoringCategory('Netzroller'),
-      _ScoringCategory('Scharf'),
-      _ScoringCategory('Gegenfehler'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Angriff', children: <_ScoringCategory>[
-      _ScoringCategory('Auge / Lücke'),
-      _ScoringCategory('Angriffsschlag'),
-      _ScoringCategory('Gegner Annahmefehler'),
-      _ScoringCategory('Zuspieler-Finte'),
-      _ScoringCategory('Netzroller'),
-      _ScoringCategory('Glück'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Block'),
-    _ScoringCategory(_opponentErrorCategory),
-    _ScoringCategory('Sonstiges', requiresText: true),
-  ];
-  static const List<_ScoringCategory> _errorCategories = <_ScoringCategory>[
-    _ScoringCategory('Aufschlag', children: <_ScoringCategory>[
-      _ScoringCategory('Ball ins seitliche Aus'),
-      _ScoringCategory('Ball ins hintere Aus'),
-      _ScoringCategory('Ball ins Netz'),
-      _ScoringCategory('Ball zu Kurz'),
-      _ScoringCategory('Übertritt'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Annahme', children: <_ScoringCategory>[
-      _ScoringCategory('Zugeschaut'),
-      _ScoringCategory('Absprache'),
-      _ScoringCategory('Tusch'),
-      _ScoringCategory('Untere Annahme'),
-      _ScoringCategory('Obere Annahme'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Angriff', children: <_ScoringCategory>[
-      _ScoringCategory('Ball ins seitliche Aus'),
-      _ScoringCategory('Ball ins hintere Aus'),
-      _ScoringCategory('Ball ins Netz'),
-      _ScoringCategory('Ball nicht rüber'),
-      _ScoringCategory('Hinterfeldangriff'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Zuspiel', children: <_ScoringCategory>[
-      _ScoringCategory('Absprache'),
-      _ScoringCategory('Unteres Zuspiel'),
-      _ScoringCategory('Oberes Zuspiel'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Netz', children: <_ScoringCategory>[
-      _ScoringCategory('Berührung'),
-      _ScoringCategory('Übertritt'),
-      _ScoringCategory('Sonstiges', requiresText: true),
-    ]),
-    _ScoringCategory('Sonstiges', requiresText: true),
-  ];
+  static const List<_ScoringCategory> _pointCategories = _pointCategorySchema;
+  static const List<_ScoringCategory> _errorCategories = _errorCategorySchema;
 
   late final MatchStatsRepository _repository = MatchStatsRepository(
     widget.database,
@@ -3038,12 +3069,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     _scheduleScoringSelectionTimeout(match);
   }
 
-  List<String> _categoriesInMatch(MatchGame match, String kind) => match.events
-      .where((event) => event.kind == kind)
-      .map((event) => event.category)
-      .toSet()
-      .toList();
-
   List<DateTime> _timeoutMarkers(MatchGame match) {
     return match.events
         .where((event) => event.kind == _timeoutKind)
@@ -3056,30 +3081,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
   // scoreboard).
   List<_SetScore> _computeSets(MatchGame match) {
     return computeMatchSetResults(match);
-  }
-
-  Map<String, int> _playerSummary(
-    MatchGame match,
-    int playerId, {
-    required String kind,
-  }) {
-    final summary = <String, int>{};
-    final specialName = switch (playerId) {
-      _unknownScorerId => 'Unbekannt',
-      _teamScorerId => 'Mannschaft',
-      _ => null,
-    };
-    for (final event in match.events.where(
-      (entry) =>
-          entry.kind == kind &&
-          (entry.scorerIds.contains(playerId) ||
-              (specialName != null &&
-                  entry.playerId == null &&
-                  entry.playerName == specialName)),
-    )) {
-      summary[event.category] = (summary[event.category] ?? 0) + 1;
-    }
-    return summary;
   }
 
   @override
@@ -4538,8 +4539,6 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     List<MatchGame>? sourceMatches,
   }) {
     final statisticsMatch = _matchWithAggregateScorerRows(match);
-    final categoryTree =
-        categoryStatisticsTree(match.events, statisticsMatch.players);
     final sets = _computeSets(match);
     final comparisonMatches = List<MatchGame>.from(sourceMatches ?? [])
       ..sort((first, second) => compareMatchesByGameTime(second, first));
@@ -4593,8 +4592,25 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               const SizedBox(height: 12),
             ],
             _CategoryTreeStatsTable(
-              tree: categoryTree,
+              title: 'Punkte gesamt',
+              tree: categoryStatisticsTree(
+                match.events,
+                statisticsMatch.players,
+                kind: 'point',
+              ),
               players: statisticsMatch.players,
+              kind: 'point',
+            ),
+            const SizedBox(height: 12),
+            _CategoryTreeStatsTable(
+              title: 'Fehler gesamt',
+              tree: categoryStatisticsTree(
+                match.events,
+                statisticsMatch.players,
+                kind: 'error',
+              ),
+              players: statisticsMatch.players,
+              kind: 'error',
             ),
             const SizedBox(height: 12),
             _TrendChartCard(
@@ -4627,20 +4643,26 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              _PlayerStatsTable(
+              _CategoryTreeStatsTable(
                 title: 'Punkte pro Spieler',
-                categories: _categoriesInMatch(statisticsMatch, 'point'),
+                tree: categoryStatisticsTree(
+                  match.events,
+                  statisticsMatch.players,
+                  kind: 'point',
+                ),
                 players: statisticsMatch.players,
-                summaryFor: (player) =>
-                    _playerSummary(match, player.id, kind: 'point'),
+                kind: 'point',
               ),
               const SizedBox(height: 12),
-              _PlayerStatsTable(
+              _CategoryTreeStatsTable(
                 title: 'Fehler pro Spieler',
-                categories: _categoriesInMatch(statisticsMatch, 'error'),
+                tree: categoryStatisticsTree(
+                  match.events,
+                  statisticsMatch.players,
+                  kind: 'error',
+                ),
                 players: statisticsMatch.players,
-                summaryFor: (player) =>
-                    _playerSummary(match, player.id, kind: 'error'),
+                kind: 'error',
               ),
               const SizedBox(height: 12),
               const Text(
@@ -5275,99 +5297,6 @@ class _InfoRow extends StatelessWidget {
           Expanded(child: Text(value)),
         ],
       ),
-    );
-  }
-}
-
-class _PlayerStatsTable extends StatefulWidget {
-  const _PlayerStatsTable({
-    required this.title,
-    required this.categories,
-    required this.players,
-    required this.summaryFor,
-  });
-
-  final String title;
-  final List<String> categories;
-  final List<MatchPlayer> players;
-  final Map<String, int> Function(MatchPlayer player) summaryFor;
-
-  @override
-  State<_PlayerStatsTable> createState() => _PlayerStatsTableState();
-}
-
-class _PlayerStatsTableState extends State<_PlayerStatsTable> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.title,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Scrollbar(
-              controller: _scrollController,
-              thumbVisibility: true,
-              trackVisibility: true,
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DataTable(
-                  columnSpacing: 20,
-                  border: TableBorder.symmetric(
-                    inside: BorderSide(color: Theme.of(context).dividerColor),
-                  ),
-                  columns: [
-                    const DataColumn(label: Text('Spieler')),
-                    for (final category in widget.categories)
-                      DataColumn(label: Text(category), numeric: true),
-                    const DataColumn(
-                      label: Text(
-                        'Gesamt',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      numeric: true,
-                    ),
-                  ],
-                  rows: [
-                    for (final player in widget.players)
-                      _buildRow(player, widget.summaryFor(player)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  DataRow _buildRow(MatchPlayer player, Map<String, int> summary) {
-    final total = summary.values.fold(0, (total, value) => total + value);
-    return DataRow(
-      cells: [
-        DataCell(Text(player.name)),
-        for (final category in widget.categories)
-          DataCell(Text('${summary[category] ?? 0}')),
-        DataCell(
-          Text(
-            '$total',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -6868,16 +6797,24 @@ class _SetsOverview extends StatelessWidget {
 }
 
 class _CategoryTreeStatsTable extends StatelessWidget {
-  const _CategoryTreeStatsTable({required this.tree, required this.players});
+  const _CategoryTreeStatsTable({
+    required this.title,
+    required this.tree,
+    required this.players,
+    this.kind,
+  });
 
+  final String title;
   final List<CategoryStatisticNode> tree;
   final List<MatchPlayer> players;
+  final String? kind;
 
   List<CategoryStatisticNode> get _rows => [
-        for (final node in tree) ...[
-          node,
-          ..._descendants(node),
-        ],
+        for (final node in tree)
+          if (node.hasData) ...[
+            node,
+            ..._descendants(node),
+          ],
       ];
 
   Iterable<CategoryStatisticNode> _descendants(
@@ -6895,6 +6832,12 @@ class _CategoryTreeStatsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = [
+      if (kind == null || kind == 'point')
+        (label: 'Punkte', color: Colors.green),
+      if (kind == null || kind == 'error')
+        (label: 'Fehler', color: const Color(0xFFc62828)),
+    ];
     if (_rows.isEmpty) {
       return const Card(
         child: Padding(
@@ -6904,14 +6847,14 @@ class _CategoryTreeStatsTable extends StatelessWidget {
       );
     }
     return Card(
-      key: const ValueKey('category-tree-stats-table'),
+      key: ValueKey('category-tree-stats-${kind ?? 'all'}-$title'),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Punkte und Fehler nach Art',
+            Text(
+              title,
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -6933,18 +6876,7 @@ class _CategoryTreeStatsTable extends StatelessWidget {
                 ],
                 rows: [
                   for (final node in _rows)
-                    for (final metric in [
-                      (
-                        label: 'Punkte',
-                        color: Colors.green,
-                        values: node.pointsByPlayer,
-                      ),
-                      (
-                        label: 'Fehler',
-                        color: const Color(0xFFc62828),
-                        values: node.errorsByPlayer,
-                      ),
-                    ])
+                    for (final metric in metrics)
                       DataRow(
                         cells: [
                           DataCell(
@@ -6968,7 +6900,7 @@ class _CategoryTreeStatsTable extends StatelessWidget {
                           ),
                           for (final player in players)
                             DataCell(Text(
-                              '${metric.values[player.id] ?? 0}',
+                              '${(metric.label == 'Punkte' ? node.pointsByPlayer : node.errorsByPlayer)[player.id] ?? 0}',
                               style: TextStyle(
                                 fontWeight: node.children.isEmpty
                                     ? FontWeight.normal
@@ -6976,7 +6908,9 @@ class _CategoryTreeStatsTable extends StatelessWidget {
                               ),
                             )),
                           if (_hasUnassigned)
-                            DataCell(Text('${metric.values[null] ?? 0}')),
+                            DataCell(Text(
+                              '${(metric.label == 'Punkte' ? node.pointsByPlayer : node.errorsByPlayer)[null] ?? 0}',
+                            )),
                         ],
                       ),
                 ],

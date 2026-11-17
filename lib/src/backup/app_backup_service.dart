@@ -385,21 +385,34 @@ class AppBackupService {
           ),
           pw.SizedBox(height: 22),
           pw.Text(
-            'Punkte und Fehler nach Art',
+            'Punkte und Fehler gesamt',
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 8),
-          if (categories.isEmpty)
-            pw.Text('Noch keine Punkte oder Fehler erfasst.')
-          else
-            ..._categoryTreeChartWidgets(
-              sortedEvents,
-              match.players,
-              continuous: continuousContent,
-            ),
           if (categories.isNotEmpty) ...[
-            pw.SizedBox(height: 8),
-            _categorySummaryTable(categories, points, errors),
+            pw.Text('Punkte gesamt',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            _categoryTreeSummaryTable(
+              _categoryTreeRows(
+                sortedEvents,
+                match.players,
+                kind: 'point',
+              ),
+              includeErrors: false,
+            ),
+            pw.SizedBox(height: 10),
+            pw.Text('Fehler gesamt',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            _categoryTreeSummaryTable(
+              _categoryTreeRows(
+                sortedEvents,
+                match.players,
+                kind: 'error',
+              ),
+              includePoints: false,
+            ),
           ],
           pw.Text(
             'Zeitverlauf',
@@ -607,20 +620,6 @@ class AppBackupService {
       });
     final points = _eventSummary(events, 'point');
     final errors = _eventSummary(events, 'error');
-    Map<String, int> grouped(Map<String, int> values) {
-      final result = <String, int>{};
-      for (final entry in values.entries) {
-        final category = entry.key.split(' · ').first.split(':').first.trim();
-        result.update(category, (value) => value + entry.value,
-            ifAbsent: () => entry.value);
-      }
-      return result;
-    }
-
-    final groupedPoints = grouped(points);
-    final groupedErrors = grouped(errors);
-    final categories = {...groupedPoints.keys, ...groupedErrors.keys}.toList()
-      ..sort();
     final detailCategories = {...points.keys, ...errors.keys}.toList()..sort();
     final pageFormat = pdf.PdfPageFormat.a4;
     pw.Widget heading(String text) => pw.Text(text,
@@ -650,18 +649,41 @@ class AppBackupService {
       ));
     }
 
-    // Keep the overview readable even for imported games with extra categories.
-    final categoryTreeRows = _categoryTreeRows(events, match.players);
-    final categoryPages = math.max(
-      1,
-      math.max(
-          (categories.length / 8).ceil(), (categoryTreeRows.length / 8).ceil()),
-    );
-    for (var index = 0; index < categoryPages; index++) {
-      final visible = categories.skip(index * 8).take(8).toList();
-      final visibleTreeRows = categoryTreeRows.skip(index * 8).take(8).toList();
+    final categoryTablePages = <({
+      String title,
+      List<({String label, int points, int errors})> rows,
+      bool includePoints
+    })>[];
+    for (final table in [
+      (title: 'Punkte gesamt', kind: 'point', includePoints: true),
+      (title: 'Fehler gesamt', kind: 'error', includePoints: false),
+    ]) {
+      final rows = _categoryTreeRows(
+        events,
+        match.players,
+        kind: table.kind,
+      );
+      for (var start = 0; start < rows.length; start += 10) {
+        categoryTablePages.add((
+          title: table.title,
+          rows: rows.skip(start).take(10).toList(),
+          includePoints: table.includePoints,
+        ));
+      }
+    }
+
+    if (categoryTablePages.isEmpty) {
+      categoryTablePages.add((
+        title: 'Punkte und Fehler gesamt',
+        rows: const <({String label, int points, int errors})>[],
+        includePoints: true,
+      ));
+    }
+
+    for (var index = 0; index < categoryTablePages.length; index++) {
+      final page = categoryTablePages[index];
       addFixedPage([
-        pw.Text(index == 0 ? title : '$title · Kategorien ${index + 1}',
+        pw.Text(index == 0 ? title : '$title · ${page.title}',
             maxLines: 2,
             style: pw.TextStyle(fontSize: 19, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
@@ -705,31 +727,16 @@ class AppBackupService {
           ]),
           pw.SizedBox(height: 14),
         ],
-        heading('Punkte und Fehler nach Art · Baumstruktur'),
+        heading(page.title),
         pw.SizedBox(height: 8),
-        if (visibleTreeRows.isNotEmpty) ...[
-          pw.SizedBox(
-            height: visibleTreeRows.length > 6 ? 230 : 270,
-            child: _categoryChart(
-              visibleTreeRows.map((row) => row.label).toList(),
-              {for (final row in visibleTreeRows) row.label: row.points},
-              {for (final row in visibleTreeRows) row.label: row.errors},
-            ),
-          ),
-          if (visible.isNotEmpty) pw.SizedBox(height: 12),
-          if (visible.isNotEmpty)
-            _categorySummaryTable(
-                visible,
-                {
-                  for (final category in visible)
-                    category: groupedPoints[category] ?? 0
-                },
-                {
-                  for (final category in visible)
-                    category: groupedErrors[category] ?? 0
-                },
-                compact: true),
-        ] else
+        if (page.rows.isNotEmpty)
+          _categoryTreeSummaryTable(
+            page.rows,
+            includePoints: page.includePoints,
+            includeErrors: !page.includePoints,
+            compact: true,
+          )
+        else
           pw.Text('Noch keine Punkte oder Fehler erfasst.'),
       ]);
     }
@@ -871,7 +878,19 @@ class AppBackupService {
           if (hasDetails) ...[
             heading('Kategoriedetails · ${match.opponentTeam}'),
             pw.SizedBox(height: 10),
-            _categorySummaryTable(detailCategories, points, errors),
+            pw.Text('Punkte gesamt'),
+            pw.SizedBox(height: 4),
+            _categoryTreeSummaryTable(
+              _categoryTreeRows(events, match.players, kind: 'point'),
+              includeErrors: false,
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text('Fehler gesamt'),
+            pw.SizedBox(height: 4),
+            _categoryTreeSummaryTable(
+              _categoryTreeRows(events, match.players, kind: 'error'),
+              includePoints: false,
+            ),
           ],
           if (includeFullMatchDetails &&
               (sourceMatches == null || sourceMatches.length <= 1)) ...[
@@ -1162,21 +1181,26 @@ class AppBackupService {
       ),
       pw.SizedBox(height: 14),
       pw.Text(
-        'Punkte und Fehler nach Art',
+        'Punkte und Fehler gesamt',
         style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
       ),
       pw.SizedBox(height: 6),
-      if (categories.isEmpty)
-        pw.Text('Noch keine Punkte oder Fehler erfasst.')
-      else
-        ..._categoryTreeChartWidgets(
-          events,
-          statisticsMatch.players,
-          continuous: continuous,
-        ),
       if (categories.isNotEmpty) ...[
+        pw.Text('Punkte gesamt',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 6),
-        _categorySummaryTable(categories, points, errors),
+        _categoryTreeSummaryTable(
+          _categoryTreeRows(events, statisticsMatch.players, kind: 'point'),
+          includeErrors: false,
+        ),
+        pw.SizedBox(height: 10),
+        pw.Text('Fehler gesamt',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 6),
+        _categoryTreeSummaryTable(
+          _categoryTreeRows(events, statisticsMatch.players, kind: 'error'),
+          includePoints: false,
+        ),
       ],
       pw.SizedBox(height: 12),
       pw.Text(
@@ -1247,27 +1271,15 @@ class AppBackupService {
 
   static pw.Widget _playerErrorTable(
       MatchPlayer player, List<MatchEvent> events) {
-    final errors = _eventSummary(
-      events.where((event) => event.scorerIds.contains(player.id)).toList(),
-      'error',
+    final rows = _categoryTreeRows(
+      events,
+      [player],
+      kind: 'error',
+      playerId: player.id,
     );
-    final categories = errors.keys.toList()..sort();
-    return pw.Table(
-      border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
-      columnWidths: const {
-        0: pw.FlexColumnWidth(4),
-        1: pw.FlexColumnWidth(1),
-      },
-      children: [
-        _tableRow(['Fehlerart', 'Anzahl'], header: true),
-        if (categories.isEmpty) _tableRow(['Keine Fehler', '0']),
-        for (final category in categories)
-          _tableRow([category, '${errors[category]}']),
-        _tableRow([
-          'Gesamt',
-          '${errors.values.fold<int>(0, (total, count) => total + count)}',
-        ], header: true),
-      ],
+    return _categoryTreeSummaryTable(
+      rows,
+      includePoints: false,
     );
   }
 
@@ -1304,205 +1316,65 @@ class AppBackupService {
     );
   }
 
-  static pw.Widget _categorySummaryTable(
-    List<String> categories,
-    Map<String, int> points,
-    Map<String, int> errors, {
+  static pw.Widget _categoryTreeSummaryTable(
+    List<({String label, int points, int errors})> rows, {
     bool compact = false,
+    bool includePoints = true,
+    bool includeErrors = true,
   }) {
-    final totalPoints = points.values.fold<int>(0, (sum, value) => sum + value);
-    final totalErrors = errors.values.fold<int>(0, (sum, value) => sum + value);
+    final columns = <String>[
+      'Art / Wertung',
+      if (includePoints) 'Punkte',
+      if (includeErrors) 'Fehler',
+    ];
     return pw.Table(
       border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
-      columnWidths: const <int, pw.TableColumnWidth>{
-        0: pw.FlexColumnWidth(4),
-        1: pw.FlexColumnWidth(1),
-        2: pw.FlexColumnWidth(1),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(4),
+        for (var index = 1; index < columns.length; index++)
+          index: const pw.FlexColumnWidth(1),
       },
       children: [
-        _tableRow(['Art', 'Punkte', 'Fehler'],
-            header: true, padding: compact ? 3 : 6),
-        for (final category in categories)
+        _tableRow(columns, header: true, padding: compact ? 3 : 6),
+        for (final row in rows)
           _tableRow([
-            category,
-            '${points[category] ?? 0}',
-            '${errors[category] ?? 0}',
-          ], padding: compact ? 3 : 6),
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: pdf.PdfColors.grey100),
-          children: [
-            for (final value in ['Gesamt', '$totalPoints', '$totalErrors'])
-              pw.Padding(
-                padding: pw.EdgeInsets.all(compact ? 3 : 6),
-                child: pw.Text(
-                  value,
-                  textAlign: value == 'Gesamt'
-                      ? pw.TextAlign.left
-                      : pw.TextAlign.right,
-                  style: pw.TextStyle(
-                    fontSize: 9,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
+            row.label,
+            if (includePoints) '${row.points}',
+            if (includeErrors) '${row.errors}',
+          ], header: row.label.trim() == 'Gesamt', padding: compact ? 3 : 6),
       ],
     );
-  }
-
-  static pw.Widget _categoryChart(
-    List<String> categories,
-    Map<String, int> points,
-    Map<String, int> errors,
-  ) {
-    final labels = <String>['', ...categories];
-    final pointData = <pw.PointChartValue>[
-      for (var index = 0; index < labels.length; index++)
-        pw.PointChartValue(
-          index > 0 ? (points[categories[index - 1]] ?? 0).toDouble() : 0,
-          index.toDouble(),
-        ),
-    ];
-    final errorData = <pw.PointChartValue>[
-      for (var index = 0; index < labels.length; index++)
-        pw.PointChartValue(
-          index > 0 ? (errors[categories[index - 1]] ?? 0).toDouble() : 0,
-          index.toDouble(),
-        ),
-    ];
-    final maxValue = <int>[...points.values, ...errors.values]
-        .fold<int>(1, math.max)
-        .toDouble();
-    final evenBandData = <pw.PointChartValue>[
-      for (var index = 0; index < categories.length; index += 2)
-        pw.PointChartValue(maxValue, (index + 1).toDouble()),
-    ];
-    final oddBandData = <pw.PointChartValue>[
-      for (var index = 1; index < categories.length; index += 2)
-        pw.PointChartValue(maxValue, (index + 1).toDouble()),
-    ];
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        pw.Row(
-          children: [
-            _chartLegend(pdf.PdfColors.green, 'Punkte'),
-            pw.SizedBox(width: 16),
-            _chartLegend(pdf.PdfColors.red, 'Fehler'),
-          ],
-        ),
-        pw.SizedBox(height: 8),
-        pw.Expanded(
-          child: pw.Chart(
-            grid: pw.CartesianGrid(
-              xAxis: pw.FixedAxis<double>(
-                [0, maxValue],
-                format: (value) => value.toStringAsFixed(0),
-                divisions: false,
-                textStyle: const pw.TextStyle(fontSize: 8),
-              ),
-              yAxis: pw.FixedAxis.fromStrings(
-                labels,
-                textStyle: const pw.TextStyle(fontSize: 8),
-              ),
-            ),
-            datasets: [
-              pw.BarDataSet<pw.PointChartValue>(
-                data: evenBandData,
-                color: pdf.PdfColor(1, 0.93, 0.72),
-                axis: pw.Axis.vertical,
-                width: 19,
-              ),
-              pw.BarDataSet<pw.PointChartValue>(
-                data: oddBandData,
-                color: pdf.PdfColor(1, 0.98, 0.88),
-                axis: pw.Axis.vertical,
-                width: 19,
-              ),
-              pw.BarDataSet<pw.PointChartValue>(
-                data: pointData,
-                color: pdf.PdfColors.green,
-                axis: pw.Axis.vertical,
-                width: 10,
-                offset: -6,
-              ),
-              pw.BarDataSet<pw.PointChartValue>(
-                data: errorData,
-                color: pdf.PdfColors.red,
-                axis: pw.Axis.vertical,
-                width: 10,
-                offset: 6,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  static double _categoryChartHeight(int categoryCount) =>
-      math.max(230, (categoryCount + 1) * 25 + 40).toDouble();
-
-  static List<pw.Widget> _categoryChartWidgets(
-      List<String> categories, Map<String, int> points, Map<String, int> errors,
-      {required bool continuous}) {
-    final chunkSize = continuous ? categories.length : 14;
-    return [
-      for (var start = 0; start < categories.length; start += chunkSize) ...[
-        pw.SizedBox(
-          height: _categoryChartHeight(
-              math.min(chunkSize, categories.length - start)),
-          child: _categoryChart(
-            categories.sublist(
-                start, math.min(start + chunkSize, categories.length)),
-            points,
-            errors,
-          ),
-        ),
-        pw.SizedBox(height: 8),
-      ],
-    ];
   }
 
   static List<({String label, int points, int errors})> _categoryTreeRows(
-    List<MatchEvent> events,
-    List<MatchPlayer> players,
-  ) {
+      List<MatchEvent> events, List<MatchPlayer> players,
+      {String? kind, int? playerId}) {
     final rows = <({String label, int points, int errors})>[];
     void addNode(CategoryStatisticNode node, List<String> parentPath) {
       final path = [...parentPath, node.label];
       rows.add((
         label:
-            '${List.filled(node.depth * 2, ' ').join()}${path.length > 2 ? path.skip(1).join(' › ') : node.label}',
-        points: node.pointsCount,
-        errors: node.errorsCount,
+            '${List.filled(node.depth * 2, ' ').join()}${path.length > 2 ? path.skip(1).join(' / ') : node.label}',
+        points: playerId == null
+            ? node.pointsCount
+            : node.pointsByPlayer[playerId] ?? 0,
+        errors: playerId == null
+            ? node.errorsCount
+            : node.errorsByPlayer[playerId] ?? 0,
       ));
       for (final child in node.children) {
         addNode(child, path);
       }
     }
 
-    for (final node in categoryStatisticsTree(events, players)) {
-      addNode(node, const <String>[]);
+    for (final node in categoryStatisticsTree(
+      events,
+      players,
+      kind: kind,
+    )) {
+      if (node.hasData) addNode(node, const <String>[]);
     }
     return rows;
-  }
-
-  static List<pw.Widget> _categoryTreeChartWidgets(
-    List<MatchEvent> events,
-    List<MatchPlayer> players, {
-    required bool continuous,
-  }) {
-    final rows = _categoryTreeRows(events, players);
-    if (rows.isEmpty) return <pw.Widget>[];
-    return _categoryChartWidgets(
-      rows.map((row) => row.label).toList(),
-      {for (final row in rows) row.label: row.points},
-      {for (final row in rows) row.label: row.errors},
-      continuous: continuous,
-    );
   }
 
   static pw.Widget _timelineChart(

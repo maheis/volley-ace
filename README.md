@@ -292,8 +292,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
 - [x] punkte / fehler in der statistik als baum kaskadieren und nach oben summieren
   - [x] Spieler als Tabellenspalten, Punkte und Fehler als Zeilen je Baumknoten
   - [x] Summen von den Unterkategorien bis zu den Oberkategorien und Gesamt
-  - [x] Baumdiagramm im Statistik- und Gesamtexport
-- [ ] spieler / trainer sind die akchen noch seltsam designt
+  - [x] Getrennte Gesamtpunkttabelle und Gesamtfehlertabelle in Statistik und Export
+- [ ] spieler / trainer sind die kacheln noch seltsam designt
 
 ## Linux-Installation
 
@@ -324,7 +324,7 @@ bash test/linux_installation_test.sh
 
 ## PDF-Export und Dateinamen
 
-Statistik und Gesamtexport bieten beim PDF-Export Baumdiagramme zu Punkten und Fehlern. Unterkategorien werden eingerueckt dargestellt; Oberkategorien und Gesamt enthalten jeweils die aufsummierten Werte. Die Statistiktabelle fuehrt Spieler als Spalten und Punkte beziehungsweise Fehler als Zeilen.
+Die Statistikansicht zeigt getrennte Tabellen fuer Gesamtpunkte und Gesamtfehler sowie die jeweiligen Spielerbäume. Unterkategorien werden eingerueckt dargestellt; Oberkategorien und Gesamt enthalten jeweils die aufsummierten Werte. Spieler stehen als Tabellenspalten, Wertungen als Zeilen. Im PDF bleiben diese Tabellen erhalten; ein Gesamt-Kategoriediagramm wird nicht exportiert.
 
 Statistik, Gesamtexport und Spielverlauf bieten beim PDF-Export drei Layouts:
 
