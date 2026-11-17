@@ -4539,6 +4539,10 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
     List<MatchGame>? sourceMatches,
   }) {
     final statisticsMatch = _matchWithAggregateScorerRows(match);
+    final totalPoints =
+        match.events.where((event) => event.kind == 'point').length;
+    final totalErrors =
+        match.events.where((event) => event.kind == 'error').length;
     final sets = _computeSets(match);
     final comparisonMatches = List<MatchGame>.from(sourceMatches ?? [])
       ..sort((first, second) => compareMatchesByGameTime(second, first));
@@ -4591,26 +4595,70 @@ class _MatchStatsPageState extends State<MatchStatsPage> {
               _SetsOverview(sets: sets),
               const SizedBox(height: 12),
             ],
-            _CategoryTreeStatsTable(
-              title: 'Punkte gesamt',
-              tree: categoryStatisticsTree(
-                match.events,
-                statisticsMatch.players,
-                kind: 'point',
-              ),
-              players: statisticsMatch.players,
-              kind: 'point',
+            Row(
+              children: [
+                Expanded(
+                  child: _StatisticsTotalCard(
+                    key: const ValueKey('statistics-total-points'),
+                    title: 'Punkte gesamt',
+                    value: totalPoints,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StatisticsTotalCard(
+                    key: const ValueKey('statistics-total-errors'),
+                    title: 'Fehler gesamt',
+                    value: totalErrors,
+                    color: const Color(0xFFc62828),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            _CategoryTreeStatsTable(
-              title: 'Fehler gesamt',
-              tree: categoryStatisticsTree(
-                match.events,
-                statisticsMatch.players,
-                kind: 'error',
-              ),
-              players: statisticsMatch.players,
-              kind: 'error',
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final pointTable = _CategoryTreeStatsTable(
+                  title: 'Punkte gesamt',
+                  tree: categoryStatisticsTree(
+                    match.events,
+                    statisticsMatch.players,
+                    kind: 'point',
+                  ),
+                  players: statisticsMatch.players,
+                  kind: 'point',
+                  totalsOnly: true,
+                );
+                final errorTable = _CategoryTreeStatsTable(
+                  title: 'Fehler gesamt',
+                  tree: categoryStatisticsTree(
+                    match.events,
+                    statisticsMatch.players,
+                    kind: 'error',
+                  ),
+                  players: statisticsMatch.players,
+                  kind: 'error',
+                  totalsOnly: true,
+                );
+                if (constraints.maxWidth < 680) {
+                  return Column(
+                    children: [
+                      pointTable,
+                      const SizedBox(height: 8),
+                      errorTable
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: pointTable),
+                    const SizedBox(width: 12),
+                    Expanded(child: errorTable),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
             _TrendChartCard(
@@ -6802,12 +6850,14 @@ class _CategoryTreeStatsTable extends StatelessWidget {
     required this.tree,
     required this.players,
     this.kind,
+    this.totalsOnly = false,
   });
 
   final String title;
   final List<CategoryStatisticNode> tree;
   final List<MatchPlayer> players;
   final String? kind;
+  final bool totalsOnly;
 
   List<CategoryStatisticNode> get _rows => [
         for (final node in tree)
@@ -6863,16 +6913,20 @@ class _CategoryTreeStatsTable extends StatelessWidget {
               child: DataTable(
                 columns: [
                   const DataColumn(label: Text('Art / Wertung')),
-                  for (final player in players)
-                    DataColumn(
-                      label: Text(player.id == -1
-                          ? 'Unbekannt'
-                          : player.id == -2
-                              ? 'Mannschaft'
-                              : '${player.name} · ${player.number}'),
-                    ),
-                  if (_hasUnassigned)
-                    const DataColumn(label: Text('Nicht zugeordnet')),
+                  if (totalsOnly)
+                    const DataColumn(label: Text('Gesamt'), numeric: true)
+                  else ...[
+                    for (final player in players)
+                      DataColumn(
+                        label: Text(player.id == -1
+                            ? 'Unbekannt'
+                            : player.id == -2
+                                ? 'Mannschaft'
+                                : '${player.name} · ${player.number}'),
+                      ),
+                    if (_hasUnassigned)
+                      const DataColumn(label: Text('Nicht zugeordnet')),
+                  ],
                 ],
                 rows: [
                   for (final node in _rows)
@@ -6898,19 +6952,30 @@ class _CategoryTreeStatsTable extends StatelessWidget {
                               ),
                             ),
                           ),
-                          for (final player in players)
+                          if (totalsOnly)
                             DataCell(Text(
-                              '${(metric.label == 'Punkte' ? node.pointsByPlayer : node.errorsByPlayer)[player.id] ?? 0}',
+                              '${kind == 'point' ? node.pointsCount : node.errorsCount}',
                               style: TextStyle(
                                 fontWeight: node.children.isEmpty
                                     ? FontWeight.normal
                                     : FontWeight.bold,
                               ),
-                            )),
-                          if (_hasUnassigned)
-                            DataCell(Text(
-                              '${(metric.label == 'Punkte' ? node.pointsByPlayer : node.errorsByPlayer)[null] ?? 0}',
-                            )),
+                            ))
+                          else ...[
+                            for (final player in players)
+                              DataCell(Text(
+                                '${(metric.label == 'Punkte' ? node.pointsByPlayer : node.errorsByPlayer)[player.id] ?? 0}',
+                                style: TextStyle(
+                                  fontWeight: node.children.isEmpty
+                                      ? FontWeight.normal
+                                      : FontWeight.bold,
+                                ),
+                              )),
+                            if (_hasUnassigned)
+                              DataCell(Text(
+                                '${(metric.label == 'Punkte' ? node.pointsByPlayer : node.errorsByPlayer)[null] ?? 0}',
+                              )),
+                          ],
                         ],
                       ),
                 ],
@@ -6921,4 +6986,40 @@ class _CategoryTreeStatsTable extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StatisticsTotalCard extends StatelessWidget {
+  const _StatisticsTotalCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.color,
+  });
+
+  final String title;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 4),
+              Text(
+                '$value',
+                key: ValueKey('statistics-total-value-$title'),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }

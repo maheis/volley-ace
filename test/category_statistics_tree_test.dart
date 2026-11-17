@@ -173,20 +173,59 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    final pointsTotalCard =
+        find.byKey(const ValueKey('statistics-total-points'));
+    final errorsTotalCard =
+        find.byKey(const ValueKey('statistics-total-errors'));
     final totalPointsCard =
         find.byKey(const ValueKey('category-tree-stats-point-Punkte gesamt'));
     final totalErrorsCard =
         find.byKey(const ValueKey('category-tree-stats-error-Fehler gesamt'));
     expect(totalPointsCard, findsOneWidget);
     expect(totalErrorsCard, findsOneWidget);
-    expect(find.text('Punkte gesamt'), findsOneWidget);
-    expect(find.text('Fehler gesamt'), findsOneWidget);
+    expect(pointsTotalCard, findsOneWidget);
+    expect(errorsTotalCard, findsOneWidget);
+    expect(find.byKey(const ValueKey('statistics-total-value-Punkte gesamt')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('statistics-total-value-Fehler gesamt')),
+        findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(
+            const ValueKey('statistics-total-value-Punkte gesamt'),
+          ))
+          .data,
+      '3',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(
+            const ValueKey('statistics-total-value-Fehler gesamt'),
+          ))
+          .data,
+      '2',
+    );
+    expect(
+      tester.getTopLeft(totalPointsCard).dx,
+      lessThan(tester.getTopLeft(totalErrorsCard).dx),
+    );
+    expect(find.text('Punkte gesamt'), findsWidgets);
+    expect(find.text('Fehler gesamt'), findsWidgets);
     expect(find.text('Punkte und Fehler nach Art'), findsNothing);
 
     final totalPointsTable = tester.widget<DataTable>(find.descendant(
       of: totalPointsCard,
       matching: find.byType(DataTable),
     ));
+    expect(totalPointsTable.columns, hasLength(2));
+    expect(
+      (totalPointsTable.columns.last.label as Text).data,
+      'Gesamt',
+    );
+    expect(
+      (totalPointsTable.rows.first.cells.last.child as Text).data,
+      '3',
+    );
     final totalPointRows = totalPointsTable.rows
         .map((row) => (row.cells.first.child as SizedBox).child as Padding)
         .map((padding) => (padding.child as Text).data)
@@ -194,6 +233,13 @@ void main() {
     expect(totalPointRows, contains('Gesamt · Punkte'));
     expect(totalPointRows, contains('Aufschlag · Punkte'));
     expect(totalPointRows, isNot(contains('Fehler')));
+    final totalErrorsTable = tester.widget<DataTable>(find.descendant(
+      of: totalErrorsCard,
+      matching: find.byType(DataTable),
+    ));
+    expect(totalErrorsTable.columns, hasLength(2));
+    expect((totalErrorsTable.columns.last.label as Text).data, 'Gesamt');
+    expect((totalErrorsTable.rows.first.cells.last.child as Text).data, '2');
 
     final playerPointsCard = find.byKey(
       const ValueKey('category-tree-stats-point-Punkte pro Spieler'),

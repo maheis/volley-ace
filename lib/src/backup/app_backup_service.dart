@@ -1322,10 +1322,15 @@ class AppBackupService {
     bool includePoints = true,
     bool includeErrors = true,
   }) {
+    final totalOnly = includePoints != includeErrors;
     final columns = <String>[
       'Art / Wertung',
-      if (includePoints) 'Punkte',
-      if (includeErrors) 'Fehler',
+      if (totalOnly)
+        'Gesamt'
+      else ...[
+        if (includePoints) 'Punkte',
+        if (includeErrors) 'Fehler',
+      ],
     ];
     return pw.Table(
       border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
