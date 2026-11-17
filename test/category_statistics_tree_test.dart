@@ -146,6 +146,35 @@ void main() {
     );
   });
 
+  test('export location summary uses selected match locations', () {
+    final match = MatchGame(
+      id: 1,
+      createdAt: start,
+      location: 'Halle Nord',
+      opponentTeam: 'Team Blau',
+      matchDateTime: start,
+      matchTag: '',
+      matchType: 'Liga',
+      players: const [],
+      events: const [],
+    );
+    expect(
+      matchLocationSummary(match, sourceMatches: [
+        match,
+        match.copyWith(id: 2, location: 'Halle Süd'),
+        match.copyWith(id: 3, location: 'Halle Nord'),
+      ]),
+      'Halle Nord · Halle Süd',
+    );
+    expect(matchLocationSummary(match), 'Halle Nord');
+    expect(
+      matchLocationSummary(match.copyWith(location: ''), sourceMatches: [
+        match.copyWith(location: ''),
+      ]),
+      'Ort offen',
+    );
+  });
+
   testWidgets('statistics show separate overall and player category tables',
       (tester) async {
     final database =

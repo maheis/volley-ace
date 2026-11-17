@@ -16,6 +16,20 @@ import '../teams/teams_page.dart';
 
 enum _PdfExportLayout { continuous, a4, tiledA4 }
 
+String matchLocationSummary(
+  MatchGame match, {
+  List<MatchGame>? sourceMatches,
+}) {
+  final matches = sourceMatches == null || sourceMatches.isEmpty
+      ? <MatchGame>[match]
+      : sourceMatches;
+  final locations = <String>{
+    for (final source in matches)
+      if (source.location.trim().isNotEmpty) source.location.trim(),
+  };
+  return locations.isEmpty ? 'Ort offen' : locations.join(' · ');
+}
+
 class AppBackupService {
   AppBackupService._();
 
@@ -278,7 +292,7 @@ class AppBackupService {
     final lastEventTime = scoredEvents.lastOrNull?.occurredAt;
     final period = firstEventTime == null || lastEventTime == null
         ? _formatPdfDate(match.matchDateTime)
-        : '${_formatPdfDateTime(firstEventTime)} – ${_formatPdfDateTime(lastEventTime)}';
+        : '${_formatPdfDateTime(firstEventTime)} - ${_formatPdfDateTime(lastEventTime)}';
     final document = pw.Document();
     final pageFormat = tiled ? pdf.PdfPageFormat.a4 : _pageFormat(landscape);
     if (!continuous && !tiled) {
@@ -318,7 +332,7 @@ class AppBackupService {
             _selectedMatchesTable(orderedSourceMatches),
           ],
           pw.Text(
-            '$period · ${match.location.isEmpty ? 'Ort offen' : match.location}',
+            '$period · ${matchLocationSummary(match, sourceMatches: orderedSourceMatches)}',
             style: const pw.TextStyle(
               color: pdf.PdfColors.grey700,
               fontSize: 10,
@@ -691,8 +705,11 @@ class AppBackupService {
           pw.Text(
               '${_formatPdfDate(match.matchDateTime)} ${match.matchDateTime.hour.toString().padLeft(2, '0')}:${match.matchDateTime.minute.toString().padLeft(2, '0')} · ${match.matchType}',
               style: const pw.TextStyle(fontSize: 10)),
-          pw.Text(match.location.isEmpty ? 'Ort offen' : match.location,
-              maxLines: 2, style: const pw.TextStyle(fontSize: 10)),
+          pw.Text(
+            matchLocationSummary(match, sourceMatches: sourceMatches),
+            maxLines: 2,
+            style: const pw.TextStyle(fontSize: 10),
+          ),
           if (match.league.isNotEmpty || match.matchTag.isNotEmpty)
             pw.Text(
                 [match.league, match.matchTag]

@@ -294,6 +294,8 @@ Volleyball Assistenz-App für Trainer, Spieler und Schiedsrichter.
   - [x] Summen von den Unterkategorien bis zu den Oberkategorien und Gesamt
   - [x] Getrennte Gesamtpunkttabelle und Gesamtfehlertabelle in Statistik und Export
 - [ ] spieler / trainer sind die kacheln noch seltsam designt
+- [ ] aufklappbare inapp statistik
+- [ ] angleich export und inapp statistik
 
 ## Linux-Installation
 
