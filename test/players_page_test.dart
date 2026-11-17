@@ -176,6 +176,67 @@ void main() {
     expect(berta, findsOneWidget);
   });
 
+  testWidgets('people cards fit phone and desktop widths', (tester) async {
+    final database =
+        await databaseFactoryMemory.openDatabase('people-card-size');
+    addTearDown(database.close);
+    await tester.runAsync(() async {
+      await PeopleRepository(database).save(const [
+        LocalPerson(
+          id: 8,
+          memberNumber: 8,
+          name: 'Alexandria Spielername mit vielen Buchstaben',
+          isPlayer: true,
+        ),
+        LocalPerson(
+          id: 9,
+          memberNumber: 9,
+          name: 'Trainerin mit einem besonders langen Namen',
+          isCoach: true,
+        ),
+      ]);
+      await TeamsRepository(database).save([
+        Team(
+          id: 1,
+          name: 'Mannschaftsname der auf schmalen Geräten länger wird',
+          players: const [
+            TeamPlayer(
+              id: 1,
+              name: 'Alexandria Spielername mit vielen Buchstaben',
+              number: 8,
+              birthDate: null,
+              position: 'Außenangriff',
+              profile: '',
+              personId: 8,
+            ),
+          ],
+          coaches: const [
+            TeamCoach(
+              id: 1,
+              name: 'Trainerin mit einem besonders langen Namen',
+              profile: '',
+              birthDate: null,
+              position: '',
+              personId: 9,
+            ),
+          ],
+        ),
+      ]);
+    });
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final width in [320.0, 900.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 800));
+      await tester.pumpWidget(MaterialApp(
+        home: PlayersPage(database: database),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('player-row-8')), findsOneWidget);
+      expect(find.byKey(const ValueKey('player-row-9')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('standalone players can be created with general information',
       (tester) async {
     final database = await databaseFactoryMemory.openDatabase('player-create');

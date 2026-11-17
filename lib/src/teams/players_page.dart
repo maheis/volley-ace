@@ -216,10 +216,9 @@ class _PlayersPageState extends State<PlayersPage> {
                   child: Text(_people.isEmpty
                       ? 'Noch keine Spieler oder Trainer angelegt.'
                       : 'Keine Spieler oder Trainer gefunden.'))
-              : ListView.separated(
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: visible.length,
-                  separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final person = visible[index];
                     final teams = _linkedTeams(person);
@@ -232,13 +231,39 @@ class _PlayersPageState extends State<PlayersPage> {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: CircleAvatar(
-                          child: Icon(person.isCoach && !person.isPlayer
-                              ? Icons.co_present_outlined
-                              : Icons.person_outline),
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primaryContainer,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                          child: Icon(
+                            person.isCoach && !person.isPlayer
+                                ? Icons.co_present_outlined
+                                : Icons.person_outline,
+                          ),
                         ),
-                        title: Text(person.name),
-                        subtitle: Text(
-                            '$roles · ID ${person.id}${person.birthDate == null ? '' : ' · ${_date(person.birthDate!)}'}\n${teams.isEmpty ? 'Keine Mannschaft' : teams.map((team) => team.name).join(' · ')}'),
+                        title: Text(
+                          person.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$roles · ID ${person.id}${person.birthDate == null ? '' : ' · ${_date(person.birthDate!)}'}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              teams.isEmpty
+                                  ? 'Keine Mannschaft'
+                                  : teams.map((team) => team.name).join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                         isThreeLine: true,
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => _openPerson(person),
